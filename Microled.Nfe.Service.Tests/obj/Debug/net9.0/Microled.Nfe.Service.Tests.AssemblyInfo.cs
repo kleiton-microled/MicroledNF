@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Microled.Nfe.Service.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3efbc5cae59a400924d3c02671309173fdb3273f")]
 [assembly: System.Reflection.AssemblyProductAttribute("Microled.Nfe.Service.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Microled.Nfe.Service.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

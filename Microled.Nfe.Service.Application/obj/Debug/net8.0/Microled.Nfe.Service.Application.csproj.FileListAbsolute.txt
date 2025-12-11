@@ -15,3 +15,4 @@
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/refint/Microled.Nfe.Service.Application.dll
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.pdb
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/ref/Microled.Nfe.Service.Application.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.sourcelink.json

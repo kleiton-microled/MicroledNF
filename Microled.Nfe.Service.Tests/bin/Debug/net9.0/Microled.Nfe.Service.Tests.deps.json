@@ -27,7 +27,7 @@
       },
       "Castle.Core/5.1.1": {
         "dependencies": {
-          "System.Diagnostics.EventLog": "6.0.0"
+          "System.Diagnostics.EventLog": "10.0.1"
         },
         "runtime": {
           "lib/net6.0/Castle.Core.dll": {
@@ -404,6 +404,38 @@
           }
         }
       },
+      "System.Configuration.ConfigurationManager/10.0.1": {
+        "dependencies": {
+          "System.Diagnostics.EventLog": "10.0.1",
+          "System.Security.Cryptography.ProtectedData": "10.0.1"
+        },
+        "runtime": {
+          "lib/net9.0/System.Configuration.ConfigurationManager.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
+      "System.Data.OleDb/10.0.1": {
+        "dependencies": {
+          "System.Configuration.ConfigurationManager": "10.0.1",
+          "System.Diagnostics.PerformanceCounter": "10.0.1"
+        },
+        "runtime": {
+          "lib/net9.0/System.Data.OleDb.dll": {
+            "assemblyVersion": "10.0.0.1",
+            "fileVersion": "10.0.125.57005"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net9.0/System.Data.OleDb.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.1",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
       "System.Diagnostics.DiagnosticSource/10.0.1": {
         "runtime": {
           "lib/net9.0/System.Diagnostics.DiagnosticSource.dll": {
@@ -412,7 +444,48 @@
           }
         }
       },
-      "System.Diagnostics.EventLog/6.0.0": {},
+      "System.Diagnostics.EventLog/10.0.1": {
+        "runtime": {
+          "lib/net9.0/System.Diagnostics.EventLog.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net9.0/System.Diagnostics.EventLog.Messages.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          },
+          "runtimes/win/lib/net9.0/System.Diagnostics.EventLog.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
+      "System.Diagnostics.PerformanceCounter/10.0.1": {
+        "dependencies": {
+          "System.Configuration.ConfigurationManager": "10.0.1",
+          "System.Threading.AccessControl": "10.0.1"
+        },
+        "runtime": {
+          "lib/net9.0/System.Diagnostics.PerformanceCounter.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net9.0/System.Diagnostics.PerformanceCounter.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
       "System.Formats.Asn1/10.0.1": {
         "runtime": {
           "lib/net9.0/System.Formats.Asn1.dll": {
@@ -442,12 +515,36 @@
           }
         }
       },
+      "System.Security.Cryptography.ProtectedData/10.0.1": {
+        "runtime": {
+          "lib/net9.0/System.Security.Cryptography.ProtectedData.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
       "System.Security.Cryptography.Xml/10.0.1": {
         "dependencies": {
           "System.Security.Cryptography.Pkcs": "10.0.1"
         },
         "runtime": {
           "lib/net9.0/System.Security.Cryptography.Xml.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
+      "System.Threading.AccessControl/10.0.1": {
+        "runtime": {
+          "lib/net9.0/System.Threading.AccessControl.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.125.57005"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net9.0/System.Threading.AccessControl.dll": {
+            "rid": "win",
+            "assetType": "runtime",
             "assemblyVersion": "10.0.0.0",
             "fileVersion": "10.0.125.57005"
           }
@@ -544,6 +641,7 @@
           "Microled.Nfe.Service.Application": "1.0.0",
           "Microled.Nfe.Service.Business": "1.0.0",
           "Microled.Nfe.Service.Domain": "1.0.0",
+          "System.Data.OleDb": "10.0.1",
           "System.Security.Cryptography.Xml": "10.0.1"
         },
         "runtime": {
@@ -680,6 +778,20 @@
       "path": "newtonsoft.json/13.0.1",
       "hashPath": "newtonsoft.json.13.0.1.nupkg.sha512"
     },
+    "System.Configuration.ConfigurationManager/10.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HfOAIlSA8OuaxBZD6xjsUWhtB0KdKSWEfRId8gSGveLUjuP6G8IxfiFgJNxaiRIEC1kx4pSvz3Em5xW/J6LLxA==",
+      "path": "system.configuration.configurationmanager/10.0.1",
+      "hashPath": "system.configuration.configurationmanager.10.0.1.nupkg.sha512"
+    },
+    "System.Data.OleDb/10.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-/bjlZtqhuiVISOdm/6rTDDDgSkLxzNVgjay1QYxBqilKG9YQ7UCBwTmUoGErxAEUr6DYn3PBKqjiFwDbzu8lzg==",
+      "path": "system.data.oledb/10.0.1",
+      "hashPath": "system.data.oledb.10.0.1.nupkg.sha512"
+    },
     "System.Diagnostics.DiagnosticSource/10.0.1": {
       "type": "package",
       "serviceable": true,
@@ -687,12 +799,19 @@
       "path": "system.diagnostics.diagnosticsource/10.0.1",
       "hashPath": "system.diagnostics.diagnosticsource.10.0.1.nupkg.sha512"
     },
-    "System.Diagnostics.EventLog/6.0.0": {
+    "System.Diagnostics.EventLog/10.0.1": {
       "type": "package",
       "serviceable": true,
-      "sha512": "sha512-lcyUiXTsETK2ALsZrX+nWuHSIQeazhqPphLfaRxzdGaG93+0kELqpgEHtwWOlQe7+jSFnKwaCAgL4kjeZCQJnw==",
-      "path": "system.diagnostics.eventlog/6.0.0",
-      "hashPath": "system.diagnostics.eventlog.6.0.0.nupkg.sha512"
+      "sha512": "sha512-xfaHEHVDkMOOZR5S6ZGezD0+vekdH1Nx/9Ih8/rOqOGSOk1fxiN3u94bYkBW/wigj0Uw2Wt3vvRj9mtYdgwEjw==",
+      "path": "system.diagnostics.eventlog/10.0.1",
+      "hashPath": "system.diagnostics.eventlog.10.0.1.nupkg.sha512"
+    },
+    "System.Diagnostics.PerformanceCounter/10.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-5kYRbAdsUydb+FyNiQZu7PEgdyWSq+g3xdVzlV52k65jvRdkGQKzsxvmAetTzxiX3OigN7cpbu0ZZdpSNBw78Q==",
+      "path": "system.diagnostics.performancecounter/10.0.1",
+      "hashPath": "system.diagnostics.performancecounter.10.0.1.nupkg.sha512"
     },
     "System.Formats.Asn1/10.0.1": {
       "type": "package",
@@ -715,12 +834,26 @@
       "path": "system.security.cryptography.pkcs/10.0.1",
       "hashPath": "system.security.cryptography.pkcs.10.0.1.nupkg.sha512"
     },
+    "System.Security.Cryptography.ProtectedData/10.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-9SqHNq+lAjZeyPcm69FTQEjr+wsRYvkS3aW8yxoEndVYwDRkCrsP/44QPqpWHwzevoX26rkOoQ6kr7GZWngw2A==",
+      "path": "system.security.cryptography.protecteddata/10.0.1",
+      "hashPath": "system.security.cryptography.protecteddata.10.0.1.nupkg.sha512"
+    },
     "System.Security.Cryptography.Xml/10.0.1": {
       "type": "package",
       "serviceable": true,
       "sha512": "sha512-LjX7k+pJdnLkNS7/6bW6JlDpSJDP808QO43OXM6m59pnEg1+qPiYO1VmdykkSsHWeUEyVftrNBjoNI/3oAErCA==",
       "path": "system.security.cryptography.xml/10.0.1",
       "hashPath": "system.security.cryptography.xml.10.0.1.nupkg.sha512"
+    },
+    "System.Threading.AccessControl/10.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-m8Ww4HdmbDxvIdUerGD2qlfPRvcgBflI077Sb+sFj6w5ux36JBgFCNSZbR8ttEg0ZRdATgeDtL5I/HuFA0+oVQ==",
+      "path": "system.threading.accesscontrol/10.0.1",
+      "hashPath": "system.threading.accesscontrol.10.0.1.nupkg.sha512"
     },
     "xunit/2.9.2": {
       "type": "package",

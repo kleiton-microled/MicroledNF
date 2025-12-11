@@ -9,3 +9,4 @@
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/refint/Microled.Nfe.Service.Domain.dll
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.pdb
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/ref/Microled.Nfe.Service.Domain.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.sourcelink.json

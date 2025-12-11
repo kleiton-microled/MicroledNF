@@ -13,3 +13,4 @@
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/obj/Debug/net8.0/refint/Microled.Nfe.Service.Business.dll
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/obj/Debug/net8.0/Microled.Nfe.Service.Business.pdb
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/obj/Debug/net8.0/ref/Microled.Nfe.Service.Business.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/obj/Debug/net8.0/Microled.Nfe.Service.Business.sourcelink.json

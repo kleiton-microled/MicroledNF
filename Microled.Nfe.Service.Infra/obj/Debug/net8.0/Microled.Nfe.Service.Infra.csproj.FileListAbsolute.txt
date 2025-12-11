@@ -17,3 +17,4 @@
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/obj/Debug/net8.0/refint/Microled.Nfe.Service.Infra.dll
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/obj/Debug/net8.0/Microled.Nfe.Service.Infra.pdb
 /Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/obj/Debug/net8.0/ref/Microled.Nfe.Service.Infra.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/obj/Debug/net8.0/Microled.Nfe.Service.Infra.sourcelink.json
