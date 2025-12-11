@@ -912,38 +912,45 @@
     ]
   },
   "packageFolders": {
-    "/Users/macbook/.nuget/packages/": {}
+    "C:\\Users\\kleid\\.nuget\\packages\\": {},
+    "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/Microled.Nfe.Service.Infra.csproj",
+      "projectUniqueName": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Infra\\Microled.Nfe.Service.Infra.csproj",
       "projectName": "Microled.Nfe.Service.Infra",
-      "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/Microled.Nfe.Service.Infra.csproj",
-      "packagesPath": "/Users/macbook/.nuget/packages/",
-      "outputPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/obj/",
+      "projectPath": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Infra\\Microled.Nfe.Service.Infra.csproj",
+      "packagesPath": "C:\\Users\\kleid\\.nuget\\packages\\",
+      "outputPath": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Infra\\obj\\",
       "projectStyle": "PackageReference",
+      "fallbackFolders": [
+        "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
+      ],
       "configFilePaths": [
-        "/Users/macbook/.nuget/NuGet/NuGet.Config"
+        "C:\\Users\\kleid\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
+        "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
       "originalTargetFrameworks": [
         "net8.0"
       ],
       "sources": {
+        "C:\\Program Files (x86)\\Microsoft SDKs\\NuGetPackages\\": {},
         "https://api.nuget.org/v3/index.json": {}
       },
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
           "projectReferences": {
-            "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/Microled.Nfe.Service.Application.csproj": {
-              "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/Microled.Nfe.Service.Application.csproj"
+            "C:\\git\\MicroledNF\\Microled.Nfe.Service.Application\\Microled.Nfe.Service.Application.csproj": {
+              "projectPath": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Application\\Microled.Nfe.Service.Application.csproj"
             },
-            "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj": {
-              "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj"
+            "C:\\git\\MicroledNF\\Microled.Nfe.Service.Business\\Microled.Nfe.Service.Business.csproj": {
+              "projectPath": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Business\\Microled.Nfe.Service.Business.csproj"
             },
-            "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj": {
-              "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj"
+            "C:\\git\\MicroledNF\\Microled.Nfe.Service.Domain\\Microled.Nfe.Service.Domain.csproj": {
+              "projectPath": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Domain\\Microled.Nfe.Service.Domain.csproj"
             }
           }
         }
@@ -958,7 +965,7 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "9.0.300"
+      "SdkAnalysisLevel": "9.0.200"
     },
     "frameworks": {
       "net8.0": {
@@ -987,11 +994,15 @@
         "downloadDependencies": [
           {
             "name": "Microsoft.AspNetCore.App.Ref",
-            "version": "[8.0.21, 8.0.21]"
+            "version": "[8.0.13, 8.0.13]"
           },
           {
             "name": "Microsoft.NETCore.App.Ref",
-            "version": "[8.0.21, 8.0.21]"
+            "version": "[8.0.13, 8.0.13]"
+          },
+          {
+            "name": "Microsoft.WindowsDesktop.App.Ref",
+            "version": "[8.0.13, 8.0.13]"
           }
         ],
         "frameworkReferences": {
@@ -999,7 +1010,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.306/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\9.0.200/PortableRuntimeIdentifierGraph.json"
       }
     }
   }

@@ -15,13 +15,16 @@ namespace Microled.Nfe.Service.Infra.Repositories;
 public class AccessRpsRepository : IAccessRpsRepository
 {
     private readonly AccessDatabaseOptions _options;
+    private readonly NfeServiceOptions _nfeOptions;
     private readonly ILogger<AccessRpsRepository> _logger;
 
     public AccessRpsRepository(
         IOptions<AccessDatabaseOptions> options,
+        IOptions<NfeServiceOptions> nfeOptions,
         ILogger<AccessRpsRepository> logger)
     {
         _options = options.Value;
+        _nfeOptions = nfeOptions.Value;
         _logger = logger;
     }
 
@@ -48,33 +51,61 @@ public class AccessRpsRepository : IAccessRpsRepository
             await connection.OpenAsync(cancellationToken);
 
             // Query to get pending RPS
-            // TODO: Adjust column names based on actual Access database schema
+            // Using actual column names from Access database
             var query = $@"
                 SELECT TOP {batchSize} 
                     [{_options.PrimaryKeyColumn}],
-                    [NumeroRps],
-                    [Serie],
-                    [DataEmissao],
-                    [CnpjPrestador],
-                    [ImPrestador],
-                    [RazaoSocialPrestador],
-                    [CpfCnpjTomador],
-                    [NomeTomador],
-                    [ValorServico],
-                    [ValorDeducao],
-                    [CodigoServico],
+                    [Numero_RPS] AS NumeroRps,
+                    'A' AS Serie,
+                    [Dt_emissao] AS DataEmissao,
+                    [CNPJ] AS CnpjPrestador,
+                    0 AS ImPrestador,
+                    '' AS RazaoSocialPrestador,
+                    '' AS CpfCnpjTomador,
+                    '' AS NomeTomador,
+                    [Valor] AS ValorServico,
+                    0 AS ValorDeducao,
+                    [Codigo_ISS] AS CodigoServico,
                     [Discriminacao],
-                    [AliquotaISS],
-                    [ISSRetido],
-                    [TipoRPS],
-                    [StatusRPS],
-                    [TributacaoRPS]
+                    0 AS AliquotaISS,
+                    False AS ISSRetido,
+                    'RPS' AS TipoRPS,
+                    'N' AS StatusRPS,
+                    'T' AS TributacaoRPS
                 FROM [{_options.RpsTableName}]
                 WHERE [{_options.StatusColumn}] = ?
                 ORDER BY [{_options.PrimaryKeyColumn}]";
 
             using var command = new OleDbCommand(query, connection);
-            command.Parameters.AddWithValue("@Status", _options.PendingStatus);
+            // Try to convert PendingStatus to appropriate type
+            // Access boolean columns typically use True/False or 0/-1
+            object statusValue;
+            if (bool.TryParse(_options.PendingStatus, out var boolValue))
+            {
+                statusValue = boolValue;
+            }
+            else if (int.TryParse(_options.PendingStatus, out var intValue))
+            {
+                statusValue = intValue;
+            }
+            else
+            {
+                // Try common boolean string representations
+                var upperStatus = _options.PendingStatus.ToUpperInvariant();
+                if (upperStatus == "N" || upperStatus == "FALSE" || upperStatus == "0" || upperStatus == "NO")
+                {
+                    statusValue = false;
+                }
+                else if (upperStatus == "S" || upperStatus == "TRUE" || upperStatus == "1" || upperStatus == "YES")
+                {
+                    statusValue = true;
+                }
+                else
+                {
+                    statusValue = _options.PendingStatus;
+                }
+            }
+            command.Parameters.AddWithValue("@Status", statusValue);
 
             using var reader = await command.ExecuteReaderAsync(cancellationToken) as OleDbDataReader;
             if (reader == null)
@@ -101,6 +132,53 @@ public class AccessRpsRepository : IAccessRpsRepository
 
             _logger.LogInformation("Retrieved {Count} pending RPS from Access database", rpsRecords.Count);
             return rpsRecords;
+        }
+        catch (OleDbException oleEx) when (oleEx.ErrorCode == unchecked((int)0x80040E37))
+        {
+            // Table not found error
+            var availableTables = await GetAvailableTablesAsync(connectionString, cancellationToken);
+            
+            string errorMessage;
+            if (availableTables.Any())
+            {
+                var tablesList = string.Join(", ", availableTables);
+                errorMessage = $"Table '{_options.RpsTableName}' not found in Access database '{_options.DatabasePath}'. " +
+                             $"Available tables: {tablesList}. " +
+                             $"Please check the 'RpsTableName' configuration in appsettings.json.";
+            }
+            else
+            {
+                errorMessage = $"Table '{_options.RpsTableName}' not found in Access database '{_options.DatabasePath}'. " +
+                             $"Could not retrieve list of available tables. " +
+                             $"Please verify the database file and check the 'RpsTableName' configuration in appsettings.json.";
+            }
+            
+            _logger.LogError(oleEx, errorMessage);
+            throw new InvalidOperationException(errorMessage, oleEx);
+        }
+        catch (OleDbException oleEx) when (oleEx.ErrorCode == unchecked((int)0x80040E10))
+        {
+            // Parameter error - likely column name mismatch
+            var availableColumns = await GetAvailableColumnsAsync(connectionString, _options.RpsTableName, cancellationToken);
+            
+            string errorMessage;
+            if (availableColumns.Any())
+            {
+                var columnsList = string.Join(", ", availableColumns);
+                errorMessage = $"Column name mismatch in table '{_options.RpsTableName}'. " +
+                             $"The query references columns that don't exist or have different names. " +
+                             $"Available columns in '{_options.RpsTableName}': {columnsList}. " +
+                             $"Please check the column names in the query and configuration (StatusColumn: '{_options.StatusColumn}', PrimaryKeyColumn: '{_options.PrimaryKeyColumn}').";
+            }
+            else
+            {
+                errorMessage = $"Column name mismatch in table '{_options.RpsTableName}'. " +
+                             $"Could not retrieve list of available columns. " +
+                             $"Please verify the table structure and check column names in configuration.";
+            }
+            
+            _logger.LogError(oleEx, errorMessage);
+            throw new InvalidOperationException(errorMessage, oleEx);
         }
         catch (Exception ex)
         {
@@ -152,6 +230,68 @@ public class AccessRpsRepository : IAccessRpsRepository
         return $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={databasePath};Persist Security Info=False;";
     }
 
+    private async Task<List<string>> GetAvailableTablesAsync(string connectionString, CancellationToken cancellationToken)
+    {
+        var tables = new List<string>();
+        try
+        {
+            using var connection = new OleDbConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+            
+            // Get schema information for tables
+            // Note: GetSchema is synchronous, but we're already in an async context
+            var schema = connection.GetSchema("Tables");
+            
+            foreach (System.Data.DataRow row in schema.Rows)
+            {
+                var tableName = row["TABLE_NAME"]?.ToString();
+                var tableType = row["TABLE_TYPE"]?.ToString();
+                
+                // Only include user tables (exclude system tables and views)
+                if (!string.IsNullOrEmpty(tableName) && 
+                    (tableType == "TABLE" || tableType == "ACCESS TABLE"))
+                {
+                    tables.Add(tableName);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not retrieve table list from Access database");
+        }
+        
+        return tables;
+    }
+
+    private async Task<List<string>> GetAvailableColumnsAsync(string connectionString, string tableName, CancellationToken cancellationToken)
+    {
+        var columns = new List<string>();
+        try
+        {
+            using var connection = new OleDbConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+            
+            // Get schema information for columns
+            var restrictions = new string?[] { null, null, tableName, null };
+            var schema = connection.GetSchema("Columns", restrictions);
+            
+            foreach (System.Data.DataRow row in schema.Rows)
+            {
+                var columnName = row["COLUMN_NAME"]?.ToString();
+                if (!string.IsNullOrEmpty(columnName))
+                {
+                    columns.Add(columnName);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not retrieve column list from Access database for table {TableName}", tableName);
+        }
+        
+        return columns;
+    }
+
     private Rps MapToRps(OleDbDataReader reader)
     {
         // TODO: Adjust column names and data types based on actual Access database schema
@@ -159,7 +299,42 @@ public class AccessRpsRepository : IAccessRpsRepository
 
         var numeroRps = Convert.ToInt64(reader["NumeroRps"]);
         var serieRps = reader["Serie"]?.ToString() ?? "A";
-        var inscricaoPrestador = Convert.ToInt64(reader["ImPrestador"]);
+        
+        // Get InscricaoPrestador from database or configuration
+        var imPrestadorRaw = reader["ImPrestador"];
+        long inscricaoPrestador;
+
+        // Try to get from database first
+        if (imPrestadorRaw != null && imPrestadorRaw != DBNull.Value)
+        {
+            var imValue = Convert.ToInt64(imPrestadorRaw);
+            if (imValue > 0)
+            {
+                inscricaoPrestador = imValue;
+            }
+            else if (!string.IsNullOrEmpty(_nfeOptions.DefaultIssuerIm) && 
+                     long.TryParse(_nfeOptions.DefaultIssuerIm, out var configIm))
+            {
+                inscricaoPrestador = configIm;
+                _logger.LogWarning("Using DefaultIssuerIm from configuration ({Im}) because database value is 0", configIm);
+            }
+            else
+            {
+                throw new InvalidOperationException(
+                    "InscricaoPrestador is required. Please set DefaultIssuerIm in appsettings.json or ensure the database has a valid ImPrestador value.");
+            }
+        }
+        else if (!string.IsNullOrEmpty(_nfeOptions.DefaultIssuerIm) && 
+                 long.TryParse(_nfeOptions.DefaultIssuerIm, out var configIm))
+        {
+            inscricaoPrestador = configIm;
+            _logger.LogInformation("Using DefaultIssuerIm from configuration ({Im}) because database column is null or empty", configIm);
+        }
+        else
+        {
+            throw new InvalidOperationException(
+                "InscricaoPrestador is required. Please set DefaultIssuerIm in appsettings.json or ensure the database has a valid ImPrestador value.");
+        }
 
         var chaveRps = new RpsKey(inscricaoPrestador, numeroRps, serieRps);
 

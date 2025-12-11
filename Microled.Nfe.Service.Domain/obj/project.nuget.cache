@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "GHk37macaeI=",
+  "dgSpecHash": "Ltu7EsKL3h8=",
   "success": true,
-  "projectFilePath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj",
+  "projectFilePath": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Domain\\Microled.Nfe.Service.Domain.csproj",
   "expectedPackageFiles": [
-    "/Users/macbook/.nuget/packages/microsoft.netcore.app.ref/8.0.21/microsoft.netcore.app.ref.8.0.21.nupkg.sha512",
-    "/Users/macbook/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.21/microsoft.aspnetcore.app.ref.8.0.21.nupkg.sha512"
+    "C:\\Users\\kleid\\.nuget\\packages\\microsoft.netcore.app.ref\\8.0.13\\microsoft.netcore.app.ref.8.0.13.nupkg.sha512",
+    "C:\\Users\\kleid\\.nuget\\packages\\microsoft.windowsdesktop.app.ref\\8.0.13\\microsoft.windowsdesktop.app.ref.8.0.13.nupkg.sha512",
+    "C:\\Users\\kleid\\.nuget\\packages\\microsoft.aspnetcore.app.ref\\8.0.13\\microsoft.aspnetcore.app.ref.8.0.13.nupkg.sha512"
   ],
   "logs": []
 }

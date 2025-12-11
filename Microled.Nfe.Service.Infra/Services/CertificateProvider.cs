@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -37,10 +38,14 @@ public class CertificateProvider : ICertificateProvider
         {
             return LoadCertificateFromStore(certOptions);
         }
+        else if (string.Equals(mode, "Fake", StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateFakeCertificate();
+        }
         else
         {
             throw new InvalidOperationException(
-                $"Invalid certificate mode '{mode}'. Must be either 'File' or 'Store'. " +
+                $"Invalid certificate mode '{mode}'. Must be either 'File', 'Store', or 'Fake'. " +
                 "Please configure Certificate:Mode in appsettings.json");
         }
     }
@@ -164,6 +169,31 @@ public class CertificateProvider : ICertificateProvider
                 $"Error loading certificate from store: {ex.Message}. " +
                 "Please verify the certificate configuration in appsettings.json", ex);
         }
+    }
+
+    private X509Certificate2 CreateFakeCertificate()
+    {
+        _logger.LogWarning("Using FAKE certificate for development/testing. DO NOT USE IN PRODUCTION!");
+        
+        using var rsa = RSA.Create(2048);
+        var request = new CertificateRequest("CN=Fake Test Certificate", rsa, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        
+        request.CertificateExtensions.Add(
+            new X509KeyUsageExtension(
+                X509KeyUsageFlags.DigitalSignature | X509KeyUsageFlags.KeyEncipherment,
+                false));
+
+        var certificate = request.CreateSelfSigned(DateTimeOffset.UtcNow.AddDays(-1), DateTimeOffset.UtcNow.AddDays(365));
+        
+        // Export and re-import to ensure we have the private key
+        var pfxBytes = certificate.Export(X509ContentType.Pfx, "fake");
+        var fakeCert = new X509Certificate2(pfxBytes, "fake", X509KeyStorageFlags.Exportable);
+        
+        _certificate = fakeCert;
+        _logger.LogInformation("Fake certificate created (Subject: {Subject}, Thumbprint: {Thumbprint})",
+            fakeCert.Subject, fakeCert.Thumbprint);
+        
+        return fakeCert;
     }
 }
 
