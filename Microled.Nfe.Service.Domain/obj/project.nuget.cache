@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "GHk37macaeI=",
+  "success": true,
+  "projectFilePath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj",
+  "expectedPackageFiles": [
+    "/Users/macbook/.nuget/packages/microsoft.netcore.app.ref/8.0.21/microsoft.netcore.app.ref.8.0.21.nupkg.sha512",
+    "/Users/macbook/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.21/microsoft.aspnetcore.app.ref.8.0.21.nupkg.sha512"
+  ],
+  "logs": []
+}

@@ -1,0 +1,11 @@
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/bin/Debug/net8.0/Microled.Nfe.Service.Domain.deps.json
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/bin/Debug/net8.0/Microled.Nfe.Service.Domain.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/bin/Debug/net8.0/Microled.Nfe.Service.Domain.pdb
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.GeneratedMSBuildEditorConfig.editorconfig
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.AssemblyInfoInputs.cache
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.AssemblyInfo.cs
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.csproj.CoreCompileInputs.cache
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/refint/Microled.Nfe.Service.Domain.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/Microled.Nfe.Service.Domain.pdb
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/Debug/net8.0/ref/Microled.Nfe.Service.Domain.dll

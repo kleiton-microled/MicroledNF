@@ -1,0 +1,23 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v8.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v8.0": {
+      "Microled.Nfe.Service.Domain/1.0.0": {
+        "runtime": {
+          "Microled.Nfe.Service.Domain.dll": {}
+        }
+      }
+    }
+  },
+  "libraries": {
+    "Microled.Nfe.Service.Domain/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

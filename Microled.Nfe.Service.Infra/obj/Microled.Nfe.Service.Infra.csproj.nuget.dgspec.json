@@ -1,0 +1,323 @@
+{
+  "format": 1,
+  "restore": {
+    "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/Microled.Nfe.Service.Infra.csproj": {}
+  },
+  "projects": {
+    "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/Microled.Nfe.Service.Application.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/Microled.Nfe.Service.Application.csproj",
+        "projectName": "Microled.Nfe.Service.Application",
+        "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/Microled.Nfe.Service.Application.csproj",
+        "packagesPath": "/Users/macbook/.nuget/packages/",
+        "outputPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/macbook/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj": {
+                "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj"
+              },
+              "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj": {
+                "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "FluentValidation.AspNetCore": {
+              "target": "Package",
+              "version": "[11.3.1, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.306/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj",
+        "projectName": "Microled.Nfe.Service.Business",
+        "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj",
+        "packagesPath": "/Users/macbook/.nuget/packages/",
+        "outputPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/macbook/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj": {
+                "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "Microsoft.Extensions.Logging.Abstractions": {
+              "target": "Package",
+              "version": "[10.0.1, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.306/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj",
+        "projectName": "Microled.Nfe.Service.Domain",
+        "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj",
+        "packagesPath": "/Users/macbook/.nuget/packages/",
+        "outputPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/macbook/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {}
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.306/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    },
+    "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/Microled.Nfe.Service.Infra.csproj": {
+      "version": "1.0.0",
+      "restore": {
+        "projectUniqueName": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/Microled.Nfe.Service.Infra.csproj",
+        "projectName": "Microled.Nfe.Service.Infra",
+        "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/Microled.Nfe.Service.Infra.csproj",
+        "packagesPath": "/Users/macbook/.nuget/packages/",
+        "outputPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Infra/obj/",
+        "projectStyle": "PackageReference",
+        "configFilePaths": [
+          "/Users/macbook/.nuget/NuGet/NuGet.Config"
+        ],
+        "originalTargetFrameworks": [
+          "net8.0"
+        ],
+        "sources": {
+          "https://api.nuget.org/v3/index.json": {}
+        },
+        "frameworks": {
+          "net8.0": {
+            "targetAlias": "net8.0",
+            "projectReferences": {
+              "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/Microled.Nfe.Service.Application.csproj": {
+                "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/Microled.Nfe.Service.Application.csproj"
+              },
+              "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj": {
+                "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj"
+              },
+              "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj": {
+                "projectPath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Domain/Microled.Nfe.Service.Domain.csproj"
+              }
+            }
+          }
+        },
+        "warningProperties": {
+          "warnAsError": [
+            "NU1605"
+          ]
+        },
+        "restoreAuditProperties": {
+          "enableAudit": "true",
+          "auditLevel": "low",
+          "auditMode": "direct"
+        },
+        "SdkAnalysisLevel": "9.0.300"
+      },
+      "frameworks": {
+        "net8.0": {
+          "targetAlias": "net8.0",
+          "dependencies": {
+            "System.Security.Cryptography.Xml": {
+              "target": "Package",
+              "version": "[10.0.1, )"
+            }
+          },
+          "imports": [
+            "net461",
+            "net462",
+            "net47",
+            "net471",
+            "net472",
+            "net48",
+            "net481"
+          ],
+          "assetTargetFallback": true,
+          "warn": true,
+          "downloadDependencies": [
+            {
+              "name": "Microsoft.AspNetCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            },
+            {
+              "name": "Microsoft.NETCore.App.Ref",
+              "version": "[8.0.21, 8.0.21]"
+            }
+          ],
+          "frameworkReferences": {
+            "Microsoft.NETCore.App": {
+              "privateAssets": "all"
+            }
+          },
+          "runtimeIdentifierGraphPath": "/usr/local/share/dotnet/sdk/9.0.306/PortableRuntimeIdentifierGraph.json"
+        }
+      }
+    }
+  }
+}

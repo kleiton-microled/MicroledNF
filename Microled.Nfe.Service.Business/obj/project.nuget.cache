@@ -1,0 +1,14 @@
+{
+  "version": 2,
+  "dgSpecHash": "ubTx7Ytmui8=",
+  "success": true,
+  "projectFilePath": "/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Business/Microled.Nfe.Service.Business.csproj",
+  "expectedPackageFiles": [
+    "/Users/macbook/.nuget/packages/microsoft.extensions.dependencyinjection.abstractions/10.0.1/microsoft.extensions.dependencyinjection.abstractions.10.0.1.nupkg.sha512",
+    "/Users/macbook/.nuget/packages/microsoft.extensions.logging.abstractions/10.0.1/microsoft.extensions.logging.abstractions.10.0.1.nupkg.sha512",
+    "/Users/macbook/.nuget/packages/system.diagnostics.diagnosticsource/10.0.1/system.diagnostics.diagnosticsource.10.0.1.nupkg.sha512",
+    "/Users/macbook/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.21/microsoft.aspnetcore.app.ref.8.0.21.nupkg.sha512",
+    "/Users/macbook/.nuget/packages/microsoft.netcore.app.ref/8.0.21/microsoft.netcore.app.ref.8.0.21.nupkg.sha512"
+  ],
+  "logs": []
+}

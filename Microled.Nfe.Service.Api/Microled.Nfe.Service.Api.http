@@ -1,0 +1,6 @@
+@Microled.Nfe.Service.Api_HostAddress = http://localhost:5249
+
+GET {{Microled.Nfe.Service.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

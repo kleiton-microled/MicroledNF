@@ -1,0 +1,17 @@
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.csproj.AssemblyReference.cache
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.GeneratedMSBuildEditorConfig.editorconfig
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.AssemblyInfoInputs.cache
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.AssemblyInfo.cs
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.csproj.CoreCompileInputs.cache
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/bin/Debug/net8.0/Microled.Nfe.Service.Application.deps.json
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/bin/Debug/net8.0/Microled.Nfe.Service.Application.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/bin/Debug/net8.0/Microled.Nfe.Service.Application.pdb
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/bin/Debug/net8.0/Microled.Nfe.Service.Business.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/bin/Debug/net8.0/Microled.Nfe.Service.Domain.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/bin/Debug/net8.0/Microled.Nfe.Service.Domain.pdb
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/bin/Debug/net8.0/Microled.Nfe.Service.Business.pdb
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.7435AC51.Up2Date
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/refint/Microled.Nfe.Service.Application.dll
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/Microled.Nfe.Service.Application.pdb
+/Users/macbook/Documents/MICROLED/MicroledNF/Microled.Nfe.Service.Application/obj/Debug/net8.0/ref/Microled.Nfe.Service.Application.dll
