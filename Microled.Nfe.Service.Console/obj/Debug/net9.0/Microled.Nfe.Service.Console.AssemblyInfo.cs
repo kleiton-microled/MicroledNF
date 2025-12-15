@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("Microled.Nfe.Service.Console")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+79288e6ae7036a3af233c965cdd00854f838a715")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+3ec6d995697833fee3c7604e5cf4067f0fee81b5")]
 [assembly: System.Reflection.AssemblyProductAttribute("Microled.Nfe.Service.Console")]
 [assembly: System.Reflection.AssemblyTitleAttribute("Microled.Nfe.Service.Console")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

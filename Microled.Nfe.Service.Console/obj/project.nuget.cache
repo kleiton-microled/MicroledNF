@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "dgSpecHash": "McbFXZuhixI=",
+  "dgSpecHash": "GvvKTl2/EcA=",
   "success": true,
   "projectFilePath": "C:\\git\\MicroledNF\\Microled.Nfe.Service.Console\\Microled.Nfe.Service.Console.csproj",
   "expectedPackageFiles": [
@@ -47,7 +47,8 @@
     "C:\\Users\\kleid\\.nuget\\packages\\system.security.cryptography.xml\\10.0.1\\system.security.cryptography.xml.10.0.1.nupkg.sha512",
     "C:\\Users\\kleid\\.nuget\\packages\\system.text.encodings.web\\10.0.1\\system.text.encodings.web.10.0.1.nupkg.sha512",
     "C:\\Users\\kleid\\.nuget\\packages\\system.text.json\\10.0.1\\system.text.json.10.0.1.nupkg.sha512",
-    "C:\\Users\\kleid\\.nuget\\packages\\system.threading.accesscontrol\\10.0.1\\system.threading.accesscontrol.10.0.1.nupkg.sha512"
+    "C:\\Users\\kleid\\.nuget\\packages\\system.threading.accesscontrol\\10.0.1\\system.threading.accesscontrol.10.0.1.nupkg.sha512",
+    "C:\\Users\\kleid\\.nuget\\packages\\microsoft.net.sdk.compilers.toolset\\9.0.200\\microsoft.net.sdk.compilers.toolset.9.0.200.nupkg.sha512"
   ],
   "logs": []
 }
