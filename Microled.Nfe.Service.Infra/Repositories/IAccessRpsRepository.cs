@@ -21,6 +21,13 @@ public interface IAccessRpsRepository
     /// <param name="rpsRecords">RPS records to mark as sent</param>
     /// <param name="cancellationToken">Cancellation token</param>
     Task MarkAsSentAsync(IEnumerable<RpsRecord> rpsRecords, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Marks RPS records as generated (files created but not sent to WebService) in the Access database
+    /// </summary>
+    /// <param name="rpsRecords">RPS records to mark as generated</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    Task MarkAsGeneratedAsync(IEnumerable<RpsRecord> rpsRecords, CancellationToken cancellationToken);
 }
 
 /// <summary>

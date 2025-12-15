@@ -71,8 +71,14 @@ public class WebServiceProbeService : IWebServiceProbeService
         _logger.LogInformation("");
 
         // Analyze results and suggest functional endpoints
+        // SOAP Fault = endpoint válido! (mesmo com HTTP error)
         var functionalUrls = results
             .Where(r => r.Status == ProbeStatus.SoapOk || r.Status == ProbeStatus.SoapFault)
+            .ToList();
+        
+        // Also check 403 responses that might be SOAP (some servers return SOAP with 403)
+        var potentialSoapUrls = results
+            .Where(r => r.HttpStatusCode == 403 && !string.IsNullOrEmpty(r.ResponseContent) && IsSoapEnvelope(r.ResponseContent))
             .ToList();
 
         if (functionalUrls.Any())
@@ -89,12 +95,25 @@ public class WebServiceProbeService : IWebServiceProbeService
                 }
             }
         }
+        else if (potentialSoapUrls.Any())
+        {
+            _logger.LogInformation("ATENÇÃO:");
+            _logger.LogInformation("Endpoint(s) que retornaram 403 mas podem ser SOAP válidos:");
+            foreach (var result in potentialSoapUrls)
+            {
+                _logger.LogInformation("⚠️ {Url}", result.Url);
+                _logger.LogInformation("   (403 Forbidden mas resposta parece SOAP - pode precisar de certificado/autenticação)");
+            }
+            _logger.LogInformation("");
+            _logger.LogInformation("Recomendação: Teste essas URLs com certificado real.");
+        }
         else
         {
             _logger.LogWarning("Nenhum endpoint funcional encontrado. Verifique:");
             _logger.LogWarning("  - Conectividade de rede");
             _logger.LogWarning("  - URLs configuradas corretamente");
             _logger.LogWarning("  - Firewall/proxy");
+            _logger.LogWarning("  - Alguns endpoints podem exigir certificado para responder SOAP");
         }
 
         _logger.LogInformation("");
@@ -141,32 +160,50 @@ public class WebServiceProbeService : IWebServiceProbeService
 
                 var responseContent = await response.Content.ReadAsStringAsync(cts.Token);
                 result.ResponseLength = responseContent.Length;
+                result.ResponseContent = responseContent; // Store for analysis
 
-                // Analyze response
-                if (response.IsSuccessStatusCode)
+                // Analyze response - check for SOAP even on non-200 status codes
+                // Some servers return SOAP Faults with 200, others with 400/403/500
+                if (IsSoapEnvelope(responseContent))
                 {
-                    if (IsSoapEnvelope(responseContent))
+                    if (HasSoapFault(responseContent))
                     {
-                        if (HasSoapFault(responseContent))
+                        result.Status = ProbeStatus.SoapFault;
+                        result.ErrorMessage = ExtractSoapFaultMessage(responseContent);
+                        // SOAP Fault = endpoint válido! (mesmo com HTTP error)
+                        if (!response.IsSuccessStatusCode)
                         {
-                            result.Status = ProbeStatus.SoapFault;
-                            result.ErrorMessage = ExtractSoapFaultMessage(responseContent);
-                        }
-                        else
-                        {
-                            result.Status = ProbeStatus.SoapOk;
+                            result.ErrorMessage += $" (HTTP {response.StatusCode})";
                         }
                     }
                     else
                     {
-                        result.Status = ProbeStatus.HttpOkButNotSoap;
-                        result.ErrorMessage = "Response is not a valid SOAP envelope";
+                        result.Status = ProbeStatus.SoapOk;
+                        if (!response.IsSuccessStatusCode)
+                        {
+                            result.ErrorMessage = $"HTTP {response.StatusCode} but valid SOAP response";
+                        }
                     }
+                }
+                else if (response.IsSuccessStatusCode)
+                {
+                    result.Status = ProbeStatus.HttpOkButNotSoap;
+                    result.ErrorMessage = "Response is not a valid SOAP envelope";
                 }
                 else
                 {
+                    // HTTP error and not SOAP
                     result.Status = ProbeStatus.HttpError;
                     result.ErrorMessage = $"HTTP {response.StatusCode}";
+                    
+                    // Try to extract useful info from response body
+                    if (!string.IsNullOrWhiteSpace(responseContent))
+                    {
+                        var preview = responseContent.Length > 200 
+                            ? responseContent.Substring(0, 200) + "..." 
+                            : responseContent;
+                        result.ErrorMessage += $": {preview.Replace("\n", " ").Replace("\r", "")}";
+                    }
                 }
             }
             catch (TaskCanceledException) when (cts.Token.IsCancellationRequested)
@@ -322,6 +359,7 @@ public class WebServiceProbeService : IWebServiceProbeService
         public TimeSpan Duration { get; set; }
         public string? ErrorMessage { get; set; }
         public int ResponseLength { get; set; }
+        public string? ResponseContent { get; set; }
         public DateTime StartTime { get; set; }
     }
 

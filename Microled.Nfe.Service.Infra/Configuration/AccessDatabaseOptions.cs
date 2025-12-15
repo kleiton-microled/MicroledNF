@@ -33,6 +33,11 @@ public class AccessDatabaseOptions
     public string SentStatus { get; set; } = "E";
 
     /// <summary>
+    /// Status value for generated RPS (files created but not sent to WebService)
+    /// </summary>
+    public string GeneratedStatus { get; set; } = "G";
+
+    /// <summary>
     /// Name of the primary key column (usually "Id")
     /// </summary>
     public string PrimaryKeyColumn { get; set; } = "Id";

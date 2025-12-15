@@ -31,17 +31,20 @@ public class NfeSoapClient : INfeGateway
     private readonly ILogger<NfeSoapClient> _logger;
     private readonly NfeServiceOptions _options;
     private readonly IXmlSerializerService _xmlSerializer;
+    private readonly ISoapEnvelopeBuilder _soapEnvelopeBuilder;
 
     public NfeSoapClient(
         HttpClient httpClient,
         ILogger<NfeSoapClient> logger,
         IOptions<NfeServiceOptions> options,
-        IXmlSerializerService xmlSerializer)
+        IXmlSerializerService xmlSerializer,
+        ISoapEnvelopeBuilder soapEnvelopeBuilder)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options.Value;
         _xmlSerializer = xmlSerializer ?? throw new ArgumentNullException(nameof(xmlSerializer));
+        _soapEnvelopeBuilder = soapEnvelopeBuilder ?? throw new ArgumentNullException(nameof(soapEnvelopeBuilder));
 
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
@@ -61,7 +64,7 @@ public class NfeSoapClient : INfeGateway
             _logger.LogDebug("Serialized PedidoEnvioLoteRPS XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope
-            var soapEnvelope = BuildSoapEnvelope("EnvioLoteRPS", xmlContent);
+            var soapEnvelope = _soapEnvelopeBuilder.Build("EnvioLoteRPS", xmlContent);
 
             // 4. Send HTTP request
             var endpoint = GetEndpoint();
@@ -128,7 +131,7 @@ public class NfeSoapClient : INfeGateway
             _logger.LogDebug("Serialized PedidoConsultaNFe XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope
-            var soapEnvelope = BuildSoapEnvelope("ConsultaNFe", xmlContent);
+            var soapEnvelope = _soapEnvelopeBuilder.Build("ConsultaNFe", xmlContent);
 
             // 4. Send HTTP request
             var endpoint = GetEndpoint();
@@ -194,7 +197,7 @@ public class NfeSoapClient : INfeGateway
             _logger.LogDebug("Serialized PedidoCancelamentoNFe XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope
-            var soapEnvelope = BuildSoapEnvelope("CancelamentoNFe", xmlContent);
+            var soapEnvelope = _soapEnvelopeBuilder.Build("CancelamentoNFe", xmlContent);
 
             // 4. Send HTTP request
             var endpoint = GetEndpoint();
@@ -246,26 +249,6 @@ public class NfeSoapClient : INfeGateway
     }
 
     #region SOAP Envelope Methods
-
-    /// <summary>
-    /// Builds SOAP envelope for the request
-    /// </summary>
-    private string BuildSoapEnvelope(string operationName, string xmlContent)
-    {
-        // Escape XML content for CDATA if needed, or use proper XML encoding
-        var escapedXml = EscapeXmlForCdata(xmlContent);
-
-        var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
-<soap:Envelope xmlns:soap=""{SoapNamespace}"">
-    <soap:Body>
-        <{operationName} xmlns=""{NfeNamespace}"">
-            <MensagemXML><![CDATA[{escapedXml}]]></MensagemXML>
-        </{operationName}>
-    </soap:Body>
-</soap:Envelope>";
-
-        return soapEnvelope;
-    }
 
     /// <summary>
     /// Extracts XML content from SOAP response
@@ -338,15 +321,6 @@ public class NfeSoapClient : INfeGateway
             _logger.LogError(ex, "Error extracting XML from SOAP response");
             throw new NfeSoapException("Error parsing SOAP response", ex);
         }
-    }
-
-    /// <summary>
-    /// Escapes XML content for CDATA section
-    /// </summary>
-    private string EscapeXmlForCdata(string xml)
-    {
-        // CDATA sections cannot contain "]]>", so we need to escape it
-        return xml.Replace("]]>", "]]]]><![CDATA[>");
     }
 
     /// <summary>

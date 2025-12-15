@@ -52,6 +52,7 @@ builder.Services.AddScoped<INfeCancellationSignatureService, NfeCancellationSign
 // Register Infrastructure services
 builder.Services.AddScoped<ICertificateProvider, CertificateProvider>();
 builder.Services.AddScoped<IXmlSerializerService, XmlSerializerService>();
+builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
 
 // Register Health Checks
 builder.Services.AddHealthChecks()

@@ -223,6 +223,42 @@ public class AccessRpsRepository : IAccessRpsRepository
         }
     }
 
+    public async Task MarkAsGeneratedAsync(IEnumerable<RpsRecord> rpsRecords, CancellationToken cancellationToken)
+    {
+        var records = rpsRecords.ToList();
+        if (!records.Any())
+            return;
+
+        var connectionString = BuildConnectionString(_options.DatabasePath);
+
+        try
+        {
+            using var connection = new OleDbConnection(connectionString);
+            await connection.OpenAsync(cancellationToken);
+
+            foreach (var record in records)
+            {
+                var updateQuery = $@"
+                    UPDATE [{_options.RpsTableName}]
+                    SET [{_options.StatusColumn}] = ?
+                    WHERE [{_options.PrimaryKeyColumn}] = ?";
+
+                using var command = new OleDbCommand(updateQuery, connection);
+                command.Parameters.AddWithValue("@Status", _options.GeneratedStatus);
+                command.Parameters.AddWithValue("@Id", record.Id);
+
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            _logger.LogInformation("Marked {Count} RPS records as generated in Access database", records.Count);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error updating RPS status to generated in Access database");
+            throw;
+        }
+    }
+
     private string BuildConnectionString(string databasePath)
     {
         // Use ACE.OLEDB.12.0 for .MDB files (Access 2007+)

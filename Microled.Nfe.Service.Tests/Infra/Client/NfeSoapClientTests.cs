@@ -21,18 +21,24 @@ public class NfeSoapClientTests
 {
     private readonly Mock<ILogger<NfeSoapClient>> _loggerMock;
     private readonly Mock<IXmlSerializerService> _xmlSerializerMock;
+    private readonly Mock<ISoapEnvelopeBuilder> _soapEnvelopeBuilderMock;
     private readonly NfeServiceOptions _options;
 
     public NfeSoapClientTests()
     {
         _loggerMock = new Mock<ILogger<NfeSoapClient>>();
         _xmlSerializerMock = new Mock<IXmlSerializerService>();
+        _soapEnvelopeBuilderMock = new Mock<ISoapEnvelopeBuilder>();
         _options = new NfeServiceOptions
         {
             TestEndpoint = "https://test.example.com",
             Versao = "2",
             DefaultCnpjRemetente = "12345678000190"
         };
+
+        // Setup default SOAP envelope builder behavior
+        _soapEnvelopeBuilderMock.Setup(x => x.Build(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((op, xml) => $"<soap:Envelope><soap:Body><{op}><MensagemXML><![CDATA[{xml}]]></MensagemXML></{op}></soap:Body></soap:Envelope>");
     }
 
     [Fact]
@@ -52,7 +58,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object);
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         var batch = CreateTestRpsBatch();
 
         // Act
@@ -73,7 +79,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapFault, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object);
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         var batch = CreateTestRpsBatch();
 
         _xmlSerializerMock.Setup(x => x.Serialize(It.IsAny<PedidoEnvioLoteRPS>()))
@@ -93,7 +99,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler("Error", HttpStatusCode.InternalServerError);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object);
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         var batch = CreateTestRpsBatch();
 
         _xmlSerializerMock.Setup(x => x.Serialize(It.IsAny<PedidoEnvioLoteRPS>()))
@@ -121,7 +127,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object);
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         var criteria = new ConsultNfeCriteria
         {
             ChaveNFe = new NfeKey(12345678, 12345, "CODIGO123", "CHAVE123")
@@ -152,7 +158,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object);
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         // Use a valid Base64 string for testing
         var fakeSignatureBytes = new byte[32];
         Array.Fill(fakeSignatureBytes, (byte)65); // Fill with 'A'

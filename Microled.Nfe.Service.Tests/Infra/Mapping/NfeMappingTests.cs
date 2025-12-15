@@ -19,11 +19,13 @@ public class NfeMappingTests
     private readonly NfeSoapClient _client;
     private readonly Mock<ILogger<NfeSoapClient>> _loggerMock;
     private readonly Mock<IXmlSerializerService> _xmlSerializerMock;
+    private readonly Mock<ISoapEnvelopeBuilder> _soapEnvelopeBuilderMock;
 
     public NfeMappingTests()
     {
         _loggerMock = new Mock<ILogger<NfeSoapClient>>();
         _xmlSerializerMock = new Mock<IXmlSerializerService>();
+        _soapEnvelopeBuilderMock = new Mock<ISoapEnvelopeBuilder>();
         
         var options = Options.Create(new NfeServiceOptions
         {
@@ -32,8 +34,12 @@ public class NfeMappingTests
             DefaultCnpjRemetente = "12345678000190"
         });
 
+        // Setup default SOAP envelope builder behavior
+        _soapEnvelopeBuilderMock.Setup(x => x.Build(It.IsAny<string>(), It.IsAny<string>()))
+            .Returns<string, string>((op, xml) => $"<soap:Envelope><soap:Body><{op}><MensagemXML><![CDATA[{xml}]]></MensagemXML></{op}></soap:Body></soap:Envelope>");
+
         var httpClient = new HttpClient();
-        _client = new NfeSoapClient(httpClient, _loggerMock.Object, options, _xmlSerializerMock.Object);
+        _client = new NfeSoapClient(httpClient, _loggerMock.Object, options, _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
     }
 
     [Fact]

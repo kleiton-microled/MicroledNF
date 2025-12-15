@@ -7,6 +7,7 @@ using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
+using Microled.Nfe.Service.Infra.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -36,6 +37,8 @@ public class Program
                     context.Configuration.GetSection(AccessDatabaseOptions.SectionName));
                 services.Configure<WebServiceProbeOptions>(
                     context.Configuration.GetSection(WebServiceProbeOptions.SectionName));
+                services.Configure<NfeValidationOptions>(
+                    context.Configuration.GetSection(NfeValidationOptions.SectionName));
 
                 // Register Domain services
                 services.AddScoped<IRpsSignatureService, RpsSignatureService>();
@@ -44,7 +47,9 @@ public class Program
 
                 // Register Infrastructure services
                 services.AddScoped<IXmlSerializerService, XmlSerializerService>();
+                services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
                 services.AddScoped<IAccessRpsRepository, AccessRpsRepository>();
+                services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
 
                 // Register INfeGateway (real SOAP client, not fake for console)
                 services.AddHttpClient<INfeGateway, NfeSoapClient>((serviceProvider, client) =>

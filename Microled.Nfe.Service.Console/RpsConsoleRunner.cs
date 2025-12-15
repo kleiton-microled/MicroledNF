@@ -1,8 +1,11 @@
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Domain.Entities;
+using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Infra.Configuration;
+using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.Repositories;
+using Microled.Nfe.Service.Infra.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -23,22 +26,34 @@ public class RpsConsoleRunner : IRpsConsoleRunner
 {
     private readonly IAccessRpsRepository _accessRpsRepository;
     private readonly ISendRpsUseCase _sendRpsUseCase;
+    private readonly IRpsXmlValidationExportService _validationExportService;
+    private readonly IRpsSignatureService _signatureService;
+    private readonly ICertificateProvider _certificateProvider;
     private readonly ILogger<RpsConsoleRunner> _logger;
     private readonly AccessDatabaseOptions _accessOptions;
     private readonly NfeServiceOptions _nfeOptions;
+    private readonly NfeValidationOptions _validationOptions;
 
     public RpsConsoleRunner(
         IAccessRpsRepository accessRpsRepository,
         ISendRpsUseCase sendRpsUseCase,
+        IRpsXmlValidationExportService validationExportService,
+        IRpsSignatureService signatureService,
+        ICertificateProvider certificateProvider,
         ILogger<RpsConsoleRunner> logger,
         IOptions<AccessDatabaseOptions> accessOptions,
-        IOptions<NfeServiceOptions> nfeOptions)
+        IOptions<NfeServiceOptions> nfeOptions,
+        IOptions<NfeValidationOptions> validationOptions)
     {
         _accessRpsRepository = accessRpsRepository ?? throw new ArgumentNullException(nameof(accessRpsRepository));
         _sendRpsUseCase = sendRpsUseCase ?? throw new ArgumentNullException(nameof(sendRpsUseCase));
+        _validationExportService = validationExportService ?? throw new ArgumentNullException(nameof(validationExportService));
+        _signatureService = signatureService ?? throw new ArgumentNullException(nameof(signatureService));
+        _certificateProvider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _accessOptions = accessOptions.Value;
         _nfeOptions = nfeOptions.Value;
+        _validationOptions = validationOptions.Value;
     }
 
     public async Task RunAsync(CancellationToken cancellationToken)
@@ -62,6 +77,13 @@ public class RpsConsoleRunner : IRpsConsoleRunner
             }
 
             _logger.LogInformation("Encontrados {Count} RPS pendentes para processamento", pendingRps.Count);
+
+            // Check if validation/export mode is enabled
+            if (_validationOptions.ValidateXmlAndRps)
+            {
+                await ProcessValidationModeAsync(pendingRps, cancellationToken);
+                return;
+            }
 
             // 2. Converter RPS do domínio para SendRpsRequestDto
             var request = MapToSendRpsRequest(pendingRps);
@@ -200,6 +222,63 @@ public class RpsConsoleRunner : IRpsConsoleRunner
             UF = address.UF,
             CEP = address.CEP
         };
+    }
+
+    private async Task ProcessValidationModeAsync(IReadOnlyList<RpsRecord> rpsRecords, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("================================================");
+        _logger.LogInformation("Modo validação ativado (ValidateXmlAndRps=true)");
+        _logger.LogInformation("Gerando arquivos XML sem integração com WebService");
+        _logger.LogInformation("================================================");
+
+        try
+        {
+            // 1. Get certificate for signing
+            var certificate = _certificateProvider.GetCertificate();
+
+            // 2. Map RPS records to domain entities and sign each RPS
+            var rpsList = rpsRecords.Select(record =>
+            {
+                var rps = record.Rps;
+                
+                // Generate signature for RPS using SHA1 + RSA
+                var assinatura = _signatureService.SignRps(rps, certificate);
+                rps.SetAssinatura(assinatura);
+                
+                return rps;
+            }).ToList();
+
+            // 3. Determine date range from RPS
+            var dates = rpsList.Select(r => r.DataEmissao).ToList();
+            var dataInicio = dates.Min();
+            var dataFim = dates.Max();
+
+            // 4. Create RpsBatch
+            var batch = new RpsBatch(rpsList, dataInicio, dataFim, transacao: true);
+
+            // 5. Export to XML files
+            _logger.LogInformation("Gerando arquivos XML para {Count} RPS...", rpsList.Count);
+            var exportResult = await _validationExportService.ExportAsync(batch, cancellationToken);
+
+            // 6. Log results
+            _logger.LogInformation("================================================");
+            _logger.LogInformation("Lote com {Count} RPS processado.", rpsList.Count);
+            _logger.LogInformation("Arquivo RPS: {RpsFilePath}", exportResult.RpsFilePath);
+            _logger.LogInformation("Arquivo SOAP: {SoapFilePath}", exportResult.SoapFilePath);
+            _logger.LogInformation("Pasta de saída: {OutputDirectory}", _validationOptions.OutputDirectory);
+            _logger.LogInformation("================================================");
+            _logger.LogInformation("Fluxo encerrado (sem integração com WebService).");
+
+            // 7. Mark RPS as generated (optional)
+            _logger.LogInformation("Atualizando status dos RPS no Access database como 'Gerado'...");
+            await _accessRpsRepository.MarkAsGeneratedAsync(rpsRecords, cancellationToken);
+            _logger.LogInformation("RPS atualizados como gerados no MDB.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro durante o processamento em modo validação");
+            throw;
+        }
     }
 }
 
