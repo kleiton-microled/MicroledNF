@@ -93,6 +93,20 @@ else
         
         client.BaseAddress = new Uri(endpoint);
         client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+    })
+    .ConfigurePrimaryHttpMessageHandler(serviceProvider =>
+    {
+        var certificateProvider = serviceProvider.GetRequiredService<ICertificateProvider>();
+        var certificate = certificateProvider.GetCertificate();
+
+        var handler = new HttpClientHandler
+        {
+            ClientCertificateOptions = ClientCertificateOption.Manual,
+            SslProtocols = System.Security.Authentication.SslProtocols.Tls12 | System.Security.Authentication.SslProtocols.Tls13
+        };
+        handler.ClientCertificates.Add(certificate);
+
+        return handler;
     });
 }
 
