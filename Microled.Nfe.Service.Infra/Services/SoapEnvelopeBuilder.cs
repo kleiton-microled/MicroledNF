@@ -37,6 +37,30 @@ public class SoapEnvelopeBuilder : ISoapEnvelopeBuilder
     }
 
     /// <summary>
+    /// Builds a SOAP envelope for EnvioLoteRPS with VersaoSchema field
+    /// </summary>
+    public string BuildEnvioLoteRPS(string xmlPayload, int versaoSchema)
+    {
+        if (string.IsNullOrWhiteSpace(xmlPayload))
+            throw new ArgumentException("XML payload cannot be null or empty", nameof(xmlPayload));
+
+        // Escape XML content for CDATA section
+        var escapedXml = EscapeXmlForCdata(xmlPayload);
+
+        var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<soap:Envelope xmlns:soap=""{SoapNamespace}"">
+    <soap:Body>
+        <EnvioLoteRPSRequest xmlns=""{NfeNamespace}"">
+            <VersaoSchema>{versaoSchema}</VersaoSchema>
+            <MensagemXML><![CDATA[{escapedXml}]]></MensagemXML>
+        </EnvioLoteRPSRequest>
+    </soap:Body>
+</soap:Envelope>";
+
+        return soapEnvelope;
+    }
+
+    /// <summary>
     /// Escapes XML content for CDATA section
     /// CDATA sections cannot contain "]]>", so we need to escape it
     /// </summary>

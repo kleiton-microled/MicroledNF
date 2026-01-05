@@ -11,6 +11,11 @@ public interface IXmlSerializerService
     string Serialize<T>(T obj) where T : class;
 
     /// <summary>
+    /// Serializes PedidoEnvioLoteRPS with special namespace handling (empty namespace for child elements)
+    /// </summary>
+    string SerializePedidoEnvioLoteRPS(XmlSchemas.PedidoEnvioLoteRPS pedido);
+
+    /// <summary>
     /// Deserializes XML string to an object
     /// </summary>
     T Deserialize<T>(string xml) where T : class;

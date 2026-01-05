@@ -58,20 +58,21 @@ public class NfeSoapClient : INfeGateway
             // 1. Map domain entities to XSD-generated classes
             var pedido = MapRpsBatchToPedidoEnvioLoteRPS(batch);
 
-            // 2. Serialize to XML
-            var xmlContent = _xmlSerializer.Serialize(pedido);
+            // 2. Serialize to XML (using specialized method for PedidoEnvioLoteRPS)
+            var xmlContent = _xmlSerializer.SerializePedidoEnvioLoteRPS(pedido);
             LogXmlIfEnabled("Request XML (PedidoEnvioLoteRPS)", xmlContent);
             _logger.LogDebug("Serialized PedidoEnvioLoteRPS XML (length: {Length})", xmlContent.Length);
 
-            // 3. Build SOAP envelope
-            var soapEnvelope = _soapEnvelopeBuilder.Build("EnvioLoteRPS", xmlContent);
+            // 3. Build SOAP envelope (using specialized method for EnvioLoteRPS)
+            var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+            var soapEnvelope = _soapEnvelopeBuilder.BuildEnvioLoteRPS(xmlContent, versaoSchema);
 
             // 4. Send HTTP request
             var endpoint = GetEndpoint();
             _logger.LogInformation("Sending SOAP request to {Endpoint}", endpoint);
 
             var requestContent = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
-            requestContent.Headers.Add("SOAPAction", $"{NfeNamespace}/EnvioLoteRPS");
+            requestContent.Headers.Add("SOAPAction", $"{NfeNamespace}/ws/envioLoteRPS");
 
             var response = await _httpClient.PostAsync(endpoint, requestContent, cancellationToken);
 

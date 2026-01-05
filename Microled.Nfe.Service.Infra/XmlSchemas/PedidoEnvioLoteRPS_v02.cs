@@ -11,10 +11,10 @@ namespace Microled.Nfe.Service.Infra.XmlSchemas;
 [XmlRoot("PedidoEnvioLoteRPS", Namespace = "http://www.prefeitura.sp.gov.br/nfe", IsNullable = false)]
 public class PedidoEnvioLoteRPS
 {
-    [XmlElement(Order = 0)]
+    [XmlElement(Order = 0, Namespace = "")]
     public PedidoEnvioLoteRPSCabecalho Cabecalho { get; set; } = null!;
 
-    [XmlElement("RPS", Order = 1)]
+    [XmlElement("RPS", Order = 1, Namespace = "")]
     public List<tpRPS> RPS { get; set; } = new();
 
     // TODO: Signature element from xmldsig namespace
@@ -25,13 +25,13 @@ public class PedidoEnvioLoteRPS
 /// <summary>
 /// Cabeçalho do pedido de envio de lote de RPS.
 /// </summary>
-[XmlType(Namespace = "http://www.prefeitura.sp.gov.br/nfe")]
+[XmlType(Namespace = "")]
 public class PedidoEnvioLoteRPSCabecalho
 {
     [XmlAttribute("Versao")]
     public long Versao { get; set; }
 
-    [XmlElement(Order = 0)]
+    [XmlElement(Order = 0, Namespace = "")]
     public tpCPFCNPJ CPFCNPJRemetente { get; set; } = null!;
 
     [XmlElement(Order = 1, IsNullable = true)]
