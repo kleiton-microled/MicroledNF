@@ -443,16 +443,29 @@ public class NfeSoapClient : INfeGateway
         // CPFCNPJRemetente deve ser o CNPJ do certificado digital usado na autenticação
         // Se não houver certificado, usar o CNPJ do prestador como fallback
         tpCPFCNPJ cpfCnpjRemetente;
+        string? cnpjFromCertificate = null;
+        
         if (_certificateProvider != null)
         {
             try
             {
                 var certificate = _certificateProvider.GetCertificate();
-                var cnpjFromCertificate = ExtractCnpjFromCertificate(certificate);
+                cnpjFromCertificate = ExtractCnpjFromCertificate(certificate);
                 if (!string.IsNullOrEmpty(cnpjFromCertificate))
                 {
                     cpfCnpjRemetente = new tpCPFCNPJ { CNPJ = cnpjFromCertificate };
                     _logger.LogInformation("Using CNPJ from certificate for CPFCNPJRemetente: {CNPJ}", cnpjFromCertificate);
+                    
+                    // Validação: alertar se o CNPJ do certificado difere do CNPJ do prestador
+                    var prestadorCnpj = prestador.CpfCnpj.GetValue();
+                    if (!string.Equals(cnpjFromCertificate, prestadorCnpj, StringComparison.OrdinalIgnoreCase))
+                    {
+                        _logger.LogWarning(
+                            "CNPJ mismatch detected: Certificate CNPJ ({CertificateCNPJ}) differs from Prestador CNPJ ({PrestadorCNPJ}). " +
+                            "The InscricaoMunicipal ({IM}) must correspond to the Certificate CNPJ. " +
+                            "If you get error 1202 (Prestador não encontrado), verify that the IM is registered for the Certificate CNPJ.",
+                            cnpjFromCertificate, prestadorCnpj, primeiroRps.ChaveRPS.InscricaoPrestador);
+                    }
                 }
                 else
                 {
