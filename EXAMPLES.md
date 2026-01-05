@@ -9,6 +9,10 @@ Este documento contém exemplos práticos de uso da API Microled.Nfe.Service par
 3. [Cancelamento de NF-e](#cancelamento-de-nf-e)
 4. [Caso de Uso Completo: ERP Integrado](#caso-de-uso-completo-erp-integrado)
 5. [Tratamento de Erros](#tratamento-de-erros)
+6. [Exemplos com cURL](#exemplos-com-curl)
+7. [Dicas e Boas Práticas](#dicas-e-boas-práticas)
+8. [Certificado A3 com Pendrive (Token USB)](#certificado-a3-com-pendrive-token-usb)
+9. [Referências](#referências)
 
 ---
 
@@ -815,9 +819,230 @@ curl http://localhost:5000/health/nfe
 
 ---
 
-## 8. Referências
+## 8. Certificado A3 com Pendrive (Token USB)
+
+### Visão Geral
+
+Certificados A3 são certificados digitais armazenados em dispositivos físicos como pendrives ou tokens USB. Diferente dos certificados A1 (arquivos .pfx), os certificados A3 requerem que o dispositivo esteja conectado ao computador durante o uso.
+
+### Pré-requisitos
+
+1. **Certificado A3 instalado no pendrive/token**
+2. **Drivers do dispositivo instalados** (geralmente instalados automaticamente ao conectar o pendrive)
+3. **Windows Certificate Store** acessível
+4. **Pendrive/token conectado** durante a execução da aplicação
+
+### Passo a Passo
+
+#### 1. Conectar o Pendrive/Token
+
+- Conecte o pendrive USB ou token ao computador
+- Aguarde o Windows reconhecer o dispositivo
+- Se necessário, instale os drivers fornecidos pelo fabricante do certificado
+
+#### 2. Importar o Certificado para o Windows Certificate Store
+
+##### Opção A: Usando o Internet Explorer (método tradicional)
+
+1. Abra o **Internet Explorer** (ou Edge no modo IE)
+2. Vá em **Ferramentas > Opções da Internet > Conteúdo > Certificados**
+3. Clique em **Importar...**
+4. Conecte o pendrive se ainda não estiver conectado
+5. Selecione o arquivo do certificado no pendrive ou use o assistente de importação
+6. Escolha o repositório: **Repositório de Certificados Atuais do Usuário > Pessoal**
+7. Complete o assistente de importação
+
+##### Opção B: Usando o Certificado via Software do Fabricante
+
+Muitos fabricantes (SafeNet, Gemalto, etc.) fornecem software específico que importa automaticamente o certificado para o Windows Certificate Store quando o dispositivo é conectado.
+
+##### Opção C: Usando PowerShell (avançado)
+
+```powershell
+# Conecte o pendrive primeiro
+# O certificado geralmente é importado automaticamente pelo Windows quando o dispositivo é reconhecido
+```
+
+#### 3. Obter o Thumbprint do Certificado
+
+O thumbprint é uma identificação única do certificado. Existem várias formas de obtê-lo:
+
+##### Método 1: Usando o Windows Certificate Manager (certmgr.msc)
+
+1. Pressione `Win + R` e digite `certmgr.msc`, depois Enter
+2. Navegue até **Pessoal > Certificados**
+3. Localize seu certificado digital
+4. Clique duas vezes no certificado para abrir
+5. Vá na aba **Detalhes**
+6. Role até encontrar o campo **Impressão Digital** (Thumbprint)
+7. Copie o valor (exemplo: `a1 b2 c3 d4 e5 f6 ...`)
+8. Remova os espaços: `a1b2c3d4e5f6...`
+
+##### Método 2: Usando PowerShell
+
+```powershell
+# Listar todos os certificados no repositório pessoal do usuário atual
+Get-ChildItem -Path Cert:\CurrentUser\My | Format-Table Subject, Thumbprint, NotAfter
+
+# Para buscar um certificado específico por CNPJ ou Razão Social
+Get-ChildItem -Path Cert:\CurrentUser\My | Where-Object { $_.Subject -like "*SEU_CNPJ*" } | Format-Table Subject, Thumbprint, NotAfter
+```
+
+##### Método 3: Usando o Internet Explorer
+
+1. Abra o Internet Explorer
+2. Vá em **Ferramentas > Opções da Internet > Conteúdo > Certificados**
+3. Na aba **Pessoal**, selecione seu certificado
+4. Clique em **Exibir > Detalhes**
+5. Role até **Impressão Digital** e copie o valor
+
+#### 4. Configurar o appsettings.json
+
+Edite o arquivo `appsettings.json` (ou `appsettings.Production.json` / `appsettings.Homologation.json`) e configure:
+
+```json
+{
+  "NfeService": {
+    "Certificate": {
+      "Mode": "Store",
+      "StoreLocation": "CurrentUser",
+      "StoreName": "My",
+      "Thumbprint": "A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4"
+    }
+  }
+}
+```
+
+**Parâmetros importantes:**
+
+- **Mode**: Deve ser `"Store"` para certificados A3
+- **StoreLocation**: 
+  - `"CurrentUser"` - Repositório do usuário atual (recomendado)
+  - `"LocalMachine"` - Repositório do computador (requer privilégios administrativos)
+- **StoreName**: Geralmente `"My"` (equivalente a "Pessoal")
+- **Thumbprint**: O thumbprint do certificado (pode incluir ou não espaços, hífens ou dois pontos - será normalizado automaticamente)
+
+**Exemplo completo para Homologação:**
+
+```json
+{
+  "NfeService": {
+    "BaseUrl": "https://nfehomologacao.prefeitura.sp.gov.br/ws/lotenfe.asmx",
+    "TimeoutSeconds": 60,
+    "Environment": "Homologation",
+    "DefaultIssuerCnpj": "12345678000190",
+    "DefaultIssuerIm": "12345678",
+    "DefaultCnpjRemetente": "12345678000190",
+    "Certificate": {
+      "Mode": "Store",
+      "StoreLocation": "CurrentUser",
+      "StoreName": "My",
+      "Thumbprint": "A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4"
+    }
+  }
+}
+```
+
+#### 5. Verificar a Configuração
+
+Execute a aplicação e verifique o health check:
+
+```bash
+# Para API
+curl http://localhost:5000/health/nfe
+
+# Para Console
+dotnet run
+```
+
+Se houver erro relacionado ao certificado, verifique:
+- Se o pendrive/token está conectado
+- Se o thumbprint está correto
+- Se o certificado está no repositório correto (CurrentUser > My)
+- Se o certificado tem chave privada (certificados A3 sempre têm)
+
+### Dicas Importantes
+
+#### 1. Pendrive/Token Deve Estar Conectado
+
+⚠️ **Importante**: O pendrive ou token USB deve estar **conectado ao computador** durante toda a execução da aplicação. Se o dispositivo for desconectado, a aplicação não conseguirá acessar a chave privada para assinar as requisições.
+
+#### 2. PIN/Senha do Certificado
+
+Certificados A3 geralmente requerem um PIN ou senha quando são utilizados. O Windows pode solicitar esse PIN automaticamente quando o certificado é acessado, ou você pode precisar digitar manualmente quando solicitado.
+
+#### 3. Múltiplos Certificados
+
+Se você tiver múltiplos certificados no repositório, certifique-se de usar o thumbprint correto. O thumbprint é único para cada certificado.
+
+#### 4. Normalização do Thumbprint
+
+O sistema normaliza automaticamente o thumbprint, removendo espaços, hífens (`-`) e dois pontos (`:`), e convertendo para maiúsculas. Portanto, você pode usar qualquer um destes formatos:
+
+```
+A1B2C3D4E5F6...
+a1:b2:c3:d4:e5:f6:...
+a1-b2-c3-d4-e5-f6-...
+a1 b2 c3 d4 e5 f6 ...
+```
+
+Todos serão tratados da mesma forma.
+
+#### 5. Erros Comuns
+
+**Erro: "Certificate with thumbprint ... not found in store"**
+- Verifique se o thumbprint está correto
+- Verifique se o StoreLocation e StoreName estão corretos
+- Certifique-se de que o certificado está importado no repositório correto
+
+**Erro: "Certificate ... does not have a private key"**
+- Certificados A3 sempre têm chave privada, mas ela está no dispositivo físico
+- Verifique se o pendrive/token está conectado
+- Verifique se os drivers do dispositivo estão instalados corretamente
+
+**Erro: "The specified network password is not correct" ou solicitação de PIN**
+- Digite o PIN correto do certificado quando solicitado
+- O PIN geralmente é definido quando o certificado é emitido
+
+### Diferença entre A1 e A3
+
+| Característica | A1 (Arquivo .pfx) | A3 (Pendrive/Token) |
+|----------------|-------------------|---------------------|
+| Armazenamento | Arquivo no disco | Dispositivo físico |
+| Configuração | `Mode: "File"` + `FilePath` + `Password` | `Mode: "Store"` + `Thumbprint` |
+| Disponibilidade | Sempre disponível | Requer dispositivo conectado |
+| Segurança | Depende da senha do arquivo | Depende do dispositivo físico + PIN |
+| Mobilidade | Pode ser copiado | Dispositivo físico único |
+
+### Exemplo de Configuração Completa
+
+```json
+{
+  "NfeService": {
+    "ProductionEndpoint": "https://nfe.prefeitura.sp.gov.br/ws/lotenfe.asmx",
+    "TestEndpoint": "https://nfehomologacao.prefeitura.sp.gov.br/ws/lotenfe.asmx",
+    "UseProduction": false,
+    "Environment": "Homologation",
+    "TimeoutSeconds": 60,
+    "DefaultIssuerCnpj": "12345678000190",
+    "DefaultIssuerIm": "12345678",
+    "DefaultCnpjRemetente": "12345678000190",
+    "Certificate": {
+      "Mode": "Store",
+      "StoreLocation": "CurrentUser",
+      "StoreName": "My",
+      "Thumbprint": "ABCDEF1234567890ABCDEF1234567890ABCDEF12"
+    }
+  }
+}
+```
+
+---
+
+## 9. Referências
 
 - **Documentação Oficial**: `Documentacao/NFe_Web_Service-4.pdf`
 - **README Principal**: `README.md`
 - **Configuração de Homologação**: `Microled.Nfe.Service.Api/HOMOLOGATION_SETUP.md`
+- **Guia de Configuração**: `Microled.Nfe.Service.Api/CONFIGURATION.md`
 

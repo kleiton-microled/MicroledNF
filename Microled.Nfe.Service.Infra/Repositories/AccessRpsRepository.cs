@@ -208,7 +208,9 @@ public class AccessRpsRepository : IAccessRpsRepository
                     WHERE [{_options.PrimaryKeyColumn}] = ?";
 
                 using var command = new OleDbCommand(updateQuery, connection);
-                command.Parameters.AddWithValue("@Status", _options.SentStatus);
+                // Convert status string to boolean (column Processado is boolean)
+                var statusValue = ConvertStatusToBoolean(_options.SentStatus);
+                command.Parameters.AddWithValue("@Status", statusValue);
                 command.Parameters.AddWithValue("@Id", record.Id);
 
                 await command.ExecuteNonQueryAsync(cancellationToken);
@@ -244,7 +246,9 @@ public class AccessRpsRepository : IAccessRpsRepository
                     WHERE [{_options.PrimaryKeyColumn}] = ?";
 
                 using var command = new OleDbCommand(updateQuery, connection);
-                command.Parameters.AddWithValue("@Status", _options.GeneratedStatus);
+                // Convert status string to boolean (column Processado is boolean)
+                var statusValue = ConvertStatusToBoolean(_options.GeneratedStatus);
+                command.Parameters.AddWithValue("@Status", statusValue);
                 command.Parameters.AddWithValue("@Id", record.Id);
 
                 await command.ExecuteNonQueryAsync(cancellationToken);
@@ -256,6 +260,39 @@ public class AccessRpsRepository : IAccessRpsRepository
         {
             _logger.LogError(ex, "Error updating RPS status to generated in Access database");
             throw;
+        }
+    }
+
+    private object ConvertStatusToBoolean(string statusValue)
+    {
+        // Convert status string to boolean for Access boolean column
+        // Access boolean columns typically use True/False or 0/-1
+        if (bool.TryParse(statusValue, out var boolValue))
+        {
+            return boolValue;
+        }
+        else if (int.TryParse(statusValue, out var intValue))
+        {
+            return intValue != 0;
+        }
+        else
+        {
+            // Try common boolean string representations
+            var upperStatus = statusValue.ToUpperInvariant();
+            if (upperStatus == "N" || upperStatus == "FALSE" || upperStatus == "0" || upperStatus == "NO" || upperStatus == "P")
+            {
+                return false;
+            }
+            else if (upperStatus == "S" || upperStatus == "TRUE" || upperStatus == "1" || upperStatus == "YES" || 
+                     upperStatus == "E" || upperStatus == "G" || upperStatus == "SENT" || upperStatus == "GENERATED")
+            {
+                return true;
+            }
+            else
+            {
+                // Default to false if unknown
+                return false;
+            }
         }
     }
 
