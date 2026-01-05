@@ -59,9 +59,14 @@ public class NfeServiceOptions
     public string SchemaVersion { get; set; } = "2.0";
 
     /// <summary>
-    /// Schema version for Versao field (e.g., "2" or "2.2")
+    /// Schema version for Versao field (e.g., "1" or "2")
     /// </summary>
-    public string Versao { get; set; } = "2";
+    public string Versao { get; set; } = "1";
+
+    /// <summary>
+    /// Enable Schema V2 fields (ValorIPI, NBS, IBSCBS). When false, these fields are omitted from XML.
+    /// </summary>
+    public bool UseSchemaV2Fields { get; set; } = false;
 
     /// <summary>
     /// Enable logging of raw XML requests/responses

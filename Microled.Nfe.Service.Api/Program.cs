@@ -12,6 +12,7 @@ using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.Services;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,7 +52,13 @@ builder.Services.AddScoped<INfeCancellationSignatureService, NfeCancellationSign
 
 // Register Infrastructure services
 builder.Services.AddScoped<ICertificateProvider, CertificateProvider>();
-builder.Services.AddScoped<IXmlSerializerService, XmlSerializerService>();
+builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
+{
+    var logger = serviceProvider.GetRequiredService<ILogger<XmlSerializerService>>();
+    var options = serviceProvider.GetRequiredService<IOptions<NfeServiceOptions>>();
+    var certificateProvider = serviceProvider.GetRequiredService<ICertificateProvider>();
+    return new XmlSerializerService(logger, options, certificateProvider);
+});
 builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
 
 // Register Health Checks
@@ -69,8 +76,8 @@ if (useFakeGateway)
 }
 else
 {
-    // Register HTTP client for SOAP calls
-    builder.Services.AddHttpClient<INfeGateway, NfeSoapClient>((serviceProvider, client) =>
+    // Register HTTP client factory for SOAP calls
+    builder.Services.AddHttpClient(nameof(NfeSoapClient), (serviceProvider, client) =>
     {
         var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<NfeServiceOptions>>().Value;
         
@@ -107,6 +114,20 @@ else
         handler.ClientCertificates.Add(certificate);
 
         return handler;
+    });
+    
+    // Register NfeSoapClient with ICertificateProvider
+    builder.Services.AddScoped<INfeGateway>(serviceProvider =>
+    {
+        var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+        var httpClient = httpClientFactory.CreateClient(nameof(NfeSoapClient));
+        var logger = serviceProvider.GetRequiredService<ILogger<NfeSoapClient>>();
+        var options = serviceProvider.GetRequiredService<IOptions<NfeServiceOptions>>();
+        var xmlSerializer = serviceProvider.GetRequiredService<IXmlSerializerService>();
+        var soapEnvelopeBuilder = serviceProvider.GetRequiredService<ISoapEnvelopeBuilder>();
+        var certificateProvider = serviceProvider.GetService<ICertificateProvider>();
+        
+        return new NfeSoapClient(httpClient, logger, options, xmlSerializer, soapEnvelopeBuilder, certificateProvider);
     });
 }
 

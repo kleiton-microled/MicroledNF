@@ -199,3 +199,23 @@ public class tpEvento
     public tpChaveNFe? ChaveNFe { get; set; }
 }
 
+/// <summary>
+/// Tipo de informações relativas à atividades de eventos.
+/// Origem: tpAtividadeEvento (TiposNFe_v02.xsd)
+/// </summary>
+[XmlType(Namespace = "http://www.prefeitura.sp.gov.br/nfe/tipos")]
+public class tpAtividadeEvento
+{
+    [XmlElement(Order = 0)]
+    public string xNomeEvt { get; set; } = null!;
+
+    [XmlElement(Order = 1, DataType = "date")]
+    public DateTime dtIniEvt { get; set; }
+
+    [XmlElement(Order = 2, DataType = "date")]
+    public DateTime dtFimEvt { get; set; }
+
+    [XmlElement("end", Order = 3)]
+    public tpEnderecoSimplesIBSCBS end { get; set; } = null!;
+}
+

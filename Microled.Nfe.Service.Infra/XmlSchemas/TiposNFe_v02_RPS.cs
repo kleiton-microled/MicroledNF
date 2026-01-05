@@ -139,15 +139,16 @@ public class tpRPS
     [XmlElement(Order = 42)]
     public string NBS { get; set; } = null!;
 
-    // TODO: tpAtividadeEvento atvEvento (opcional)
+    [XmlElement("atvEvento", Order = 43, IsNullable = true)]
+    public tpAtividadeEvento? atvEvento { get; set; }
 
-    [XmlElement("cLocPrestacao", Order = 43, IsNullable = true)]
+    [XmlElement("cLocPrestacao", Order = 44, IsNullable = true)]
     public int? cLocPrestacao { get; set; }
 
-    [XmlElement("cPaisPrestacao", Order = 44, IsNullable = true)]
+    [XmlElement("cPaisPrestacao", Order = 45, IsNullable = true)]
     public string? cPaisPrestacao { get; set; }
 
-    [XmlElement(Order = 45)]
+    [XmlElement(Order = 46)]
     public tpIBSCBS IBSCBS { get; set; } = null!;
 }
 

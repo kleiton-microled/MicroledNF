@@ -1,9 +1,13 @@
 using System.Reflection;
+using System.Security.Cryptography.X509Certificates;
+using System.Security.Cryptography.Xml;
 using System.Text;
-using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Microled.Nfe.Service.Domain.Interfaces;
+using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.XmlSchemas;
 
@@ -15,10 +19,24 @@ namespace Microled.Nfe.Service.Infra.Services;
 public class XmlSerializerService : IXmlSerializerService
 {
     private readonly ILogger<XmlSerializerService> _logger;
+    private readonly NfeServiceOptions _options;
+    private readonly ICertificateProvider? _certificateProvider;
 
     public XmlSerializerService(ILogger<XmlSerializerService> logger)
     {
         _logger = logger;
+        _options = new NfeServiceOptions();
+        _certificateProvider = null;
+    }
+
+    public XmlSerializerService(
+        ILogger<XmlSerializerService> logger,
+        IOptions<NfeServiceOptions> options,
+        ICertificateProvider? certificateProvider = null)
+    {
+        _logger = logger;
+        _options = options?.Value ?? new NfeServiceOptions();
+        _certificateProvider = certificateProvider;
     }
 
     public string Serialize<T>(T obj) where T : class
@@ -79,14 +97,9 @@ public class XmlSerializerService : IXmlSerializerService
 
         try
         {
-            var serializer = new XmlSerializer(typeof(PedidoEnvioLoteRPS));
-            var namespaces = new XmlSerializerNamespaces();
-            // Root element has namespace
-            namespaces.Add("", "http://www.prefeitura.sp.gov.br/nfe");
-            // Add xsd and xsi namespaces like in the example (but we'll remove xsi:nil attributes later)
-            namespaces.Add("xsd", "http://www.w3.org/2001/XMLSchema");
-            namespaces.Add("xsi", "http://www.w3.org/2001/XMLSchema-instance");
-
+            const string nfeNamespace = "http://www.prefeitura.sp.gov.br/nfe";
+            const string dsNamespace = "http://www.w3.org/2000/09/xmldsig#";
+            
             using var stringWriter = new StringWriterWithEncoding(Encoding.UTF8);
             using var xmlWriter = XmlWriter.Create(stringWriter, new XmlWriterSettings
             {
@@ -95,58 +108,50 @@ public class XmlSerializerService : IXmlSerializerService
                 Encoding = Encoding.UTF8
             });
 
-            serializer.Serialize(xmlWriter, pedido, namespaces);
-            var xml = stringWriter.ToString();
-
-            // Post-process to add xmlns="" to Cabecalho and RPS elements and remove namespaces from their children
-            // This is necessary because XmlSerializer doesn't easily support
-            // mixed namespace scenarios where parent has namespace but children don't
+            // Root element with namespace and ds: namespace prefix for signature
+            xmlWriter.WriteStartElement("PedidoEnvioLoteRPS", nfeNamespace);
+            xmlWriter.WriteAttributeString("xmlns", "ds", null, dsNamespace);
             
-            // Remove ALL xmlns attributes from Cabecalho and RPS opening tags using a comprehensive regex
-            // Match: <Cabecalho ... xmlns="..." ... > and remove the xmlns part
-            xml = Regex.Replace(xml, @"(<Cabecalho[^>]*?)\s+xmlns=[""'][^""']*[""']([^>]*?>)", "$1$2", RegexOptions.None);
-            xml = Regex.Replace(xml, @"(<RPS[^>]*?)\s+xmlns=[""'][^""']*[""']([^>]*?>)", "$1$2", RegexOptions.None);
+            // Write Cabecalho with xmlns="" (empty namespace)
+            WriteCabecalho(xmlWriter, pedido.Cabecalho);
             
-            // Also handle xmlns as first attribute (before other attributes)
-            xml = Regex.Replace(xml, @"(<Cabecalho)\s+xmlns=[""'][^""']*[""'](\s+)", "$1$2", RegexOptions.None);
-            xml = Regex.Replace(xml, @"(<RPS)\s+xmlns=[""'][^""']*[""'](\s+)", "$1$2", RegexOptions.None);
+            // Write each RPS with xmlns="" (empty namespace)
+            // Determine if we're using schema v2 based on Versao
+            // When VersaoSchema=2, IBSCBS is mandatory
+            var versao = int.Parse(_options.Versao.Replace(".", ""));
+            var isSchemaV2 = versao >= 2;
+            // Always use schema v2 fields when VersaoSchema=2, regardless of UseSchemaV2Fields setting
+            var useSchemaV2Fields = _options.UseSchemaV2Fields || isSchemaV2;
             
-            // Also handle standalone xmlns (only attribute)
-            xml = Regex.Replace(xml, @"(<Cabecalho)\s+xmlns=[""'][^""']*[""'](\s*>)", "$1$2", RegexOptions.None);
-            xml = Regex.Replace(xml, @"(<RPS)\s+xmlns=[""'][^""']*[""'](\s*>)", "$1$2", RegexOptions.None);
+            foreach (var rps in pedido.RPS)
+            {
+                // Validate RPS before writing (fail-fast)
+                ValidateRPS(rps, isSchemaV2);
+                WriteRPS(xmlWriter, rps, useSchemaV2Fields, isSchemaV2);
+            }
             
-            // Now add xmlns="" to Cabecalho and RPS opening tags
-            // Insert it right after the element name (before any attributes)
-            xml = Regex.Replace(xml, @"(<Cabecalho)(\s+[^>]*?>)", "$1 xmlns=\"\"$2", RegexOptions.None);
-            xml = Regex.Replace(xml, @"(<RPS)(\s+[^>]*?>)", "$1 xmlns=\"\"$2", RegexOptions.None);
-
-            // Remove ALL namespace declarations from elements inside Cabecalho and RPS
-            // This includes both the tipos namespace and any other namespace declarations
-            // Pattern: <ElementName xmlns="..."> -> <ElementName>
-            var tiposNamespacePattern = @" xmlns=""http://www\.prefeitura\.sp\.gov\.br/nfe/tipos""";
-            xml = Regex.Replace(xml, tiposNamespacePattern, "", RegexOptions.None);
+            xmlWriter.WriteEndElement(); // PedidoEnvioLoteRPS
+            xmlWriter.Flush();
             
-            // Also remove any other xmlns declarations that might be present
-            // But we need to be careful to only remove them from elements inside Cabecalho and RPS
-            // Since we already added xmlns="" to Cabecalho and RPS, we can safely remove
-            // xmlns declarations from their children (elements between <Cabecalho xmlns=""> and </Cabecalho>,
-            // and between <RPS xmlns=""> and </RPS>)
+            // Get XML string and ensure no whitespace before <?xml
+            var xmlWithoutSignature = stringWriter.ToString().TrimStart();
             
-            // Remove xsi:nil attributes (they shouldn't be present if nillable is false in schema)
-            xml = Regex.Replace(xml, @"\s+xsi:nil=""[^""]*""", "", RegexOptions.None);
-
-            // Ensure RPS elements at the root level of PedidoEnvioLoteRPS don't have namespace
-            // The RPS elements should be direct children of PedidoEnvioLoteRPS and have xmlns=""
-            // But wait - we already added xmlns="" to RPS above. Let me check if there's still an issue.
-            // The error says RPS is in namespace 'http://www.prefeitura.sp.gov.br/nfe', which means
-            // our xmlns="" might not be working. Let me try a different approach - process RPS more carefully.
+            // Sign the XML and append signature if certificate provider is available
+            if (_certificateProvider != null)
+            {
+                try
+                {
+                    var signedXml = SignXmlDocument(xmlWithoutSignature, nfeNamespace, dsNamespace);
+                    return signedXml;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to sign XML document, returning unsigned XML");
+                    return xmlWithoutSignature;
+                }
+            }
             
-            // Actually, looking at the error more carefully, it says the RPS element itself has the wrong namespace.
-            // We need to ensure that ALL RPS elements (not just the first one) have xmlns=""
-            // Let's use a more aggressive approach to ensure all RPS opening tags have xmlns=""
-            xml = Regex.Replace(xml, @"<RPS(?![^>]*xmlns="""")", "<RPS xmlns=\"\"", RegexOptions.None);
-
-            return xml;
+            return xmlWithoutSignature;
         }
         catch (Exception ex)
         {
@@ -178,6 +183,710 @@ public class XmlSerializerService : IXmlSerializerService
             throw;
         }
     }
+
+    #region Manual XML Writing Helpers for PedidoEnvioLoteRPS
+    
+    /// <summary>
+    /// Valida o RPS antes de montar o XML (fail-fast).
+    /// </summary>
+    private static void ValidateRPS(tpRPS rps, bool isSchemaV2)
+    {
+        // Validação 1: Se atvEvento existir, deve conter TODOS os campos obrigatórios
+        if (rps.atvEvento != null)
+        {
+            if (string.IsNullOrWhiteSpace(rps.atvEvento.xNomeEvt))
+                throw new InvalidOperationException("atvEvento.xNomeEvt é obrigatório quando atvEvento está presente");
+            
+            if (rps.atvEvento.dtIniEvt == default(DateTime))
+                throw new InvalidOperationException("atvEvento.dtIniEvt é obrigatório quando atvEvento está presente");
+            
+            if (rps.atvEvento.dtFimEvt == default(DateTime))
+                throw new InvalidOperationException("atvEvento.dtFimEvt é obrigatório quando atvEvento está presente");
+            
+            if (rps.atvEvento.end == null)
+                throw new InvalidOperationException("atvEvento.end é obrigatório quando atvEvento está presente");
+        }
+        
+        // Validação 2: Deve existir exatamente 1 entre (cLocPrestacao, cPaisPrestacao)
+        var hasLocPrestacao = rps.cLocPrestacao.HasValue;
+        var hasPaisPrestacao = !string.IsNullOrWhiteSpace(rps.cPaisPrestacao);
+        
+        if (!hasLocPrestacao && !hasPaisPrestacao)
+            throw new InvalidOperationException("É obrigatório informar OU cLocPrestacao OU cPaisPrestacao (Choice do schema)");
+        
+        if (hasLocPrestacao && hasPaisPrestacao)
+            throw new InvalidOperationException("Não é permitido informar AMBOS cLocPrestacao e cPaisPrestacao. Deve ser OU um OU outro (Choice do schema)");
+        
+        // Validação 3: IBSCBS é obrigatório no schema v2
+        if (isSchemaV2 && rps.IBSCBS == null)
+            throw new InvalidOperationException("IBSCBS é obrigatório quando VersaoSchema=2 (schema v2)");
+    }
+    
+    private static void WriteCabecalho(XmlWriter writer, PedidoEnvioLoteRPSCabecalho cabecalho)
+    {
+        // Use version 1 for schema compatibility
+        var versao = "1";
+        
+        // Start Cabecalho with xmlns="" (empty namespace) using WriteRaw to bypass XmlWriter's namespace restrictions
+        writer.WriteRaw($"<Cabecalho Versao=\"{versao}\" xmlns=\"\">");
+        
+        // Write CPFCNPJRemetente (inherits namespace from root)
+        WriteCPFCNPJ(writer, "CPFCNPJRemetente", cabecalho.CPFCNPJRemetente);
+        
+        // Write transacao if present
+        if (cabecalho.transacao.HasValue)
+        {
+            writer.WriteElementString("transacao", cabecalho.transacao.Value.ToString().ToLower());
+        }
+        
+        // Write dtInicio (date format: yyyy-MM-dd)
+        writer.WriteElementString("dtInicio", cabecalho.dtInicio.ToString("yyyy-MM-dd"));
+        
+        // Write dtFim (date format: yyyy-MM-dd)
+        writer.WriteElementString("dtFim", cabecalho.dtFim.ToString("yyyy-MM-dd"));
+        
+        // Write QtdRPS
+        writer.WriteElementString("QtdRPS", cabecalho.QtdRPS.ToString());
+        
+        writer.WriteRaw("</Cabecalho>");
+    }
+    
+    private static void WriteRPS(XmlWriter writer, tpRPS rps, bool useSchemaV2Fields, bool isSchemaV2)
+    {
+        // Start RPS with xmlns="" (empty namespace) using WriteRaw to bypass XmlWriter's namespace restrictions
+        writer.WriteRaw("<RPS xmlns=\"\">");
+        
+        // Write Assinatura (Base64)
+        writer.WriteElementString("Assinatura", Convert.ToBase64String(rps.Assinatura));
+        
+        // Write ChaveRPS (no namespace)
+        WriteChaveRPS(writer, rps.ChaveRPS);
+        
+        // Write TipoRPS
+        writer.WriteElementString("TipoRPS", rps.TipoRPS);
+        
+        // Write DataEmissao (date format: yyyy-MM-dd)
+        writer.WriteElementString("DataEmissao", rps.DataEmissao.ToString("yyyy-MM-dd"));
+        
+        // Write StatusRPS
+        writer.WriteElementString("StatusRPS", rps.StatusRPS);
+        
+        // Write TributacaoRPS
+        writer.WriteElementString("TributacaoRPS", rps.TributacaoRPS);
+        
+        // Write values
+        writer.WriteElementString("ValorDeducoes", FormatDecimal(rps.ValorDeducoes));
+        writer.WriteElementString("ValorPIS", FormatDecimal(rps.ValorPIS));
+        writer.WriteElementString("ValorCOFINS", FormatDecimal(rps.ValorCOFINS));
+        writer.WriteElementString("ValorINSS", FormatDecimal(rps.ValorINSS));
+        writer.WriteElementString("ValorIR", FormatDecimal(rps.ValorIR));
+        writer.WriteElementString("ValorCSLL", FormatDecimal(rps.ValorCSLL));
+        writer.WriteElementString("CodigoServico", rps.CodigoServico.ToString());
+        writer.WriteElementString("AliquotaServicos", FormatDecimal(rps.AliquotaServicos));
+        writer.WriteElementString("ISSRetido", rps.ISSRetido.ToString().ToLower());
+        
+        // Write optional Tomador fields
+        if (rps.CPFCNPJTomador != null)
+        {
+            WriteCPFCNPJNIF(writer, "CPFCNPJTomador", rps.CPFCNPJTomador);
+        }
+        
+        if (rps.InscricaoMunicipalTomador.HasValue)
+        {
+            writer.WriteElementString("InscricaoMunicipalTomador", rps.InscricaoMunicipalTomador.Value.ToString());
+        }
+        
+        if (rps.InscricaoEstadualTomador.HasValue)
+        {
+            writer.WriteElementString("InscricaoEstadualTomador", rps.InscricaoEstadualTomador.Value.ToString());
+        }
+        
+        if (!string.IsNullOrEmpty(rps.RazaoSocialTomador))
+        {
+            writer.WriteElementString("RazaoSocialTomador", rps.RazaoSocialTomador);
+        }
+        
+        if (rps.EnderecoTomador != null)
+        {
+            WriteEndereco(writer, "EnderecoTomador", rps.EnderecoTomador);
+        }
+        
+        if (!string.IsNullOrEmpty(rps.EmailTomador))
+        {
+            writer.WriteElementString("EmailTomador", rps.EmailTomador);
+        }
+        
+        // Write optional Intermediario fields
+        if (rps.CPFCNPJIntermediario != null)
+        {
+            WriteCPFCNPJ(writer, "CPFCNPJIntermediario", rps.CPFCNPJIntermediario);
+        }
+        
+        if (rps.InscricaoMunicipalIntermediario.HasValue)
+        {
+            writer.WriteElementString("InscricaoMunicipalIntermediario", rps.InscricaoMunicipalIntermediario.Value.ToString());
+        }
+        
+        if (!string.IsNullOrEmpty(rps.ISSRetidoIntermediario))
+        {
+            writer.WriteElementString("ISSRetidoIntermediario", rps.ISSRetidoIntermediario);
+        }
+        
+        if (!string.IsNullOrEmpty(rps.EmailIntermediario))
+        {
+            writer.WriteElementString("EmailIntermediario", rps.EmailIntermediario);
+        }
+        
+        // Write Discriminacao
+        writer.WriteElementString("Discriminacao", rps.Discriminacao);
+        
+        // Write required fields after Discriminacao - schema requires these fields to be present
+        // Always write ValorCargaTributaria (required by schema, even if 0.00)
+        writer.WriteElementString("ValorCargaTributaria", FormatDecimal(rps.ValorCargaTributaria ?? 0m));
+        
+        // Always write PercentualCargaTributaria (may be required by schema)
+        writer.WriteElementString("PercentualCargaTributaria", FormatDecimal(rps.PercentualCargaTributaria ?? 0m));
+        
+        // Always write FonteCargaTributaria (may be required by schema)
+        writer.WriteElementString("FonteCargaTributaria", string.IsNullOrEmpty(rps.FonteCargaTributaria) ? "0" : rps.FonteCargaTributaria);
+        
+        // Always write MunicipioPrestacao (required by schema, using default value for São Paulo)
+        writer.WriteElementString("MunicipioPrestacao", rps.MunicipioPrestacao?.ToString() ?? "3550308");
+        
+        // Always write ValorTotalRecebido (may be required by schema)
+        writer.WriteElementString("ValorTotalRecebido", FormatDecimal(rps.ValorTotalRecebido ?? 0m));
+        
+        // Always write ValorInicialCobrado (required by schema)
+        writer.WriteElementString("ValorInicialCobrado", FormatDecimal(rps.ValorInicialCobrado ?? 0m));
+        
+        // Always write ValorMulta (required by schema)
+        writer.WriteElementString("ValorMulta", FormatDecimal(rps.ValorMulta ?? 0m));
+        
+        // Always write ValorJuros (required by schema)
+        writer.WriteElementString("ValorJuros", FormatDecimal(rps.ValorJuros ?? 0m));
+        
+        // Always write ValorIPI (required by schema)
+        writer.WriteElementString("ValorIPI", FormatDecimal(rps.ValorIPI));
+        
+        // Always write ExigibilidadeSuspensa (required by schema)
+        writer.WriteElementString("ExigibilidadeSuspensa", rps.ExigibilidadeSuspensa.ToString());
+        
+        // Always write PagamentoParceladoAntecipado (required by schema)
+        writer.WriteElementString("PagamentoParceladoAntecipado", rps.PagamentoParceladoAntecipado.ToString());
+        
+        // Always write NBS (required by schema)
+        writer.WriteElementString("NBS", string.IsNullOrEmpty(rps.NBS) ? "000000000" : rps.NBS);
+        
+        // Write optional atvEvento (schema v2) - apenas se for evento completo
+        // Como nosso serviço NÃO é evento, NÃO gerar a tag <atvEvento> no XML
+        // (Deixar preparado para futuro: caso seja evento, a tag deve ser completa)
+        if (rps.atvEvento != null)
+        {
+            WriteAtividadeEvento(writer, rps.atvEvento);
+        }
+        
+        // Write Choice: OU cLocPrestacao OU cPaisPrestacao (obrigatório - schema v2)
+        // Se o serviço foi prestado no Brasil: gerar APENAS cLocPrestacao
+        // Se o serviço foi prestado fora do país: gerar APENAS cPaisPrestacao
+        if (rps.cLocPrestacao.HasValue)
+        {
+            writer.WriteElementString("cLocPrestacao", rps.cLocPrestacao.Value.ToString());
+        }
+        else if (!string.IsNullOrWhiteSpace(rps.cPaisPrestacao))
+        {
+            writer.WriteElementString("cPaisPrestacao", rps.cPaisPrestacao);
+        }
+        // Note: A validação já garante que pelo menos um está preenchido
+        
+        // Write optional fields - ORDER MATTERS!
+        // Only write fields that have values (schema doesn't allow invalid default values like "0" for some fields)
+        if (rps.CodigoCEI.HasValue)
+        {
+            writer.WriteElementString("CodigoCEI", rps.CodigoCEI.Value.ToString());
+        }
+        
+        if (rps.MatriculaObra.HasValue)
+        {
+            writer.WriteElementString("MatriculaObra", rps.MatriculaObra.Value.ToString());
+        }
+        
+        if (rps.NumeroEncapsulamento.HasValue)
+        {
+            writer.WriteElementString("NumeroEncapsulamento", rps.NumeroEncapsulamento.Value.ToString());
+        }
+        
+        if (!string.IsNullOrEmpty(rps.NCM))
+        {
+            writer.WriteElementString("NCM", rps.NCM);
+        }
+        
+        // Schema V2 fields - IBSCBS é obrigatório quando VersaoSchema=2
+        // Sempre escrever IBSCBS quando useSchemaV2Fields=true OU isSchemaV2=true
+        if (useSchemaV2Fields || isSchemaV2)
+        {
+            // Write IBSCBS (obrigatório na V2)
+            if (rps.IBSCBS == null)
+                throw new InvalidOperationException("IBSCBS não pode ser null quando VersaoSchema=2");
+            
+            WriteIBSCBS(writer, rps.IBSCBS);
+        }
+        
+        writer.WriteRaw("</RPS>");
+    }
+    
+    private static void WriteCPFCNPJ(XmlWriter writer, string elementName, tpCPFCNPJ cpfCnpj)
+    {
+        writer.WriteStartElement(elementName);
+        
+        if (!string.IsNullOrEmpty(cpfCnpj.CPF))
+        {
+            writer.WriteElementString("CPF", cpfCnpj.CPF);
+        }
+        
+        if (!string.IsNullOrEmpty(cpfCnpj.CNPJ))
+        {
+            writer.WriteElementString("CNPJ", cpfCnpj.CNPJ);
+        }
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteCPFCNPJNIF(XmlWriter writer, string elementName, tpCPFCNPJNIF cpfCnpjNif)
+    {
+        writer.WriteStartElement(elementName);
+        
+        if (!string.IsNullOrEmpty(cpfCnpjNif.CPF))
+        {
+            writer.WriteElementString("CPF", cpfCnpjNif.CPF);
+        }
+        
+        if (!string.IsNullOrEmpty(cpfCnpjNif.CNPJ))
+        {
+            writer.WriteElementString("CNPJ", cpfCnpjNif.CNPJ);
+        }
+        
+        if (!string.IsNullOrEmpty(cpfCnpjNif.NIF))
+        {
+            writer.WriteElementString("NIF", cpfCnpjNif.NIF);
+        }
+        
+        if (cpfCnpjNif.NaoNIF.HasValue)
+        {
+            writer.WriteElementString("NaoNIF", cpfCnpjNif.NaoNIF.Value.ToString());
+        }
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteChaveRPS(XmlWriter writer, tpChaveRPS chaveRPS)
+    {
+        writer.WriteStartElement("ChaveRPS");
+        
+        writer.WriteElementString("InscricaoPrestador", chaveRPS.InscricaoPrestador.ToString());
+        
+        if (!string.IsNullOrEmpty(chaveRPS.SerieRPS))
+        {
+            writer.WriteElementString("SerieRPS", chaveRPS.SerieRPS);
+        }
+        
+        writer.WriteElementString("NumeroRPS", chaveRPS.NumeroRPS.ToString());
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteEndereco(XmlWriter writer, string elementName, tpEndereco endereco)
+    {
+        writer.WriteStartElement(elementName);
+        
+        if (!string.IsNullOrEmpty(endereco.TipoLogradouro))
+        {
+            writer.WriteElementString("TipoLogradouro", endereco.TipoLogradouro);
+        }
+        
+        if (!string.IsNullOrEmpty(endereco.Logradouro))
+        {
+            writer.WriteElementString("Logradouro", endereco.Logradouro);
+        }
+        
+        if (!string.IsNullOrEmpty(endereco.NumeroEndereco))
+        {
+            writer.WriteElementString("NumeroEndereco", endereco.NumeroEndereco);
+        }
+        
+        if (!string.IsNullOrEmpty(endereco.ComplementoEndereco))
+        {
+            writer.WriteElementString("ComplementoEndereco", endereco.ComplementoEndereco);
+        }
+        
+        if (!string.IsNullOrEmpty(endereco.Bairro))
+        {
+            writer.WriteElementString("Bairro", endereco.Bairro);
+        }
+        
+        if (endereco.Cidade.HasValue)
+        {
+            writer.WriteElementString("Cidade", endereco.Cidade.Value.ToString());
+        }
+        
+        if (!string.IsNullOrEmpty(endereco.UF))
+        {
+            writer.WriteElementString("UF", endereco.UF);
+        }
+        
+        if (endereco.CEP.HasValue)
+        {
+            writer.WriteElementString("CEP", endereco.CEP.Value.ToString());
+        }
+        
+        // EnderecoExterior is optional and complex - skipping for now
+        // TODO: Implement if needed
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteIBSCBS(XmlWriter writer, tpIBSCBS ibscbs)
+    {
+        writer.WriteStartElement("IBSCBS");
+        
+        writer.WriteElementString("finNFSe", ibscbs.finNFSe.ToString());
+        writer.WriteElementString("indFinal", ibscbs.indFinal.ToString());
+        writer.WriteElementString("cIndOp", ibscbs.cIndOp);
+        
+        if (ibscbs.tpOper.HasValue)
+        {
+            writer.WriteElementString("tpOper", ibscbs.tpOper.Value.ToString());
+        }
+        
+        if (ibscbs.gRefNFSe != null)
+        {
+            WriteGRefNFSe(writer, ibscbs.gRefNFSe);
+        }
+        
+        if (ibscbs.tpEnteGov.HasValue)
+        {
+            writer.WriteElementString("tpEnteGov", ibscbs.tpEnteGov.Value.ToString());
+        }
+        
+        writer.WriteElementString("indDest", ibscbs.indDest.ToString());
+        
+        if (ibscbs.dest != null)
+        {
+            WriteInformacoesPessoa(writer, "dest", ibscbs.dest);
+        }
+        
+        // Write valores (obrigatório)
+        WriteValores(writer, ibscbs.valores);
+        
+        if (ibscbs.imovelobra != null)
+        {
+            WriteImovelObra(writer, ibscbs.imovelobra);
+        }
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteGRefNFSe(XmlWriter writer, tpGRefNFSe gRefNFSe)
+    {
+        writer.WriteStartElement("gRefNFSe");
+        
+        foreach (var refNfse in gRefNFSe.refNFSe)
+        {
+            writer.WriteElementString("refNFSe", refNfse);
+        }
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteInformacoesPessoa(XmlWriter writer, string elementName, tpInformacoesPessoa pessoa)
+    {
+        writer.WriteStartElement(elementName);
+        
+        if (!string.IsNullOrEmpty(pessoa.CPF))
+        {
+            writer.WriteElementString("CPF", pessoa.CPF);
+        }
+        
+        if (!string.IsNullOrEmpty(pessoa.CNPJ))
+        {
+            writer.WriteElementString("CNPJ", pessoa.CNPJ);
+        }
+        
+        if (!string.IsNullOrEmpty(pessoa.NIF))
+        {
+            writer.WriteElementString("NIF", pessoa.NIF);
+        }
+        
+        if (pessoa.NaoNIF.HasValue)
+        {
+            writer.WriteElementString("NaoNIF", pessoa.NaoNIF.Value.ToString());
+        }
+        
+        writer.WriteElementString("xNome", pessoa.xNome);
+        
+        // Endereco and email are optional - skipping for now as not in simple example
+        // TODO: Implement if needed
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteValores(XmlWriter writer, tpValores valores)
+    {
+        writer.WriteStartElement("valores");
+        
+        if (valores.gReeRepRes != null)
+        {
+            WriteGrupoReeRepRes(writer, valores.gReeRepRes);
+        }
+        
+        // Write trib (obrigatório)
+        WriteTrib(writer, valores.trib);
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteGrupoReeRepRes(XmlWriter writer, tpGrupoReeRepRes gReeRepRes)
+    {
+        writer.WriteStartElement("gReeRepRes");
+        
+        writer.WriteStartElement("documentos");
+        
+        foreach (var doc in gReeRepRes.documentos)
+        {
+            WriteDocumento(writer, doc);
+        }
+        
+        writer.WriteEndElement(); // documentos
+        writer.WriteEndElement(); // gReeRepRes
+    }
+    
+    private static void WriteDocumento(XmlWriter writer, tpDocumento doc)
+    {
+        writer.WriteStartElement("documentos");
+        
+        // TODO: Implement dFeNacional, docFiscalOutro, docOutro choice - for now using example structure
+        // The example shows dFeNacional structure, but it's not in the class definition
+        // This is a simplified version - may need adjustment based on actual schema
+        
+        if (doc.fornec != null)
+        {
+            WriteFornecedor(writer, doc.fornec);
+        }
+        
+        writer.WriteElementString("dtEmiDoc", doc.dtEmiDoc.ToString("yyyy-MM-dd"));
+        writer.WriteElementString("dtCompDoc", doc.dtCompDoc.ToString("yyyy-MM-dd"));
+        writer.WriteElementString("tpReeRepRes", doc.tpReeRepRes.ToString("D2"));
+        
+        if (!string.IsNullOrEmpty(doc.xTpReeRepRes))
+        {
+            writer.WriteElementString("xTpReeRepRes", doc.xTpReeRepRes);
+        }
+        
+        writer.WriteElementString("vlrReeRepRes", FormatDecimal(doc.vlrReeRepRes));
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteFornecedor(XmlWriter writer, tpFornecedor fornec)
+    {
+        writer.WriteStartElement("fornec");
+        
+        if (!string.IsNullOrEmpty(fornec.CPF))
+        {
+            writer.WriteElementString("CPF", fornec.CPF);
+        }
+        
+        if (!string.IsNullOrEmpty(fornec.CNPJ))
+        {
+            writer.WriteElementString("CNPJ", fornec.CNPJ);
+        }
+        
+        if (!string.IsNullOrEmpty(fornec.NIF))
+        {
+            writer.WriteElementString("NIF", fornec.NIF);
+        }
+        
+        if (fornec.NaoNIF.HasValue)
+        {
+            writer.WriteElementString("NaoNIF", fornec.NaoNIF.Value.ToString());
+        }
+        
+        writer.WriteElementString("xNome", fornec.xNome);
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteTrib(XmlWriter writer, tpTrib trib)
+    {
+        writer.WriteStartElement("trib");
+        
+        WriteGIBSCBS(writer, trib.gIBSCBS);
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteGIBSCBS(XmlWriter writer, tpGIBSCBS gIBSCBS)
+    {
+        writer.WriteStartElement("gIBSCBS");
+        
+        writer.WriteElementString("cClassTrib", gIBSCBS.cClassTrib);
+        
+        if (gIBSCBS.gTribRegular != null)
+        {
+            writer.WriteStartElement("gTribRegular");
+            writer.WriteElementString("cClassTribReg", gIBSCBS.gTribRegular.cClassTribReg);
+            writer.WriteEndElement();
+        }
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteImovelObra(XmlWriter writer, tpImovelObra imovelobra)
+    {
+        writer.WriteStartElement("imovelobra");
+        
+        if (!string.IsNullOrEmpty(imovelobra.inscImobFisc))
+        {
+            writer.WriteElementString("inscImobFisc", imovelobra.inscImobFisc);
+        }
+        
+        if (!string.IsNullOrEmpty(imovelobra.cCIB))
+        {
+            writer.WriteElementString("cCIB", imovelobra.cCIB);
+        }
+        
+        if (!string.IsNullOrEmpty(imovelobra.cObra))
+        {
+            writer.WriteElementString("cObra", imovelobra.cObra);
+        }
+        
+        if (imovelobra.end != null)
+        {
+            WriteEnderecoSimplesIBSCBS(writer, imovelobra.end);
+        }
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteAtividadeEvento(XmlWriter writer, tpAtividadeEvento atvEvento)
+    {
+        writer.WriteStartElement("atvEvento");
+        
+        writer.WriteElementString("xNomeEvt", atvEvento.xNomeEvt);
+        writer.WriteElementString("dtIniEvt", atvEvento.dtIniEvt.ToString("yyyy-MM-dd"));
+        writer.WriteElementString("dtFimEvt", atvEvento.dtFimEvt.ToString("yyyy-MM-dd"));
+        
+        // Write endereço do evento (obrigatório)
+        WriteEnderecoSimplesIBSCBS(writer, atvEvento.end);
+        
+        writer.WriteEndElement();
+    }
+    
+    private static void WriteEnderecoSimplesIBSCBS(XmlWriter writer, tpEnderecoSimplesIBSCBS end)
+    {
+        writer.WriteStartElement("end");
+        
+        if (end.CEP.HasValue)
+        {
+            writer.WriteElementString("CEP", end.CEP.Value.ToString());
+        }
+        
+        // endExt is optional - skipping for now
+        // TODO: Implement if needed
+        
+        writer.WriteElementString("xLgr", end.xLgr);
+        writer.WriteElementString("nro", end.nro);
+        
+        if (!string.IsNullOrEmpty(end.xCpl))
+        {
+            writer.WriteElementString("xCpl", end.xCpl);
+        }
+        
+        writer.WriteElementString("xBairro", end.xBairro);
+        
+        writer.WriteEndElement();
+    }
+    
+    private static string FormatDecimal(decimal value)
+    {
+        // Format decimal without thousands separator, with dot as decimal separator
+        return value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+    }
+    
+    /// <summary>
+    /// Signs an XML document using XMLDSIG and returns the signed XML
+    /// </summary>
+    private string SignXmlDocument(string xmlContent, string nfeNamespace, string dsNamespace)
+    {
+        if (_certificateProvider == null)
+            throw new InvalidOperationException("Certificate provider is not available");
+
+        var certificate = _certificateProvider.GetCertificate();
+        if (!certificate.HasPrivateKey)
+            throw new InvalidOperationException("Certificate does not have a private key");
+
+        // Load XML into XmlDocument
+        var xmlDoc = new XmlDocument { PreserveWhitespace = true };
+        xmlDoc.LoadXml(xmlContent);
+
+        // Create SignedXml object
+        var signedXml = new SignedXml(xmlDoc)
+        {
+            SigningKey = certificate.GetRSAPrivateKey() ?? throw new InvalidOperationException("Certificate does not have RSA private key")
+        };
+
+        // Create reference to sign the entire document
+        var reference = new Reference { Uri = "" };
+        
+        // Add transform to canonicalize XML
+        reference.AddTransform(new XmlDsigEnvelopedSignatureTransform());
+        reference.AddTransform(new XmlDsigC14NTransform());
+        
+        signedXml.AddReference(reference);
+
+        // Add key info
+        var keyInfo = new KeyInfo();
+        var keyInfoData = new KeyInfoX509Data(certificate);
+        keyInfo.AddClause(keyInfoData);
+        signedXml.KeyInfo = keyInfo;
+
+        // Compute signature
+        signedXml.ComputeSignature();
+
+        // Get signature XML element
+        var signatureElement = signedXml.GetXml();
+
+        // Create a new Signature element with ds: prefix
+        var rootElement = xmlDoc.DocumentElement ?? throw new InvalidOperationException("XML document has no root element");
+        
+        // Create ds:Signature element manually to ensure correct prefix
+        var dsSignature = xmlDoc.CreateElement("ds", "Signature", dsNamespace);
+        
+        // Copy all child nodes from the SignedXml signature element
+        foreach (XmlNode node in signatureElement.ChildNodes)
+        {
+            var importedNode = xmlDoc.ImportNode(node, true);
+            dsSignature.AppendChild(importedNode);
+        }
+        
+        // Append ds:Signature to root element
+        rootElement.AppendChild(dsSignature);
+
+        // Return signed XML as string
+        using var stringWriter = new StringWriterWithEncoding(Encoding.UTF8);
+        using var xmlWriter = XmlWriter.Create(stringWriter, new XmlWriterSettings
+        {
+            Indent = false,
+            OmitXmlDeclaration = false,
+            Encoding = Encoding.UTF8
+        });
+        
+        xmlDoc.WriteTo(xmlWriter);
+        xmlWriter.Flush();
+        
+        return stringWriter.ToString();
+    }
+    
+    #endregion
 
     private class StringWriterWithEncoding : StringWriter
     {

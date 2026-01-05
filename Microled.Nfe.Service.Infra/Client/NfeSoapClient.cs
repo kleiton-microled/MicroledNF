@@ -1,3 +1,4 @@
+using System.IO;
 using System.Net;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -32,19 +33,22 @@ public class NfeSoapClient : INfeGateway
     private readonly NfeServiceOptions _options;
     private readonly IXmlSerializerService _xmlSerializer;
     private readonly ISoapEnvelopeBuilder _soapEnvelopeBuilder;
+    private readonly ICertificateProvider? _certificateProvider;
 
     public NfeSoapClient(
         HttpClient httpClient,
         ILogger<NfeSoapClient> logger,
         IOptions<NfeServiceOptions> options,
         IXmlSerializerService xmlSerializer,
-        ISoapEnvelopeBuilder soapEnvelopeBuilder)
+        ISoapEnvelopeBuilder soapEnvelopeBuilder,
+        ICertificateProvider? certificateProvider = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _options = options.Value;
         _xmlSerializer = xmlSerializer ?? throw new ArgumentNullException(nameof(xmlSerializer));
         _soapEnvelopeBuilder = soapEnvelopeBuilder ?? throw new ArgumentNullException(nameof(soapEnvelopeBuilder));
+        _certificateProvider = certificateProvider;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
@@ -67,7 +71,10 @@ public class NfeSoapClient : INfeGateway
             var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
             var soapEnvelope = _soapEnvelopeBuilder.BuildEnvioLoteRPS(xmlContent, versaoSchema);
 
-            // 4. Send HTTP request
+            // 4. Save XML to file before sending
+            await SaveXmlToFileAsync(soapEnvelope, cancellationToken);
+
+            // 5. Send HTTP request
             var endpoint = GetEndpoint();
             _logger.LogInformation("Sending SOAP request to {Endpoint}", endpoint);
 
@@ -348,6 +355,36 @@ public class NfeSoapClient : INfeGateway
     }
 
     /// <summary>
+    /// Saves XML content to file in C:\XML_SEND directory
+    /// </summary>
+    private async Task SaveXmlToFileAsync(string xmlContent, CancellationToken cancellationToken)
+    {
+        try
+        {
+            const string outputDirectory = @"C:\XML_SEND";
+            
+            // Ensure directory exists
+            Directory.CreateDirectory(outputDirectory);
+
+            // Generate file name with timestamp
+            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+            var guid = Guid.NewGuid().ToString("N")[..8];
+            var fileName = $"EnvioLoteRPS_{timestamp}_{guid}.xml";
+            var filePath = Path.Combine(outputDirectory, fileName);
+
+            // Save XML to file
+            await File.WriteAllTextAsync(filePath, xmlContent, Encoding.UTF8, cancellationToken);
+            
+            _logger.LogInformation("Saved XML to file: {FilePath}", filePath);
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail the request
+            _logger.LogWarning(ex, "Failed to save XML to file");
+        }
+    }
+
+    /// <summary>
     /// Logs XML content if LogRawXml is enabled, with optional masking of sensitive data
     /// </summary>
     private void LogXmlIfEnabled(string label, string xml)
@@ -403,12 +440,46 @@ public class NfeSoapClient : INfeGateway
         var primeiroRps = batch.RpsList[0];
         var prestador = primeiroRps.Prestador;
 
+        // CPFCNPJRemetente deve ser o CNPJ do certificado digital usado na autenticação
+        // Se não houver certificado, usar o CNPJ do prestador como fallback
+        tpCPFCNPJ cpfCnpjRemetente;
+        if (_certificateProvider != null)
+        {
+            try
+            {
+                var certificate = _certificateProvider.GetCertificate();
+                var cnpjFromCertificate = ExtractCnpjFromCertificate(certificate);
+                if (!string.IsNullOrEmpty(cnpjFromCertificate))
+                {
+                    cpfCnpjRemetente = new tpCPFCNPJ { CNPJ = cnpjFromCertificate };
+                    _logger.LogInformation("Using CNPJ from certificate for CPFCNPJRemetente: {CNPJ}", cnpjFromCertificate);
+                }
+                else
+                {
+                    // Fallback: usar CNPJ do prestador se não conseguir extrair do certificado
+                    cpfCnpjRemetente = MapCpfCnpjToTpCPFCNPJ(prestador.CpfCnpj);
+                    _logger.LogWarning("Could not extract CNPJ from certificate, using prestador CNPJ: {CNPJ}", prestador.CpfCnpj.GetValue());
+                }
+            }
+            catch (Exception ex)
+            {
+                // Fallback: usar CNPJ do prestador se houver erro ao obter certificado
+                _logger.LogWarning(ex, "Error getting certificate, using prestador CNPJ for CPFCNPJRemetente");
+                cpfCnpjRemetente = MapCpfCnpjToTpCPFCNPJ(prestador.CpfCnpj);
+            }
+        }
+        else
+        {
+            // Sem certificado provider, usar CNPJ do prestador
+            cpfCnpjRemetente = MapCpfCnpjToTpCPFCNPJ(prestador.CpfCnpj);
+        }
+
         var pedido = new PedidoEnvioLoteRPS
         {
             Cabecalho = new PedidoEnvioLoteRPSCabecalho
             {
                 Versao = long.Parse(_options.Versao.Replace(".", "")),
-                CPFCNPJRemetente = MapCpfCnpjToTpCPFCNPJ(prestador.CpfCnpj),
+                CPFCNPJRemetente = cpfCnpjRemetente,
                 transacao = batch.Transacao,
                 dtInicio = batch.DataInicio.ToDateTime(TimeOnly.MinValue),
                 dtFim = batch.DataFim.ToDateTime(TimeOnly.MinValue),
@@ -455,6 +526,10 @@ public class NfeSoapClient : INfeGateway
             ExigibilidadeSuspensa = 0,
             PagamentoParceladoAntecipado = 0,
             NBS = "123456789", // TODO: Get from configuration or RPS item
+            // Como nosso serviço é prestado no Brasil, preencher cLocPrestacao por padrão
+            // Usar código do município do prestador se disponível, senão usar São Paulo (3550308)
+            cLocPrestacao = rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308, // São Paulo por padrão
+            cPaisPrestacao = null, // Não preencher para serviços no Brasil
             IBSCBS = CreateDefaultIBSCBS()
         };
 
@@ -740,6 +815,54 @@ public class NfeSoapClient : INfeGateway
                 }
             }
         };
+    }
+
+    /// <summary>
+    /// Extrai o CNPJ do certificado digital a partir do Subject.
+    /// O CNPJ geralmente está no formato "CN=RAZAO SOCIAL:47208271000109" ou similar.
+    /// </summary>
+    private static string? ExtractCnpjFromCertificate(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate)
+    {
+        if (certificate == null)
+            return null;
+
+        var subject = certificate.Subject;
+        if (string.IsNullOrWhiteSpace(subject))
+            return null;
+
+        // Tenta encontrar CNPJ no Subject (formato comum: "CN=RAZAO SOCIAL:47208271000109")
+        // O CNPJ pode estar após dois pontos (:) ou no final do Subject
+        var parts = subject.Split(':', StringSplitOptions.RemoveEmptyEntries);
+        foreach (var part in parts)
+        {
+            var trimmed = part.Trim();
+            // CNPJ tem 14 dígitos
+            if (trimmed.Length >= 14)
+            {
+                // Tenta extrair sequência de 14 dígitos
+                var digits = new System.Text.StringBuilder();
+                foreach (var c in trimmed)
+                {
+                    if (char.IsDigit(c))
+                        digits.Append(c);
+                }
+                
+                if (digits.Length == 14)
+                {
+                    return digits.ToString();
+                }
+            }
+        }
+
+        // Tenta encontrar CNPJ em qualquer parte do Subject usando regex
+        var cnpjPattern = @"(\d{14})";
+        var match = Regex.Match(subject, cnpjPattern);
+        if (match.Success && match.Groups.Count > 1)
+        {
+            return match.Groups[1].Value;
+        }
+
+        return null;
     }
 
     #endregion

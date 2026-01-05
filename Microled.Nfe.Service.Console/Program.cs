@@ -11,6 +11,7 @@ using Microled.Nfe.Service.Infra.Storage;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -46,13 +47,19 @@ public class Program
                 services.AddScoped<ICertificateProvider, CertificateProvider>();
 
                 // Register Infrastructure services
-                services.AddScoped<IXmlSerializerService, XmlSerializerService>();
+                services.AddScoped<IXmlSerializerService>(serviceProvider =>
+                {
+                    var logger = serviceProvider.GetRequiredService<ILogger<XmlSerializerService>>();
+                    var options = serviceProvider.GetRequiredService<IOptions<NfeServiceOptions>>();
+                    var certificateProvider = serviceProvider.GetRequiredService<ICertificateProvider>();
+                    return new XmlSerializerService(logger, options, certificateProvider);
+                });
                 services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
                 services.AddScoped<IAccessRpsRepository, AccessRpsRepository>();
                 services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
 
-                // Register INfeGateway (real SOAP client, not fake for console)
-                services.AddHttpClient<INfeGateway, NfeSoapClient>((serviceProvider, client) =>
+                // Register HTTP client factory for SOAP calls
+                services.AddHttpClient(nameof(NfeSoapClient), (serviceProvider, client) =>
                 {
                     var options = serviceProvider.GetRequiredService<Microsoft.Extensions.Options.IOptions<NfeServiceOptions>>().Value;
 
@@ -89,6 +96,20 @@ public class Program
                     handler.ClientCertificates.Add(certificate);
 
                     return handler;
+                });
+                
+                // Register NfeSoapClient with ICertificateProvider
+                services.AddScoped<INfeGateway>(serviceProvider =>
+                {
+                    var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
+                    var httpClient = httpClientFactory.CreateClient(nameof(NfeSoapClient));
+                    var logger = serviceProvider.GetRequiredService<ILogger<NfeSoapClient>>();
+                    var options = serviceProvider.GetRequiredService<IOptions<NfeServiceOptions>>();
+                    var xmlSerializer = serviceProvider.GetRequiredService<IXmlSerializerService>();
+                    var soapEnvelopeBuilder = serviceProvider.GetRequiredService<ISoapEnvelopeBuilder>();
+                    var certificateProvider = serviceProvider.GetService<ICertificateProvider>();
+                    
+                    return new NfeSoapClient(httpClient, logger, options, xmlSerializer, soapEnvelopeBuilder, certificateProvider);
                 });
 
                 // Register Application use cases

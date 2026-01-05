@@ -63,10 +63,15 @@ public class SoapEnvelopeBuilder : ISoapEnvelopeBuilder
     /// <summary>
     /// Escapes XML content for CDATA section
     /// CDATA sections cannot contain "]]>", so we need to escape it
+    /// Also removes any leading whitespace before <?xml to ensure CDATA starts exactly with "<?xml"
     /// </summary>
     private string EscapeXmlForCdata(string xml)
     {
-        return xml.Replace("]]>", "]]]]><![CDATA[>");
+        // Remove any leading whitespace to ensure CDATA starts exactly with "<?xml"
+        var trimmedXml = xml.TrimStart();
+        
+        // Escape "]]>" sequences for CDATA compatibility
+        return trimmedXml.Replace("]]>", "]]]]><![CDATA[>");
     }
 }
 
