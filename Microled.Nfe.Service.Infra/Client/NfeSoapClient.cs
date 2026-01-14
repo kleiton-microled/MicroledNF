@@ -34,6 +34,7 @@ public class NfeSoapClient : INfeGateway
     private readonly IXmlSerializerService _xmlSerializer;
     private readonly ISoapEnvelopeBuilder _soapEnvelopeBuilder;
     private readonly ICertificateProvider? _certificateProvider;
+    private readonly IRpsSignatureService? _rpsSignatureService;
 
     public NfeSoapClient(
         HttpClient httpClient,
@@ -41,7 +42,8 @@ public class NfeSoapClient : INfeGateway
         IOptions<NfeServiceOptions> options,
         IXmlSerializerService xmlSerializer,
         ISoapEnvelopeBuilder soapEnvelopeBuilder,
-        ICertificateProvider? certificateProvider = null)
+        ICertificateProvider? certificateProvider = null,
+        IRpsSignatureService? rpsSignatureService = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -49,6 +51,7 @@ public class NfeSoapClient : INfeGateway
         _xmlSerializer = xmlSerializer ?? throw new ArgumentNullException(nameof(xmlSerializer));
         _soapEnvelopeBuilder = soapEnvelopeBuilder ?? throw new ArgumentNullException(nameof(soapEnvelopeBuilder));
         _certificateProvider = certificateProvider;
+        _rpsSignatureService = rpsSignatureService;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
@@ -105,7 +108,13 @@ public class NfeSoapClient : INfeGateway
             var retorno = _xmlSerializer.Deserialize<RetornoEnvioLoteRPS>(retornoXml);
 
             // 8. Map to domain result
-            var result = MapRetornoEnvioLoteRPSToResult(retorno);
+            var result = MapRetornoEnvioLoteRPSToResult(retorno, batch);
+
+            // 9. Check for error 1206 and perform automatic signature comparison
+            if (_rpsSignatureService != null)
+            {
+                CheckAndCompareSignatureErrors(result.Erros, batch);
+            }
 
             _logger.LogInformation("SendRpsBatchAsync completed. Success: {Sucesso}, Protocolo: {Protocolo}",
                 result.Sucesso, result.Protocolo);
@@ -288,17 +297,23 @@ public class NfeSoapClient : INfeGateway
                     faultDetail);
             }
 
-            // Extract MensagemXML from response
+            // Extract RetornoXML from response
+            // CORREÇÃO: A prefeitura usa "RetornoXML" em vez de "MensagemXML" para EnvioLoteRPS
             var responseElement = doc.Descendants(nfeNs + operationResponseName).FirstOrDefault();
             if (responseElement == null)
             {
                 throw new NfeSoapException($"Could not find {operationResponseName} element in SOAP response");
             }
 
-            var mensagemXmlElement = responseElement.Element(nfeNs + "MensagemXML");
+            // Try RetornoXML first (used by EnvioLoteRPS), then fallback to MensagemXML (used by other operations)
+            var retornoXmlElement = responseElement.Element(nfeNs + "RetornoXML");
+            var mensagemXmlElement = retornoXmlElement ?? responseElement.Element(nfeNs + "MensagemXML");
+            
             if (mensagemXmlElement == null)
             {
-                throw new NfeSoapException("Could not find MensagemXML element in SOAP response");
+                _logger.LogError("Could not find RetornoXML or MensagemXML element in SOAP response. Available elements: {Elements}",
+                    string.Join(", ", responseElement.Elements().Select(e => e.Name.LocalName)));
+                throw new NfeSoapException("Could not find RetornoXML or MensagemXML element in SOAP response");
             }
 
             // Handle CDATA content
@@ -315,7 +330,7 @@ public class NfeSoapClient : INfeGateway
 
             if (string.IsNullOrEmpty(xmlContent))
             {
-                throw new NfeSoapException("MensagemXML element is empty in SOAP response");
+                throw new NfeSoapException("RetornoXML/MensagemXML element is empty in SOAP response");
             }
 
             return xmlContent;
@@ -535,6 +550,13 @@ public class NfeSoapClient : INfeGateway
             AliquotaServicos = rps.Item.AliquotaServicos.Value,
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
+            // IMPORTANTE:
+            // O schema v2 do RPS da prefeitura usa campos como ValorTotalRecebido / ValorInicialCobrado / ValorFinalCobrado.
+            // Se não preencher, o webservice tende a assumir 0 (e então a "String verificada" do 1206 vem com ValorServicos=0).
+            // Para manter consistência entre XML e assinatura, espelhamos o ValorServicos do domínio nesses campos.
+            ValorTotalRecebido = rps.Item.ValorServicos.Value,
+            ValorInicialCobrado = rps.Item.ValorServicos.Value,
+            ValorFinalCobrado = rps.Item.ValorServicos.Value,
             ValorIPI = 0.00m,
             ExigibilidadeSuspensa = 0,
             PagamentoParceladoAntecipado = 0,
@@ -648,14 +670,20 @@ public class NfeSoapClient : INfeGateway
 
     #region Mapping Methods - XML to Domain
 
-    private RetornoEnvioLoteRpsResult MapRetornoEnvioLoteRPSToResult(RetornoEnvioLoteRPS retorno)
+    private RetornoEnvioLoteRpsResult MapRetornoEnvioLoteRPSToResult(RetornoEnvioLoteRPS retorno, DomainEntities.RpsBatch? batch = null)
     {
+        if (retorno == null)
+            throw new ArgumentNullException(nameof(retorno));
+
+        if (retorno.Cabecalho == null)
+            throw new InvalidOperationException("RetornoEnvioLoteRPS.Cabecalho is null");
+
         var result = new RetornoEnvioLoteRpsResult
         {
             Sucesso = retorno.Cabecalho.Sucesso,
-            Alertas = retorno.Alerta.Select(MapTpEventoToEvento).ToList(),
-            Erros = retorno.Erro.Select(MapTpEventoToEvento).ToList(),
-            ChavesNFeRPS = retorno.ChaveNFeRPS.Select(MapTpChaveNFeRPSToNfeRpsKeyPair).ToList()
+            Alertas = (retorno.Alerta ?? new List<tpEvento>()).Select(MapTpEventoToEvento).ToList(),
+            Erros = (retorno.Erro ?? new List<tpEvento>()).Select(MapTpEventoToEvento).ToList(),
+            ChavesNFeRPS = (retorno.ChaveNFeRPS ?? new List<tpChaveNFeRPS>()).Select(MapTpChaveNFeRPSToNfeRpsKeyPair).ToList()
         };
 
         // Extract protocolo from InformacoesLote if available
@@ -766,6 +794,113 @@ public class NfeSoapClient : INfeGateway
             ChaveRPS = tpEvento.ChaveRPS != null ? MapTpChaveRPSToRpsKey(tpEvento.ChaveRPS) : null,
             ChaveNFe = tpEvento.ChaveNFe != null ? MapTpChaveNFeToNfeKey(tpEvento.ChaveNFe) : null
         };
+    }
+
+    /// <summary>
+    /// Checks for error 1206 (signature error) and performs automatic comparison
+    /// </summary>
+    private void CheckAndCompareSignatureErrors(List<Evento> erros, DomainEntities.RpsBatch batch)
+    {
+        const int ErrorCode1206 = 1206;
+        
+        var signatureErrors = erros.Where(e => e.Codigo == ErrorCode1206).ToList();
+        if (!signatureErrors.Any())
+            return;
+
+        _logger.LogError("Error 1206 detected: {Count} signature error(s) found", signatureErrors.Count);
+
+        foreach (var erro in signatureErrors)
+        {
+            if (erro.ChaveRPS == null)
+            {
+                _logger.LogWarning("Error 1206 found but no ChaveRPS provided, cannot compare signature");
+                continue;
+            }
+
+            // Find the corresponding RPS in the batch
+            var rps = batch.RpsList.FirstOrDefault(r => 
+                r.ChaveRPS.InscricaoPrestador == erro.ChaveRPS.InscricaoPrestador &&
+                r.ChaveRPS.NumeroRps == erro.ChaveRPS.NumeroRps &&
+                r.ChaveRPS.SerieRps == erro.ChaveRPS.SerieRps);
+
+            if (rps == null)
+            {
+                _logger.LogWarning(
+                    "Error 1206 for RPS {InscricaoPrestador}-{NumeroRps} but RPS not found in batch",
+                    erro.ChaveRPS.InscricaoPrestador,
+                    erro.ChaveRPS.NumeroRps);
+                continue;
+            }
+
+            // Extract signature string from error message
+            _logger.LogInformation("Extracting verified signature string (1206) for RPS {InscricaoPrestador}-{NumeroRps}", 
+                erro.ChaveRPS.InscricaoPrestador, erro.ChaveRPS.NumeroRps);
+            _logger.LogDebug("1206 description: {Descricao}", erro.Descricao);
+            
+            if (string.IsNullOrWhiteSpace(erro.Descricao))
+            {
+                _logger.LogError(
+                    "❌ Error 1206 for RPS {InscricaoPrestador}-{NumeroRps} but error description is empty",
+                    erro.ChaveRPS.InscricaoPrestador,
+                    erro.ChaveRPS.NumeroRps);
+                continue;
+            }
+            
+            var prefeituraString = _rpsSignatureService!.ExtractSignatureStringFromError(erro.Descricao);
+            if (prefeituraString == null)
+            {
+                _logger.LogError(
+                    "❌ Error 1206 for RPS {InscricaoPrestador}-{NumeroRps} but could not extract signature string from error message: {Descricao}",
+                    erro.ChaveRPS.InscricaoPrestador,
+                    erro.ChaveRPS.NumeroRps,
+                    erro.Descricao);
+                continue;
+            }
+
+            _logger.LogInformation("Verified string extracted. Length={Length}", 
+                prefeituraString.Length);
+            _logger.LogDebug("Verified string: {String}", 
+                prefeituraString.Replace(' ', '·'));
+
+            // Build our signature string
+            _logger.LogInformation("Building our signature string for RPS {InscricaoPrestador}-{NumeroRps}", 
+                erro.ChaveRPS.InscricaoPrestador, erro.ChaveRPS.NumeroRps);
+            var ourString = _rpsSignatureService.BuildSignatureString(rps);
+            
+            _logger.LogInformation("Our string built. Length={Length}", ourString.Length);
+            _logger.LogDebug("Our string: {String}", ourString.Replace(' ', '·'));
+
+            // Compare strings first
+            _logger.LogInformation("Comparing signature strings (char-by-char)...");
+            var stringsMatch = _rpsSignatureService.CompareSignatureStrings(ourString, prefeituraString, rps);
+
+            // If strings don't match, try auto-fix
+            if (!stringsMatch)
+            {
+                _logger.LogWarning("Attempting auto-fix for RPS {InscricaoPrestador}-{NumeroRps}...", 
+                    erro.ChaveRPS.InscricaoPrestador, erro.ChaveRPS.NumeroRps);
+                
+                var fixedString = _rpsSignatureService.AutoFixSignatureString(rps, prefeituraString);
+                if (fixedString != null)
+                {
+                    _logger.LogWarning(
+                        "Auto-fix found a matching string for RPS {InscricaoPrestador}-{NumeroRps}. " +
+                        "Consider updating the fixed rules used in BuildSignatureString.",
+                        erro.ChaveRPS.InscricaoPrestador,
+                        erro.ChaveRPS.NumeroRps
+                    );
+                }
+                else
+                {
+                    _logger.LogError(
+                        "Auto-fix could not find a matching strategy for RPS {InscricaoPrestador}-{NumeroRps}. " +
+                        "Review the mismatch log (first diff index/char) and adjust signature rules.",
+                        erro.ChaveRPS.InscricaoPrestador,
+                        erro.ChaveRPS.NumeroRps
+                    );
+                }
+            }
+        }
     }
 
     private DomainEntities.RpsKey MapTpChaveRPSToRpsKey(tpChaveRPS tpChaveRPS)

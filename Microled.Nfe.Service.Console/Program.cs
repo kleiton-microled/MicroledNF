@@ -98,7 +98,7 @@ public class Program
                     return handler;
                 });
                 
-                // Register NfeSoapClient with ICertificateProvider
+                // Register NfeSoapClient with ICertificateProvider and IRpsSignatureService
                 services.AddScoped<INfeGateway>(serviceProvider =>
                 {
                     var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
@@ -108,8 +108,9 @@ public class Program
                     var xmlSerializer = serviceProvider.GetRequiredService<IXmlSerializerService>();
                     var soapEnvelopeBuilder = serviceProvider.GetRequiredService<ISoapEnvelopeBuilder>();
                     var certificateProvider = serviceProvider.GetService<ICertificateProvider>();
+                    var rpsSignatureService = serviceProvider.GetService<IRpsSignatureService>();
                     
-                    return new NfeSoapClient(httpClient, logger, options, xmlSerializer, soapEnvelopeBuilder, certificateProvider);
+                    return new NfeSoapClient(httpClient, logger, options, xmlSerializer, soapEnvelopeBuilder, certificateProvider, rpsSignatureService);
                 });
 
                 // Register Application use cases

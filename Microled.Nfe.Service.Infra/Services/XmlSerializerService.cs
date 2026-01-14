@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Xml;
+using System.Xml.Linq;
 using System.Xml.Serialization;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -136,8 +137,8 @@ public class XmlSerializerService : IXmlSerializerService
             // Get XML string and ensure no whitespace before <?xml
             var xmlWithoutSignature = stringWriter.ToString().TrimStart();
             
-            // Sign the XML and append signature if certificate provider is available
-            if (_certificateProvider != null)
+            // Sign the XML and append signature if certificate provider is available and XML signature is enabled
+            if (_certificateProvider != null && _options.EnableXmlSignature)
             {
                 try
                 {
@@ -149,6 +150,10 @@ public class XmlSerializerService : IXmlSerializerService
                     _logger.LogWarning(ex, "Failed to sign XML document, returning unsigned XML");
                     return xmlWithoutSignature;
                 }
+            }
+            else if (!_options.EnableXmlSignature)
+            {
+                _logger.LogDebug("XML signature (ds:Signature) is disabled via configuration");
             }
             
             return xmlWithoutSignature;
@@ -167,6 +172,15 @@ public class XmlSerializerService : IXmlSerializerService
 
         try
         {
+            // Normaliza namespaces inconsistentes retornados pelo webservice (ele injeta xmlns="" em Cabecalho/Erro/Alerta)
+            // para bater com os namespaces das classes geradas pelo XSD.
+            if (typeof(T) == typeof(RetornoEnvioLoteRPS) ||
+                typeof(T) == typeof(RetornoConsulta) ||
+                typeof(T) == typeof(RetornoCancelamentoNFe))
+            {
+                xml = NormalizeRetornoNamespaces(xml);
+            }
+
             var serializer = new XmlSerializer(typeof(T));
             using var stringReader = new StringReader(xml);
             using var xmlReader = XmlReader.Create(stringReader);
@@ -182,6 +196,121 @@ public class XmlSerializerService : IXmlSerializerService
             _logger.LogError(ex, "Error deserializing XML to type {Type}", typeof(T).Name);
             throw;
         }
+    }
+
+    /// <summary>
+    /// Normaliza namespaces do XML de retorno quando o webservice coloca elementos internos com xmlns=""
+    /// (namespace vazio), mas os XSDs esperam:
+    /// - Containers (Cabecalho/Erro/Alerta/ChaveNFeRPS/NFe) no namespace NFe
+    /// - Conteúdo tipado (Codigo/Descricao/ChaveRPS/InformacoesLote etc.) no namespace NFe/tipos
+    /// </summary>
+    private static string NormalizeRetornoNamespaces(string xml)
+    {
+        if (string.IsNullOrWhiteSpace(xml))
+            return xml;
+
+        XDocument doc;
+        try
+        {
+            doc = XDocument.Parse(xml, LoadOptions.PreserveWhitespace);
+        }
+        catch
+        {
+            // Se não conseguir parsear, não altera.
+            return xml;
+        }
+
+        var root = doc.Root;
+        if (root == null)
+            return xml;
+
+        // Só aplicar nos retornos conhecidos
+        var rootName = root.Name.LocalName;
+        if (rootName != "RetornoEnvioLoteRPS" &&
+            rootName != "RetornoConsulta" &&
+            rootName != "RetornoCancelamentoNFe")
+        {
+            return xml;
+        }
+
+        XNamespace nfeNs = "http://www.prefeitura.sp.gov.br/nfe";
+        XNamespace tiposNs = "http://www.prefeitura.sp.gov.br/nfe/tipos";
+
+        static void RemoveEmptyDefaultNamespaceDeclaration(XElement el)
+        {
+            // Remove any xmlns="" declaration (default empty namespace) which would conflict if we set the element name
+            // to a non-empty namespace (it would serialize as xmlns="nfe" xmlns="").
+            var attrs = el.Attributes()
+                .Where(a => a.IsNamespaceDeclaration && string.IsNullOrEmpty(a.Value))
+                .ToList();
+
+            foreach (var a in attrs)
+                a.Remove();
+        }
+
+        // Garante root no namespace NFe
+        if (string.IsNullOrEmpty(root.Name.NamespaceName))
+            root.Name = nfeNs + root.Name.LocalName;
+
+        // Containers imediatos do retorno ficam em NFe (mesmo se vierem com xmlns="")
+        foreach (var child in root.Elements().ToList())
+        {
+            RemoveEmptyDefaultNamespaceDeclaration(child);
+            if (string.IsNullOrEmpty(child.Name.NamespaceName))
+                child.Name = nfeNs + child.Name.LocalName;
+
+            switch (child.Name.LocalName)
+            {
+                case "Cabecalho":
+                    // Cabecalho em NFe; seus filhos imediatos em NFe
+                    foreach (var cabChild in child.Elements().ToList())
+                    {
+                        RemoveEmptyDefaultNamespaceDeclaration(cabChild);
+                        if (string.IsNullOrEmpty(cabChild.Name.NamespaceName))
+                            cabChild.Name = nfeNs + cabChild.Name.LocalName;
+
+                        // InformacoesLote: elemento container em NFe, conteúdo em tipos
+                        if (cabChild.Name.LocalName == "InformacoesLote")
+                        {
+                            foreach (var node in cabChild.DescendantsAndSelf().ToList())
+                            {
+                                // mantém o container InformacoesLote em NFe
+                                if (node == cabChild)
+                                    continue;
+
+                                RemoveEmptyDefaultNamespaceDeclaration(node);
+                                if (string.IsNullOrEmpty(node.Name.NamespaceName))
+                                    node.Name = tiposNs + node.Name.LocalName;
+                            }
+                        }
+                    }
+                    break;
+
+                case "Erro":
+                case "Alerta":
+                case "ChaveNFeRPS":
+                case "NFe":
+                    // Elemento container em NFe; conteúdo tipado em tipos
+                    foreach (var node in child.Descendants().ToList())
+                    {
+                        RemoveEmptyDefaultNamespaceDeclaration(node);
+                        if (string.IsNullOrEmpty(node.Name.NamespaceName))
+                            node.Name = tiposNs + node.Name.LocalName;
+                    }
+                    break;
+            }
+        }
+
+        // Safety net: strip any remaining xmlns="" declarations anywhere in the document to avoid invalid XML like:
+        // <Cabecalho xmlns="http://.../nfe" xmlns="">
+        foreach (var a in doc.Descendants().SelectMany(e => e.Attributes())
+                     .Where(a => a.IsNamespaceDeclaration && string.IsNullOrEmpty(a.Value))
+                     .ToList())
+        {
+            a.Remove();
+        }
+
+        return doc.ToString(SaveOptions.DisableFormatting);
     }
 
     #region Manual XML Writing Helpers for PedidoEnvioLoteRPS
@@ -283,7 +412,8 @@ public class XmlSerializerService : IXmlSerializerService
         writer.WriteElementString("ValorCSLL", FormatDecimal(rps.ValorCSLL));
         writer.WriteElementString("CodigoServico", rps.CodigoServico.ToString());
         writer.WriteElementString("AliquotaServicos", FormatDecimal(rps.AliquotaServicos));
-        writer.WriteElementString("ISSRetido", rps.ISSRetido.ToString().ToLower());
+        // ISSRetido é xs:boolean no XSD (aceita true/false ou 1/0)
+        writer.WriteElementString("ISSRetido", rps.ISSRetido ? "true" : "false");
         
         // Write optional Tomador fields
         if (rps.CPFCNPJTomador != null)
@@ -834,12 +964,46 @@ public class XmlSerializerService : IXmlSerializerService
             SigningKey = certificate.GetRSAPrivateKey() ?? throw new InvalidOperationException("Certificate does not have RSA private key")
         };
 
+        // Set signature algorithm based on configuration (SHA1 or SHA256)
+        var algorithm = _options.XmlSignatureAlgorithm?.ToUpperInvariant() ?? "SHA256";
+        if (signedXml.SignedInfo == null)
+            throw new InvalidOperationException("SignedInfo is null");
+            
+        if (algorithm == "SHA1")
+        {
+            signedXml.SignedInfo.SignatureMethod = SignedXml.XmlDsigRSASHA1Url;
+        }
+        else if (algorithm == "SHA256")
+        {
+            signedXml.SignedInfo.SignatureMethod = SignedXml.XmlDsigRSASHA256Url;
+        }
+        else
+        {
+            _logger.LogWarning("Unknown XML signature algorithm '{Algorithm}', using SHA256", algorithm);
+            signedXml.SignedInfo.SignatureMethod = SignedXml.XmlDsigRSASHA256Url;
+        }
+
+        _logger.LogDebug("Using XML signature algorithm: {Algorithm}", algorithm);
+
         // Create reference to sign the entire document
         var reference = new Reference { Uri = "" };
         
         // Add transform to canonicalize XML
         reference.AddTransform(new XmlDsigEnvelopedSignatureTransform());
         reference.AddTransform(new XmlDsigC14NTransform());
+        
+        // Set digest method based on algorithm
+        if (algorithm == "SHA1")
+        {
+            reference.DigestMethod = SignedXml.XmlDsigSHA1Url;
+        }
+        else
+        {
+            reference.DigestMethod = SignedXml.XmlDsigSHA256Url;
+        }
+        
+        if (reference.DigestMethod == null)
+            throw new InvalidOperationException("DigestMethod could not be set");
         
         signedXml.AddReference(reference);
 

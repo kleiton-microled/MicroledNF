@@ -48,7 +48,7 @@ public class NfeSoapClientTests
         var pedido = CreateTestPedidoEnvioLoteRPS();
         var retorno = CreateTestRetornoEnvioLoteRPS();
 
-        _xmlSerializerMock.Setup(x => x.Serialize(It.IsAny<PedidoEnvioLoteRPS>()))
+        _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
             .Returns("<PedidoEnvioLoteRPS>...</PedidoEnvioLoteRPS>");
 
         _xmlSerializerMock.Setup(x => x.Deserialize<RetornoEnvioLoteRPS>(It.IsAny<string>()))
@@ -57,6 +57,10 @@ public class NfeSoapClientTests
         var soapResponse = CreateSoapSuccessResponse("EnvioLoteRPSResponse", SerializeRetornoEnvioLoteRPS(retorno));
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
+
+        _soapEnvelopeBuilderMock
+            .Setup(x => x.BuildEnvioLoteRPS(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><EnvioLoteRPSResponse><RetornoXML><![CDATA[{SerializeRetornoEnvioLoteRPS(retorno)}]]></RetornoXML></EnvioLoteRPSResponse></soap:Body></soap:Envelope>");
 
         var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         var batch = CreateTestRpsBatch();
@@ -82,8 +86,12 @@ public class NfeSoapClientTests
         var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         var batch = CreateTestRpsBatch();
 
-        _xmlSerializerMock.Setup(x => x.Serialize(It.IsAny<PedidoEnvioLoteRPS>()))
+        _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
             .Returns("<PedidoEnvioLoteRPS>...</PedidoEnvioLoteRPS>");
+
+        _soapEnvelopeBuilderMock
+            .Setup(x => x.BuildEnvioLoteRPS(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => "<soap:Envelope><soap:Body>FAULT</soap:Body></soap:Envelope>");
 
         // Act & Assert
         var act = async () => await client.SendRpsBatchAsync(batch, CancellationToken.None);
@@ -102,8 +110,12 @@ public class NfeSoapClientTests
         var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
         var batch = CreateTestRpsBatch();
 
-        _xmlSerializerMock.Setup(x => x.Serialize(It.IsAny<PedidoEnvioLoteRPS>()))
+        _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
             .Returns("<PedidoEnvioLoteRPS>...</PedidoEnvioLoteRPS>");
+
+        _soapEnvelopeBuilderMock
+            .Setup(x => x.BuildEnvioLoteRPS(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => "<soap:Envelope><soap:Body>ERROR</soap:Body></soap:Envelope>");
 
         // Act & Assert
         var act = async () => await client.SendRpsBatchAsync(batch, CancellationToken.None);

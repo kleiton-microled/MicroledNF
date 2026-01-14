@@ -80,6 +80,18 @@ public class NfeServiceOptions
     public bool LogSensitiveData { get; set; } = false;
 
     /// <summary>
+    /// Enable XML signature (ds:Signature) for PedidoEnvioLoteRPS
+    /// Default: true (enabled)
+    /// </summary>
+    public bool EnableXmlSignature { get; set; } = true;
+
+    /// <summary>
+    /// XML signature algorithm: "SHA1" or "SHA256"
+    /// Default: "SHA256"
+    /// </summary>
+    public string XmlSignatureAlgorithm { get; set; } = "SHA256";
+
+    /// <summary>
     /// Certificate configuration
     /// </summary>
     public CertificateOptions Certificate { get; set; } = new();
