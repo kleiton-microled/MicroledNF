@@ -35,6 +35,7 @@ public class NfeSoapClient : INfeGateway
     private readonly ISoapEnvelopeBuilder _soapEnvelopeBuilder;
     private readonly ICertificateProvider? _certificateProvider;
     private readonly IRpsSignatureService? _rpsSignatureService;
+    private readonly IServiceTaxRateProvider _serviceTaxRateProvider;
 
     public NfeSoapClient(
         HttpClient httpClient,
@@ -43,7 +44,8 @@ public class NfeSoapClient : INfeGateway
         IXmlSerializerService xmlSerializer,
         ISoapEnvelopeBuilder soapEnvelopeBuilder,
         ICertificateProvider? certificateProvider = null,
-        IRpsSignatureService? rpsSignatureService = null)
+        IRpsSignatureService? rpsSignatureService = null,
+        IServiceTaxRateProvider? serviceTaxRateProvider = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -52,6 +54,7 @@ public class NfeSoapClient : INfeGateway
         _soapEnvelopeBuilder = soapEnvelopeBuilder ?? throw new ArgumentNullException(nameof(soapEnvelopeBuilder));
         _certificateProvider = certificateProvider;
         _rpsSignatureService = rpsSignatureService;
+        _serviceTaxRateProvider = serviceTaxRateProvider ?? new Microled.Nfe.Service.Infra.Services.ServiceTaxRateProvider();
 
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
@@ -68,6 +71,7 @@ public class NfeSoapClient : INfeGateway
             // 2. Serialize to XML (using specialized method for PedidoEnvioLoteRPS)
             var xmlContent = _xmlSerializer.SerializePedidoEnvioLoteRPS(pedido);
             LogXmlIfEnabled("Request XML (PedidoEnvioLoteRPS)", xmlContent);
+            LogRpsFragmentsIfEnabled(xmlContent);
             _logger.LogDebug("Serialized PedidoEnvioLoteRPS XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope (using specialized method for EnvioLoteRPS)
@@ -419,6 +423,26 @@ public class NfeSoapClient : INfeGateway
     }
 
     /// <summary>
+    /// Logs only the &lt;RPS&gt;...&lt;/RPS&gt; fragments (useful for schema troubleshooting) when LogRawXml is enabled.
+    /// Respects LogSensitiveData masking rules.
+    /// </summary>
+    private void LogRpsFragmentsIfEnabled(string pedidoEnvioLoteRpsXml)
+    {
+        if (!_options.LogRawXml || string.IsNullOrWhiteSpace(pedidoEnvioLoteRpsXml))
+            return;
+
+        var matches = Regex.Matches(pedidoEnvioLoteRpsXml, @"<RPS\b[\s\S]*?</RPS>", RegexOptions.IgnoreCase);
+        if (matches.Count == 0)
+            return;
+
+        foreach (Match m in matches)
+        {
+            var fragment = m.Value;
+            LogXmlIfEnabled("RPS fragment", fragment);
+        }
+    }
+
+    /// <summary>
     /// Masks sensitive data in XML (CNPJ, CPF, monetary values, keys)
     /// </summary>
     private string MaskSensitiveData(string xml)
@@ -527,6 +551,29 @@ public class NfeSoapClient : INfeGateway
         // Convert Base64 signature to byte array
         var assinaturaBytes = Convert.FromBase64String(rps.Assinatura);
 
+        var originalAliquota = rps.Item.AliquotaServicos.Value;
+        var providerAliquota = _serviceTaxRateProvider.GetAliquota(rps.Item.CodigoServico);
+        var aliquotaToSend = providerAliquota != 0m ? providerAliquota : originalAliquota;
+
+        if (aliquotaToSend != originalAliquota)
+        {
+            _logger.LogInformation(
+                "AliquotaServicos adjusted from {From} to {To} for CodigoServico {CodigoServico}",
+                originalAliquota,
+                aliquotaToSend,
+                rps.Item.CodigoServico);
+        }
+
+        // Regra erro 1630: CodigoServico 2919 não permite informar ValorTotalRecebido => omitir a tag (null)
+        var omitValorTotalRecebido = rps.Item.CodigoServico == 2919;
+        var valorTotalRecebido = omitValorTotalRecebido ? (decimal?)null : rps.Item.ValorServicos.Value;
+
+        _logger.LogInformation(
+            "RPS XML fields: CodigoServico={CodigoServico}, AliquotaServicos={AliquotaServicos}, OmitValorTotalRecebido={OmitValorTotalRecebido}",
+            rps.Item.CodigoServico,
+            aliquotaToSend,
+            omitValorTotalRecebido);
+
         var tpRps = new tpRPS
         {
             Assinatura = assinaturaBytes,
@@ -547,14 +594,14 @@ public class NfeSoapClient : INfeGateway
             ValorIR = 0.00m,
             ValorCSLL = 0.00m,
             CodigoServico = rps.Item.CodigoServico,
-            AliquotaServicos = rps.Item.AliquotaServicos.Value,
+            AliquotaServicos = aliquotaToSend,
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
             // IMPORTANTE:
             // O schema v2 do RPS da prefeitura usa campos como ValorTotalRecebido / ValorInicialCobrado / ValorFinalCobrado.
             // Se não preencher, o webservice tende a assumir 0 (e então a "String verificada" do 1206 vem com ValorServicos=0).
             // Para manter consistência entre XML e assinatura, espelhamos o ValorServicos do domínio nesses campos.
-            ValorTotalRecebido = rps.Item.ValorServicos.Value,
+            ValorTotalRecebido = valorTotalRecebido,
             ValorInicialCobrado = rps.Item.ValorServicos.Value,
             ValorFinalCobrado = rps.Item.ValorServicos.Value,
             ValorIPI = 0.00m,
@@ -564,9 +611,32 @@ public class NfeSoapClient : INfeGateway
             // Como nosso serviço é prestado no Brasil, preencher cLocPrestacao por padrão
             // Usar código do município do prestador se disponível, senão usar São Paulo (3550308)
             cLocPrestacao = rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308, // São Paulo por padrão
-            cPaisPrestacao = null, // Não preencher para serviços no Brasil
+            cPaisPrestacao = null, // NUNCA preencher (sistema não suporta prestação fora do Brasil)
             IBSCBS = CreateDefaultIBSCBS()
         };
+
+        // Fail-fast:
+        // - Decisão de negócio: ignorar cPaisPrestacao (não suportamos prestação fora do Brasil)
+        // - Manter cLocPrestacao para Brasil (schema exige gpPrestacao antes do IBSCBS)
+        var tributacaoIsT = string.Equals(tpRps.TributacaoRPS, "T", StringComparison.OrdinalIgnoreCase);
+
+        if (tributacaoIsT)
+        {
+            if (tpRps.MunicipioPrestacao.HasValue)
+            {
+                _logger.LogWarning(
+                    "Removido MunicipioPrestacao por TributacaoRPS=T (regra erro 1223). MunicipioPrestacao={MunicipioPrestacao}",
+                    tpRps.MunicipioPrestacao);
+            }
+
+            tpRps.MunicipioPrestacao = null;
+        }
+
+        if (!string.IsNullOrWhiteSpace(tpRps.cPaisPrestacao))
+        {
+            _logger.LogInformation("Ignoring cPaisPrestacao — system does not support services outside Brazil. Provided='{Provided}'", tpRps.cPaisPrestacao);
+            tpRps.cPaisPrestacao = null;
+        }
 
         // Map tomador if present
         if (rps.Tomador != null)

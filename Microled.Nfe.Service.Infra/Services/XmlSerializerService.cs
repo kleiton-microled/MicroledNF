@@ -336,15 +336,11 @@ public class XmlSerializerService : IXmlSerializerService
                 throw new InvalidOperationException("atvEvento.end é obrigatório quando atvEvento está presente");
         }
         
-        // Validação 2: Deve existir exatamente 1 entre (cLocPrestacao, cPaisPrestacao)
-        var hasLocPrestacao = rps.cLocPrestacao.HasValue;
-        var hasPaisPrestacao = !string.IsNullOrWhiteSpace(rps.cPaisPrestacao);
-        
-        if (!hasLocPrestacao && !hasPaisPrestacao)
-            throw new InvalidOperationException("É obrigatório informar OU cLocPrestacao OU cPaisPrestacao (Choice do schema)");
-        
-        if (hasLocPrestacao && hasPaisPrestacao)
-            throw new InvalidOperationException("Não é permitido informar AMBOS cLocPrestacao e cPaisPrestacao. Deve ser OU um OU outro (Choice do schema)");
+        // Validação 2: gpPrestacao (schema v2)
+        // Decisão de negócio: não suportamos prestação fora do Brasil => NUNCA enviar cPaisPrestacao.
+        // Logo, sempre exigimos cLocPrestacao (Brasil) antes do IBSCBS.
+        if (!rps.cLocPrestacao.HasValue)
+            throw new InvalidOperationException("cLocPrestacao é obrigatório (sistema não suporta cPaisPrestacao / serviços fora do Brasil).");
         
         // Validação 3: IBSCBS é obrigatório no schema v2
         if (isSchemaV2 && rps.IBSCBS == null)
@@ -402,6 +398,9 @@ public class XmlSerializerService : IXmlSerializerService
         
         // Write TributacaoRPS
         writer.WriteElementString("TributacaoRPS", rps.TributacaoRPS);
+
+        var tributacaoIsT = string.Equals(rps.TributacaoRPS, "T", StringComparison.OrdinalIgnoreCase);
+        var isExportacao = false; // não suportado
         
         // Write values
         writer.WriteElementString("ValorDeducoes", FormatDecimal(rps.ValorDeducoes));
@@ -411,7 +410,7 @@ public class XmlSerializerService : IXmlSerializerService
         writer.WriteElementString("ValorIR", FormatDecimal(rps.ValorIR));
         writer.WriteElementString("ValorCSLL", FormatDecimal(rps.ValorCSLL));
         writer.WriteElementString("CodigoServico", rps.CodigoServico.ToString());
-        writer.WriteElementString("AliquotaServicos", FormatDecimal(rps.AliquotaServicos));
+        writer.WriteElementString("AliquotaServicos", FormatAliquota(rps.AliquotaServicos));
         // ISSRetido é xs:boolean no XSD (aceita true/false ou 1/0)
         writer.WriteElementString("ISSRetido", rps.ISSRetido ? "true" : "false");
         
@@ -480,11 +479,18 @@ public class XmlSerializerService : IXmlSerializerService
         // Always write FonteCargaTributaria (may be required by schema)
         writer.WriteElementString("FonteCargaTributaria", string.IsNullOrEmpty(rps.FonteCargaTributaria) ? "0" : rps.FonteCargaTributaria);
         
-        // Always write MunicipioPrestacao (required by schema, using default value for São Paulo)
-        writer.WriteElementString("MunicipioPrestacao", rps.MunicipioPrestacao?.ToString() ?? "3550308");
+        // MunicipioPrestacao: NÃO enviar quando TributacaoRPS="T" (regra erro 1223)
+        // Não preencher com 3550308 nem com zero: deve remover o nó.
+        if (!tributacaoIsT && rps.MunicipioPrestacao.HasValue)
+        {
+            writer.WriteElementString("MunicipioPrestacao", rps.MunicipioPrestacao.Value.ToString());
+        }
         
-        // Always write ValorTotalRecebido (may be required by schema)
-        writer.WriteElementString("ValorTotalRecebido", FormatDecimal(rps.ValorTotalRecebido ?? 0m));
+        // ValorTotalRecebido: quando null, NÃO emitir o nó (regra erro 1630 para alguns códigos de serviço como 2919)
+        if (rps.ValorTotalRecebido.HasValue)
+        {
+            writer.WriteElementString("ValorTotalRecebido", FormatDecimal(rps.ValorTotalRecebido.Value));
+        }
         
         // Always write ValorInicialCobrado (required by schema)
         writer.WriteElementString("ValorInicialCobrado", FormatDecimal(rps.ValorInicialCobrado ?? 0m));
@@ -504,32 +510,7 @@ public class XmlSerializerService : IXmlSerializerService
         // Always write PagamentoParceladoAntecipado (required by schema)
         writer.WriteElementString("PagamentoParceladoAntecipado", rps.PagamentoParceladoAntecipado.ToString());
         
-        // Always write NBS (required by schema)
-        writer.WriteElementString("NBS", string.IsNullOrEmpty(rps.NBS) ? "000000000" : rps.NBS);
-        
-        // Write optional atvEvento (schema v2) - apenas se for evento completo
-        // Como nosso serviço NÃO é evento, NÃO gerar a tag <atvEvento> no XML
-        // (Deixar preparado para futuro: caso seja evento, a tag deve ser completa)
-        if (rps.atvEvento != null)
-        {
-            WriteAtividadeEvento(writer, rps.atvEvento);
-        }
-        
-        // Write Choice: OU cLocPrestacao OU cPaisPrestacao (obrigatório - schema v2)
-        // Se o serviço foi prestado no Brasil: gerar APENAS cLocPrestacao
-        // Se o serviço foi prestado fora do país: gerar APENAS cPaisPrestacao
-        if (rps.cLocPrestacao.HasValue)
-        {
-            writer.WriteElementString("cLocPrestacao", rps.cLocPrestacao.Value.ToString());
-        }
-        else if (!string.IsNullOrWhiteSpace(rps.cPaisPrestacao))
-        {
-            writer.WriteElementString("cPaisPrestacao", rps.cPaisPrestacao);
-        }
-        // Note: A validação já garante que pelo menos um está preenchido
-        
-        // Write optional fields - ORDER MATTERS!
-        // Only write fields that have values (schema doesn't allow invalid default values like "0" for some fields)
+        // Optional fields that MUST come before NBS/atvEvento/cLoc/cPais/IBSCBS (schema order)
         if (rps.CodigoCEI.HasValue)
         {
             writer.WriteElementString("CodigoCEI", rps.CodigoCEI.Value.ToString());
@@ -549,12 +530,21 @@ public class XmlSerializerService : IXmlSerializerService
         {
             writer.WriteElementString("NCM", rps.NCM);
         }
+
+        // Always write NBS (required by schema, comes before cLocPrestacao/IBSCBS)
+        writer.WriteElementString("NBS", string.IsNullOrEmpty(rps.NBS) ? "000000000" : rps.NBS);
         
-        // Schema V2 fields - IBSCBS é obrigatório quando VersaoSchema=2
-        // Sempre escrever IBSCBS quando useSchemaV2Fields=true OU isSchemaV2=true
+        // gpPrestacao (schema v2) - MUST come before IBSCBS (schema order)
+        // Decisão de negócio: não suportamos cPaisPrestacao => nunca escrever.
+        // Mantemos apenas cLocPrestacao (Brasil).
+        if (!rps.cLocPrestacao.HasValue)
+            throw new InvalidOperationException("cLocPrestacao é obrigatório (sistema não suporta cPaisPrestacao / serviços fora do Brasil).");
+
+        writer.WriteElementString("cLocPrestacao", rps.cLocPrestacao.Value.ToString());
+        
+        // Schema V2 fields - IBSCBS is mandatory and MUST come after cLoc/cPais (schema order)
         if (useSchemaV2Fields || isSchemaV2)
         {
-            // Write IBSCBS (obrigatório na V2)
             if (rps.IBSCBS == null)
                 throw new InvalidOperationException("IBSCBS não pode ser null quando VersaoSchema=2");
             
@@ -915,24 +905,34 @@ public class XmlSerializerService : IXmlSerializerService
     {
         writer.WriteStartElement("end");
         
-        if (end.CEP.HasValue)
+        // Regra do schema (erro 1001): dentro de <end> só pode existir:
+        // - <CEP> (endereço nacional simplificado), OU
+        // - <endExt> (endereço exterior conforme XSD)
+        // NÃO escrever xLgr/nro/xBairro aqui.
+        if (end.endExt != null)
+        {
+            WriteEnderecoExterior(writer, end.endExt);
+        }
+        else if (end.CEP.HasValue)
         {
             writer.WriteElementString("CEP", end.CEP.Value.ToString());
         }
-        
-        // endExt is optional - skipping for now
-        // TODO: Implement if needed
-        
-        writer.WriteElementString("xLgr", end.xLgr);
-        writer.WriteElementString("nro", end.nro);
-        
-        if (!string.IsNullOrEmpty(end.xCpl))
+        else
         {
-            writer.WriteElementString("xCpl", end.xCpl);
+            throw new InvalidOperationException("end deve conter CEP (Brasil) ou endExt (Exterior) conforme XSD.");
         }
         
-        writer.WriteElementString("xBairro", end.xBairro);
-        
+        writer.WriteEndElement();
+    }
+
+    private static void WriteEnderecoExterior(XmlWriter writer, tpEnderecoExterior endExt)
+    {
+        // Estrutura conforme tpEnderecoExterior (TiposNFe_v02.xsd)
+        writer.WriteStartElement("endExt");
+        writer.WriteElementString("cPais", endExt.cPais);
+        writer.WriteElementString("cEndPost", endExt.cEndPost);
+        writer.WriteElementString("xCidade", endExt.xCidade);
+        writer.WriteElementString("xEstProvReg", endExt.xEstProvReg);
         writer.WriteEndElement();
     }
     
@@ -940,6 +940,17 @@ public class XmlSerializerService : IXmlSerializerService
     {
         // Format decimal without thousands separator, with dot as decimal separator
         return value.ToString("F2", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string FormatAliquota(decimal value)
+    {
+        // NFSe SP aceita aliquotas com 3 casas quando necessário (ex: 0.029).
+        // Mantém 2 casas quando possível (ex: 0.05) e usa '.' como separador.
+        var rounded3 = Math.Round(value, 3, MidpointRounding.AwayFromZero);
+        var rounded2 = Math.Round(value, 2, MidpointRounding.AwayFromZero);
+
+        var fmt = rounded3 == rounded2 ? "0.00" : "0.000";
+        return rounded3.ToString(fmt, System.Globalization.CultureInfo.InvariantCulture);
     }
     
     /// <summary>
