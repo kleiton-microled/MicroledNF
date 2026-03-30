@@ -14,6 +14,7 @@ using Microled.Nfe.Service.Domain.ValueObjects;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Exceptions;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.XmlSchemas;
 using DomainEntities = Microled.Nfe.Service.Domain.Entities;
 
@@ -104,9 +105,10 @@ public class NfeSoapClient : INfeGateway
                     (int)response.StatusCode);
             }
 
+
             // 6. Extract XML from SOAP response
             var retornoXml = ExtractXmlFromSoapResponse("EnvioLoteRPSResponse", responseContent);
-            LogXmlIfEnabled("Response XML (RetornoEnvioLoteRPS)", retornoXml);
+         LogXmlIfEnabled("Response XML (RetornoEnvioLoteRPS)", retornoXml);
 
             // 7. Deserialize response
             var retorno = _xmlSerializer.Deserialize<RetornoEnvioLoteRPS>(retornoXml);
@@ -551,6 +553,45 @@ public class NfeSoapClient : INfeGateway
         // Convert Base64 signature to byte array
         var assinaturaBytes = Convert.FromBase64String(rps.Assinatura);
 
+        // Layout 2 / IBSCBS: cClassTrib obrigatório (erro 628 quando inexistente/não vigente)
+        var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+        string cClassTrib;
+        if (versaoSchema >= 2)
+        {
+            // Compatibilidade: alguns fluxos (ex. API) podem não informar cClassTrib.
+            // Nesses casos, usamos fallback "000001" (tabela vigente) para evitar erro 628.
+            var cClassTribRaw = rps.IbsCbsCClassTrib;
+            cClassTrib = IbsCbsCClassTribValidator.ValidateAndGet(cClassTribRaw ?? "000001");
+
+            if (string.IsNullOrWhiteSpace(cClassTribRaw))
+            {
+                _logger.LogWarning(
+                    "IBSCBS_CClassTrib ausente; usando fallback {Fallback}. RPS {InscricaoPrestador}-{NumeroRps}, CodigoServico={CodigoServico}",
+                    cClassTrib,
+                    rps.ChaveRPS.InscricaoPrestador,
+                    rps.ChaveRPS.NumeroRps,
+                    rps.Item.CodigoServico);
+            }
+            else if (!string.Equals(cClassTribRaw, cClassTrib, StringComparison.Ordinal))
+            {
+                _logger.LogInformation(
+                    "IBSCBS_CClassTrib normalizado. Raw='{Raw}' => Final='{Final}'. RPS {InscricaoPrestador}-{NumeroRps}, CodigoServico={CodigoServico}",
+                    cClassTribRaw,
+                    cClassTrib,
+                    rps.ChaveRPS.InscricaoPrestador,
+                    rps.ChaveRPS.NumeroRps,
+                    rps.Item.CodigoServico);
+            }
+        }
+        else
+        {
+            cClassTrib = "0";
+        }
+
+        // Layout 2 / IBSCBS: cIndOp deve ser sempre 6 dígitos numéricos; PMSP exige 100301 para nosso caso.
+        // Mesmo que venha do Access, normalizamos e fazemos fallback para 100301 quando vazio/nulo/inválido.
+        var cIndOp = IbsCbsCIndOpNormalizer.NormalizeOrDefault(rps.IbsCbsCIndOp);
+
         var originalAliquota = rps.Item.AliquotaServicos.Value;
         var providerAliquota = _serviceTaxRateProvider.GetAliquota(rps.Item.CodigoServico);
         var aliquotaToSend = providerAliquota != 0m ? providerAliquota : originalAliquota;
@@ -573,6 +614,16 @@ public class NfeSoapClient : INfeGateway
             rps.Item.CodigoServico,
             aliquotaToSend,
             omitValorTotalRecebido);
+
+        if (versaoSchema >= 2)
+        {
+            _logger.LogInformation(
+                "Applying IBSCBS cClassTrib={cClassTrib}, cIndOp={cIndOp} for RPS {InscricaoPrestador}-{NumeroRps}",
+                cClassTrib,
+                cIndOp,
+                rps.ChaveRPS.InscricaoPrestador,
+                rps.ChaveRPS.NumeroRps);
+        }
 
         var tpRps = new tpRPS
         {
@@ -612,7 +663,7 @@ public class NfeSoapClient : INfeGateway
             // Usar código do município do prestador se disponível, senão usar São Paulo (3550308)
             cLocPrestacao = rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308, // São Paulo por padrão
             cPaisPrestacao = null, // NUNCA preencher (sistema não suporta prestação fora do Brasil)
-            IBSCBS = CreateDefaultIBSCBS()
+            IBSCBS = CreateDefaultIBSCBS(cClassTrib, cIndOp)
         };
 
         // Fail-fast:
@@ -1012,7 +1063,7 @@ public class NfeSoapClient : INfeGateway
             tpNFe.ChaveNFe.CodigoVerificacao);
     }
 
-    private tpIBSCBS CreateDefaultIBSCBS()
+    private tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp)
     {
         // Create a default IBSCBS structure
         // TODO: This should be configurable or come from RPS item
@@ -1020,7 +1071,7 @@ public class NfeSoapClient : INfeGateway
         {
             finNFSe = 0, // NFS-e regular
             indFinal = 0, // Não é consumidor final
-            cIndOp = "123456", // TODO: Get from configuration
+            cIndOp = cIndOp,
             indDest = 0, // Não informado
             valores = new tpValores
             {
@@ -1028,7 +1079,7 @@ public class NfeSoapClient : INfeGateway
                 {
                     gIBSCBS = new tpGIBSCBS
                     {
-                        cClassTrib = "123456" // TODO: Get from configuration
+                        cClassTrib = cClassTrib
                     }
                 }
             }

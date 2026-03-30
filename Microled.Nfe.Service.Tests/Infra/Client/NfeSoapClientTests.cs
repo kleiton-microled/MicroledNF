@@ -47,8 +47,10 @@ public class NfeSoapClientTests
         // Arrange
         var pedido = CreateTestPedidoEnvioLoteRPS();
         var retorno = CreateTestRetornoEnvioLoteRPS();
+        PedidoEnvioLoteRPS? capturedPedido = null;
 
         _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
+            .Callback<PedidoEnvioLoteRPS>(p => capturedPedido = p)
             .Returns("<PedidoEnvioLoteRPS>...</PedidoEnvioLoteRPS>");
 
         _xmlSerializerMock.Setup(x => x.Deserialize<RetornoEnvioLoteRPS>(It.IsAny<string>()))
@@ -73,6 +75,10 @@ public class NfeSoapClientTests
         result.Sucesso.Should().BeTrue();
         result.Protocolo.Should().NotBeNullOrEmpty();
         result.ChavesNFeRPS.Should().HaveCount(1);
+        capturedPedido.Should().NotBeNull();
+        capturedPedido!.RPS.Should().HaveCount(1);
+        capturedPedido.RPS[0].IBSCBS.valores.trib.gIBSCBS.cClassTrib.Should().Be("000001");
+        capturedPedido.RPS[0].IBSCBS.cIndOp.Should().Be("100301");
     }
 
     [Fact]
@@ -231,6 +237,8 @@ public class NfeSoapClientTests
             prestador,
             null
         );
+        // Layout 2 / IBSCBS: obrigatório para envio (erro 628)
+        rps.SetIbsCbsCClassTrib("000001");
         // Use a valid Base64 string for testing (32 bytes = 44 Base64 chars)
         var fakeSignatureBytes = new byte[32];
         Array.Fill(fakeSignatureBytes, (byte)65); // Fill with 'A'

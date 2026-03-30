@@ -18,6 +18,18 @@ public sealed class Rps
     public ServiceCustomer? Tomador { get; }
     public string? Assinatura { get; private set; }
 
+    /// <summary>
+    /// Layout 2 (IBSCBS): classificação tributária (IBSCBS/valores/trib/gIBSCBS/cClassTrib).
+    /// Vem do Access (coluna IBSCBS_CClassTrib).
+    /// </summary>
+    public string? IbsCbsCClassTrib { get; private set; }
+
+    /// <summary>
+    /// Layout 2 (IBSCBS): Código indicador da operação (IBSCBS/cIndOp).
+    /// Vem do Access (coluna IBSCBS_CIndOp). Deve ter 6 dígitos (somente números).
+    /// </summary>
+    public string? IbsCbsCIndOp { get; private set; }
+
     public Rps(
         RpsKey chaveRPS,
         TipoRps tipoRPS,
@@ -41,6 +53,16 @@ public sealed class Rps
     public void SetAssinatura(string assinatura)
     {
         Assinatura = assinatura ?? throw new ArgumentNullException(nameof(assinatura));
+    }
+
+    public void SetIbsCbsCClassTrib(string? cClassTrib)
+    {
+        IbsCbsCClassTrib = cClassTrib;
+    }
+
+    public void SetIbsCbsCIndOp(string? cIndOp)
+    {
+        IbsCbsCIndOp = cIndOp;
     }
 }
 

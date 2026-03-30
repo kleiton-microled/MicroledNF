@@ -6,6 +6,7 @@ using Microled.Nfe.Service.Domain.Entities;
 using Microled.Nfe.Service.Domain.Enums;
 using Microled.Nfe.Service.Domain.ValueObjects;
 using Microled.Nfe.Service.Infra.Configuration;
+using Microled.Nfe.Service.Infra.Services;
 
 namespace Microled.Nfe.Service.Infra.Repositories;
 
@@ -50,6 +51,13 @@ public class AccessRpsRepository : IAccessRpsRepository
             using var connection = new OleDbConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
 
+            // Detect optional columns (so we can keep backward compatibility with older MDB schemas)
+            var availableColumns = await GetAvailableColumnsAsync(connectionString, _options.RpsTableName, cancellationToken);
+            var cIndOpSelect = BuildOptionalColumnSelect(
+                availableColumns,
+                new[] { "IBSCBS_CIndOp", "C_IND_OP", "CODIGO_INDICADOR_OPERACAO" },
+                "IbsCbsCIndOp");
+
             // Query to get pending RPS
             // Using actual column names from Access database
             var query = $@"
@@ -68,6 +76,8 @@ public class AccessRpsRepository : IAccessRpsRepository
                     [Codigo_ISS] AS CodigoServico,
                     [Discriminacao],
                     0 AS AliquotaISS,
+                    [IBSCBS_CClassTrib] AS IbsCbsCClassTrib,
+                    {cIndOpSelect},
                     False AS ISSRetido,
                     'RPS' AS TipoRPS,
                     'N' AS StatusRPS,
@@ -185,6 +195,35 @@ public class AccessRpsRepository : IAccessRpsRepository
             _logger.LogError(ex, "Error reading RPS from Access database: {DatabasePath}", _options.DatabasePath);
             throw;
         }
+    }
+
+    private string BuildOptionalColumnSelect(List<string> availableColumns, string[] candidates, string alias)
+    {
+        // Access column names are case-insensitive, but we'll compare case-insensitively anyway.
+        var found = candidates.FirstOrDefault(c =>
+            availableColumns.Any(ac => string.Equals(ac, c, StringComparison.OrdinalIgnoreCase)));
+
+        if (string.IsNullOrEmpty(found))
+        {
+            _logger.LogWarning(
+                "Optional Access column for {Alias} not found. Candidates={Candidates}. Using NULL fallback. Table={Table}",
+                alias,
+                string.Join(", ", candidates),
+                _options.RpsTableName);
+            return $"NULL AS {alias}";
+        }
+
+        if (!string.Equals(found, candidates[0], StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogInformation(
+                "Using Access column '{Column}' for {Alias} (preferred '{Preferred}' not found). Table={Table}",
+                found,
+                alias,
+                candidates[0],
+                _options.RpsTableName);
+        }
+
+        return $"[{found}] AS {alias}";
     }
 
     public async Task MarkAsSentAsync(IEnumerable<RpsRecord> rpsRecords, CancellationToken cancellationToken)
@@ -472,6 +511,73 @@ public class AccessRpsRepository : IAccessRpsRepository
             prestador,
             tomador
         );
+
+        // Layout 2: IBSCBS cClassTrib (coluna Access: IBSCBS_CClassTrib)
+        var cClassTribRaw = reader["IbsCbsCClassTrib"]?.ToString();
+        rps.SetIbsCbsCClassTrib(cClassTribRaw);
+
+        // Fail-fast por item (antes de enviar): no layout 2, cClassTrib é obrigatório e deve ser numérico.
+        // Isso evita derrubar o lote inteiro no SOAP client e mantém o item pendente no Access para correção.
+        var versaoSchemaStr = _nfeOptions.Versao?.Replace(".", "") ?? "0";
+        var versaoSchema = int.TryParse(versaoSchemaStr, out var v) ? v : 0;
+        if (versaoSchema >= 2)
+        {
+            // No layout 2, cClassTrib é obrigatório para evitar erro 628.
+            // Porém, para compatibilidade com bases antigas/linhas incompletas, fazemos fallback para "000001".
+            string normalized;
+            try
+            {
+                normalized = IbsCbsCClassTribValidator.ValidateAndGet(cClassTribRaw);
+            }
+            catch (Exception)
+            {
+                normalized = "000001";
+                var rowId = reader[_options.PrimaryKeyColumn];
+                _logger.LogWarning(
+                    "IBSCBS_CClassTrib inválido/ausente no Access. Usando fallback {Fallback}. Table={Table}, RowId={RowId}, Numero_RPS={NumeroRps}, Codigo_ISS={CodigoServico}, Valor='{Valor}'. VersaoSchema={VersaoSchema}",
+                    normalized,
+                    _options.RpsTableName,
+                    rowId,
+                    numeroRps,
+                    codigoServico,
+                    cClassTribRaw ?? "NULL",
+                    _nfeOptions.Versao);
+            }
+
+            // grava normalizado (trim) preservando zeros à esquerda
+            rps.SetIbsCbsCClassTrib(normalized);
+        }
+
+        // Layout 2: IBSCBS cIndOp (coluna Access: IBSCBS_CIndOp)
+        // Regra PMSP: deve ter 6 dígitos numéricos. Se vazio/nulo/inválido => fallback 100301.
+        var cIndOpRaw = reader["IbsCbsCIndOp"]?.ToString();
+        var cIndOpNormalized = IbsCbsCIndOpNormalizer.Normalize(cIndOpRaw);
+        var cIndOpFinal = cIndOpNormalized ?? IbsCbsCIndOpNormalizer.DefaultCIndOp;
+        rps.SetIbsCbsCIndOp(cIndOpFinal);
+
+        var rowIdForIndOp = reader[_options.PrimaryKeyColumn];
+        if (cIndOpNormalized == null)
+        {
+            _logger.LogWarning(
+                "IBSCBS_CIndOp vazio/nulo/inválido no Access. Usando fallback {Fallback}. Table={Table}, RowId={RowId}, Numero_RPS={NumeroRps}, Codigo_ISS={CodigoServico}, Valor='{Valor}'",
+                cIndOpFinal,
+                _options.RpsTableName,
+                rowIdForIndOp,
+                numeroRps,
+                codigoServico,
+                cIndOpRaw ?? "NULL");
+        }
+        else if (!string.Equals(cIndOpNormalized, cIndOpRaw, StringComparison.Ordinal))
+        {
+            _logger.LogInformation(
+                "IBSCBS_CIndOp sanitizado. Raw='{Raw}' => Final='{Final}'. Table={Table}, RowId={RowId}, Numero_RPS={NumeroRps}, Codigo_ISS={CodigoServico}",
+                cIndOpRaw ?? "NULL",
+                cIndOpFinal,
+                _options.RpsTableName,
+                rowIdForIndOp,
+                numeroRps,
+                codigoServico);
+        }
 
         return rps;
     }

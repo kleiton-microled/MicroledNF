@@ -6,6 +6,7 @@ using Microled.Nfe.Service.Domain.Enums;
 using Microled.Nfe.Service.Domain.ValueObjects;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.XmlSchemas;
 using DomainEntities = Microled.Nfe.Service.Domain.Entities;
 
@@ -157,7 +158,7 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
             ExigibilidadeSuspensa = 0,
             PagamentoParceladoAntecipado = 0,
             NBS = "123456789", // TODO: Get from configuration or RPS item
-            IBSCBS = CreateDefaultIBSCBS()
+            IBSCBS = CreateDefaultIBSCBS(IbsCbsCIndOpNormalizer.NormalizeOrDefault(rps.IbsCbsCIndOp))
         };
 
         // Map tomador if present
@@ -235,7 +236,7 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
         };
     }
 
-    private tpIBSCBS CreateDefaultIBSCBS()
+    private tpIBSCBS CreateDefaultIBSCBS(string cIndOp)
     {
         // Create a default IBSCBS structure
         // TODO: This should be configurable or come from RPS item
@@ -243,7 +244,7 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
         {
             finNFSe = 0, // NFS-e regular
             indFinal = 0, // Não é consumidor final
-            cIndOp = "123456", // TODO: Get from configuration
+            cIndOp = cIndOp,
             indDest = 0, // Não informado
             valores = new tpValores
             {
