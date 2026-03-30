@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microled.Nfe.Service.Api.HealthChecks;
@@ -10,6 +11,7 @@ using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
@@ -20,9 +22,23 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure options
 builder.Services.Configure<NfeServiceOptions>(
     builder.Configuration.GetSection(NfeServiceOptions.SectionName));
+builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
+{
+    options.DataDirectory = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "certificates");
+});
 
 // Add services to the container
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("FrontendDevCors", policy =>
+    {
+        policy
+            .WithOrigins("http://localhost:4200")
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
 
 // Configure Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
@@ -39,6 +55,11 @@ builder.Services.AddSwaggerGen(c =>
             Email = "support@microled.com"
         }
     });
+
+    foreach (var xmlFile in GetSwaggerXmlFiles())
+    {
+        c.IncludeXmlComments(xmlFile, includeControllerXmlComments: true);
+    }
 });
 
 // Add FluentValidation
@@ -51,6 +72,8 @@ builder.Services.AddScoped<IRpsSignatureService, RpsSignatureService>();
 builder.Services.AddScoped<INfeCancellationSignatureService, NfeCancellationSignatureService>();
 
 // Register Infrastructure services
+builder.Services.AddScoped<ICertificateDiscoveryService, WindowsCertificateDiscoveryService>();
+builder.Services.AddScoped<ICompanyCertificateProfileRepository, JsonCompanyCertificateProfileRepository>();
 builder.Services.AddScoped<ICertificateProvider, CertificateProvider>();
 builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
 {
@@ -136,6 +159,10 @@ else
 builder.Services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
 builder.Services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
 builder.Services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
+builder.Services.AddScoped<IListCertificatesUseCase, ListCertificatesUseCase>();
+builder.Services.AddScoped<ISelectCertificateUseCase, SelectCertificateUseCase>();
+builder.Services.AddScoped<IUpsertCompanyCertificateProfileUseCase, UpsertCompanyCertificateProfileUseCase>();
+builder.Services.AddScoped<IGetActiveCertificateProfileUseCase, GetActiveCertificateProfileUseCase>();
 
 // Add logging
 builder.Services.AddLogging();
@@ -154,6 +181,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("FrontendDevCors");
 
 // Add global exception handler
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -184,3 +212,18 @@ app.MapHealthChecks("/health/nfe", new Microsoft.AspNetCore.Diagnostics.HealthCh
 });
 
 app.Run();
+
+static IEnumerable<string> GetSwaggerXmlFiles()
+{
+    var baseDirectory = AppContext.BaseDirectory;
+    var assemblies = new[]
+    {
+        Assembly.GetExecutingAssembly().GetName().Name,
+        typeof(SendRpsRequestDtoValidator).Assembly.GetName().Name
+    };
+
+    return assemblies
+        .Where(name => !string.IsNullOrWhiteSpace(name))
+        .Select(name => Path.Combine(baseDirectory, $"{name}.xml"))
+        .Where(File.Exists);
+}

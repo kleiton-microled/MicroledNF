@@ -1,4 +1,4 @@
-﻿using Microled.Nfe.Service.Application.Interfaces;
+using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Application.UseCases;
 using Microled.Nfe.Service.Business.Services;
 using Microled.Nfe.Service.Domain.Interfaces;
@@ -34,6 +34,10 @@ public class Program
                 // Configure options
                 services.Configure<NfeServiceOptions>(
                     context.Configuration.GetSection(NfeServiceOptions.SectionName));
+                services.Configure<LocalCertificateProfileStorageOptions>(options =>
+                {
+                    options.DataDirectory = Path.Combine(context.HostingEnvironment.ContentRootPath, "App_Data", "certificates");
+                });
                 services.Configure<AccessDatabaseOptions>(
                     context.Configuration.GetSection(AccessDatabaseOptions.SectionName));
                 services.Configure<WebServiceProbeOptions>(
@@ -44,6 +48,8 @@ public class Program
                 // Register Domain services
                 services.AddScoped<IRpsSignatureService, RpsSignatureService>();
                 services.AddScoped<INfeCancellationSignatureService, NfeCancellationSignatureService>();
+                services.AddScoped<ICertificateDiscoveryService, WindowsCertificateDiscoveryService>();
+                services.AddScoped<ICompanyCertificateProfileRepository, JsonCompanyCertificateProfileRepository>();
                 services.AddScoped<ICertificateProvider, CertificateProvider>();
 
                 // Register Infrastructure services
@@ -117,6 +123,10 @@ public class Program
                 services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
                 services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
                 services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
+                services.AddScoped<IListCertificatesUseCase, ListCertificatesUseCase>();
+                services.AddScoped<ISelectCertificateUseCase, SelectCertificateUseCase>();
+                services.AddScoped<IUpsertCompanyCertificateProfileUseCase, UpsertCompanyCertificateProfileUseCase>();
+                services.AddScoped<IGetActiveCertificateProfileUseCase, GetActiveCertificateProfileUseCase>();
 
                 // Register Console runner
                 services.AddScoped<IRpsConsoleRunner, RpsConsoleRunner>();

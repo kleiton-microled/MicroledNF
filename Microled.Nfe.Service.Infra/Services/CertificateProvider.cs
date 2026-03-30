@@ -3,6 +3,7 @@ using System.Security.Cryptography.X509Certificates;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microled.Nfe.Service.Domain.Interfaces;
+using Microled.Nfe.Service.Domain.Models;
 using Microled.Nfe.Service.Infra.Configuration;
 
 namespace Microled.Nfe.Service.Infra.Services;
@@ -13,12 +14,17 @@ namespace Microled.Nfe.Service.Infra.Services;
 public class CertificateProvider : ICertificateProvider
 {
     private readonly NfeServiceOptions _options;
+    private readonly ICompanyCertificateProfileRepository _profileRepository;
     private readonly ILogger<CertificateProvider> _logger;
     private X509Certificate2? _certificate;
 
-    public CertificateProvider(IOptions<NfeServiceOptions> options, ILogger<CertificateProvider> logger)
+    public CertificateProvider(
+        IOptions<NfeServiceOptions> options,
+        ICompanyCertificateProfileRepository profileRepository,
+        ILogger<CertificateProvider> logger)
     {
         _options = options.Value;
+        _profileRepository = profileRepository ?? throw new ArgumentNullException(nameof(profileRepository));
         _logger = logger;
     }
 
@@ -26,6 +32,12 @@ public class CertificateProvider : ICertificateProvider
     {
         if (_certificate != null)
             return _certificate;
+
+        var activeProfile = GetActiveProfile();
+        if (activeProfile != null)
+        {
+            return LoadSelectedCertificate(activeProfile);
+        }
 
         var certOptions = _options.Certificate;
         var mode = (certOptions.Mode ?? "File").Trim();
@@ -48,6 +60,40 @@ public class CertificateProvider : ICertificateProvider
                 $"Invalid certificate mode '{mode}'. Must be either 'File', 'Store', or 'Fake'. " +
                 "Please configure Certificate:Mode in appsettings.json");
         }
+    }
+
+    private CompanyCertificateProfile? GetActiveProfile()
+    {
+        try
+        {
+            return _profileRepository.GetActiveAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load active certificate profile from local repository");
+            throw new InvalidOperationException("Falha ao carregar o certificado ativo selecionado.", ex);
+        }
+    }
+
+    private X509Certificate2 LoadSelectedCertificate(CompanyCertificateProfile activeProfile)
+    {
+        _logger.LogInformation(
+            "Attempting to load active selected certificate {Thumbprint} from {StoreLocation}/{StoreName}",
+            activeProfile.Thumbprint,
+            activeProfile.StoreLocation,
+            activeProfile.StoreName);
+
+        var certificate = LoadCertificateFromStore(new CertificateOptions
+        {
+            Mode = "Store",
+            Thumbprint = activeProfile.Thumbprint,
+            StoreLocation = activeProfile.StoreLocation,
+            StoreName = activeProfile.StoreName
+        }, "Certificado ativo selecionado não foi encontrado no store configurado.");
+
+        _logger.LogInformation("Active selected certificate {Thumbprint} loaded successfully", activeProfile.Thumbprint);
+
+        return certificate;
     }
 
     private X509Certificate2 LoadCertificateFromFile(CertificateOptions certOptions)
@@ -97,7 +143,7 @@ public class CertificateProvider : ICertificateProvider
         }
     }
 
-    private X509Certificate2 LoadCertificateFromStore(CertificateOptions certOptions)
+    private X509Certificate2 LoadCertificateFromStore(CertificateOptions certOptions, string? notFoundMessageOverride = null)
     {
         if (string.IsNullOrEmpty(certOptions.Thumbprint))
         {
@@ -155,8 +201,9 @@ public class CertificateProvider : ICertificateProvider
             }
 
             throw new InvalidOperationException(
-                $"Certificate with thumbprint {normalizedThumbprint} not found in store '{storeName}' at location '{storeLocation}'. " +
-                "Please verify the thumbprint and store configuration in appsettings.json");
+                notFoundMessageOverride ??
+                ($"Certificate with thumbprint {normalizedThumbprint} not found in store '{storeName}' at location '{storeLocation}'. " +
+                "Please verify the thumbprint and store configuration in appsettings.json"));
         }
         catch (InvalidOperationException)
         {
