@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microled.Nfe.LocalAgent.Api.Infrastructure;
+using Microled.Nfe.LocalAgent.Api.Services;
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Interfaces;
 
@@ -16,6 +17,7 @@ public static class NfeEndpoints
         group.MapPost("/consult", async Task<Results<Ok<ConsultNfeResponseDto>, ValidationProblem>> (
             ConsultNfeRequestDto request,
             IValidator<ConsultNfeRequestDto> validator,
+            CertificateUnlockService unlockService,
             IConsultNfeUseCase useCase,
             CancellationToken cancellationToken) =>
         {
@@ -25,6 +27,7 @@ public static class NfeEndpoints
                 return validationProblem;
             }
 
+            await unlockService.UnlockAsync(cancellationToken);
             var response = await useCase.ExecuteAsync(request, cancellationToken);
             return TypedResults.Ok(response);
         });
