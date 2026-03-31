@@ -13,6 +13,7 @@ using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -166,8 +167,20 @@ builder.Services.AddScoped<IGetActiveCertificateProfileUseCase, GetActiveCertifi
 
 // Add logging
 builder.Services.AddLogging();
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor |
+        ForwardedHeaders.XForwardedProto;
+
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
 var app = builder.Build();
+
+app.UseForwardedHeaders();
+
 
 // Configure the HTTP request pipeline
 if (app.Environment.IsDevelopment())
