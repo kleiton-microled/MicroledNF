@@ -99,9 +99,10 @@ public class NfeSoapClient : INfeGateway
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("HTTP error {StatusCode} when sending RPS batch", response.StatusCode);
+                var errorMessage = BuildHttpErrorMessage("sending RPS batch", response.StatusCode, responseContent);
+                _logger.LogError("HTTP error {StatusCode} when sending RPS batch. Details: {Details}", response.StatusCode, errorMessage);
                 throw new NfeSoapException(
-                    $"HTTP error {response.StatusCode} when sending RPS batch",
+                    errorMessage,
                     (int)response.StatusCode);
             }
 
@@ -167,14 +168,16 @@ public class NfeSoapClient : INfeGateway
 
             // 5. Read and parse SOAP response
             var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            LogXmlIfEnabled("Response SOAP", responseContent);
             _logger.LogDebug("Received SOAP response (HTTP {StatusCode}, length: {Length})",
                 response.StatusCode, responseContent.Length);
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("HTTP error {StatusCode} when consulting NFe", response.StatusCode);
+                var errorMessage = BuildHttpErrorMessage("consulting NFe", response.StatusCode, responseContent);
+                _logger.LogError("HTTP error {StatusCode} when consulting NFe. Details: {Details}", response.StatusCode, errorMessage);
                 throw new NfeSoapException(
-                    $"HTTP error {response.StatusCode} when consulting NFe",
+                    errorMessage,
                     (int)response.StatusCode);
             }
 
@@ -239,9 +242,10 @@ public class NfeSoapClient : INfeGateway
 
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("HTTP error {StatusCode} when canceling NFe", response.StatusCode);
+                var errorMessage = BuildHttpErrorMessage("canceling NFe", response.StatusCode, responseContent);
+                _logger.LogError("HTTP error {StatusCode} when canceling NFe. Details: {Details}", response.StatusCode, errorMessage);
                 throw new NfeSoapException(
-                    $"HTTP error {response.StatusCode} when canceling NFe",
+                    errorMessage,
                     (int)response.StatusCode);
             }
 
@@ -276,6 +280,49 @@ public class NfeSoapClient : INfeGateway
     /// <summary>
     /// Extracts XML content from SOAP response
     /// </summary>
+    private string BuildHttpErrorMessage(string operationName, HttpStatusCode statusCode, string responseContent)
+    {
+        var baseMessage = $"HTTP error {statusCode} when {operationName}";
+
+        if (string.IsNullOrWhiteSpace(responseContent))
+        {
+            return baseMessage;
+        }
+
+        try
+        {
+            var doc = XDocument.Parse(responseContent);
+            var ns = XNamespace.Get(SoapNamespace);
+            var fault = doc.Descendants(ns + "Fault").FirstOrDefault();
+
+            if (fault != null)
+            {
+                var faultCode = fault.Element(ns + "faultcode")?.Value;
+                var faultString = fault.Element(ns + "faultstring")?.Value;
+                var faultDetail = fault.Element(ns + "detail")?.Value;
+
+                var pieces = new[] { faultCode, faultString, faultDetail }
+                    .Where(piece => !string.IsNullOrWhiteSpace(piece))
+                    .ToArray();
+
+                if (pieces.Length > 0)
+                {
+                    return $"{baseMessage}. SOAP Fault: {string.Join(" | ", pieces)}";
+                }
+            }
+        }
+        catch
+        {
+            // Ignore parsing failures and return a body preview instead.
+        }
+
+        var preview = responseContent.Length > 400
+            ? responseContent[..400] + "..."
+            : responseContent;
+
+        return $"{baseMessage}. Response: {preview.Replace("\n", " ").Replace("\r", string.Empty)}";
+    }
+
     private string ExtractXmlFromSoapResponse(string operationResponseName, string soapResponse)
     {
         try
