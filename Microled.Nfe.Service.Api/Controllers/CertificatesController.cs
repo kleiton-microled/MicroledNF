@@ -7,6 +7,7 @@ namespace Microled.Nfe.Service.Api.Controllers;
 /// <summary>
 /// Endpoints para descoberta, selecao e configuracao de certificados digitais.
 /// </summary>
+[Obsolete("Use os endpoints locais do Microled.Nfe.LocalAgent.Api para descoberta e selecao de certificados da maquina do usuario.")]
 [ApiController]
 [Route("api/v1/certificates")]
 [Produces("application/json")]

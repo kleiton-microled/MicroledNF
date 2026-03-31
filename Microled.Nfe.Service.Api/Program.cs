@@ -4,6 +4,7 @@ using FluentValidation.AspNetCore;
 using Microled.Nfe.Service.Api.HealthChecks;
 using Microled.Nfe.Service.Api.Middleware;
 using Microled.Nfe.Service.Application.Interfaces;
+using Microled.Nfe.Service.Application.Services;
 using Microled.Nfe.Service.Application.UseCases;
 using Microled.Nfe.Service.Application.Validators;
 using Microled.Nfe.Service.Business.Services;
@@ -158,6 +159,7 @@ else
 
 // Register Application use cases
 builder.Services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
+builder.Services.AddScoped<IRpsBatchPreparationService, RpsBatchPreparationService>();
 builder.Services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
 builder.Services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
 builder.Services.AddScoped<IListCertificatesUseCase, ListCertificatesUseCase>();

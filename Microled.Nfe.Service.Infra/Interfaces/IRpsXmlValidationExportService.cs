@@ -15,5 +15,10 @@ public interface IRpsXmlValidationExportService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>Result containing paths to generated files</returns>
     Task<ValidationExportResult> ExportAsync(RpsBatch batch, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Exports RPS batch to XML files (.RPS and SOAP envelope) using a custom output directory.
+    /// </summary>
+    Task<ValidationExportResult> ExportAsync(RpsBatch batch, string? outputDirectory, CancellationToken cancellationToken);
 }
 

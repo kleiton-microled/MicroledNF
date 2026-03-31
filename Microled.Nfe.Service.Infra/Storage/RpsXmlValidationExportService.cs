@@ -39,17 +39,28 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
 
     public async Task<ValidationExportResult> ExportAsync(RpsBatch batch, CancellationToken cancellationToken)
     {
+        return await ExportAsync(batch, null, cancellationToken);
+    }
+
+    public async Task<ValidationExportResult> ExportAsync(
+        RpsBatch batch,
+        string? outputDirectory,
+        CancellationToken cancellationToken)
+    {
         if (batch == null)
             throw new ArgumentNullException(nameof(batch));
 
         if (batch.RpsList.Count == 0)
             throw new ArgumentException("RPS batch cannot be empty", nameof(batch));
 
-        // Ensure output directory exists
-        if (string.IsNullOrWhiteSpace(_options.OutputDirectory))
+        var resolvedOutputDirectory = string.IsNullOrWhiteSpace(outputDirectory)
+            ? _options.OutputDirectory
+            : outputDirectory;
+
+        if (string.IsNullOrWhiteSpace(resolvedOutputDirectory))
             throw new InvalidOperationException("NfeValidation:OutputDirectory must be configured");
 
-        Directory.CreateDirectory(_options.OutputDirectory);
+        Directory.CreateDirectory(resolvedOutputDirectory);
 
         // Generate file names
         var timestamp = _options.IncludeTimestamp 
@@ -61,8 +72,8 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
         var rpsFileName = $"{_options.FileNamePrefix}_LoteRps_{suffix}.RPS";
         var soapFileName = $"{_options.FileNamePrefix}_SoapEnvioLoteRps_{suffix}.xml";
 
-        var rpsFilePath = Path.Combine(_options.OutputDirectory, rpsFileName);
-        var soapFilePath = Path.Combine(_options.OutputDirectory, soapFileName);
+        var rpsFilePath = Path.Combine(resolvedOutputDirectory, rpsFileName);
+        var soapFilePath = Path.Combine(resolvedOutputDirectory, soapFileName);
 
         // 1. Map RpsBatch to PedidoEnvioLoteRPS (XSD-generated class)
         var pedido = MapRpsBatchToPedidoEnvioLoteRPS(batch);

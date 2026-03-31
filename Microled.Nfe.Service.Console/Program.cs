@@ -1,4 +1,5 @@
 using Microled.Nfe.Service.Application.Interfaces;
+using Microled.Nfe.Service.Application.Services;
 using Microled.Nfe.Service.Application.UseCases;
 using Microled.Nfe.Service.Business.Services;
 using Microled.Nfe.Service.Domain.Interfaces;
@@ -121,6 +122,7 @@ public class Program
 
                 // Register Application use cases
                 services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
+                services.AddScoped<IRpsBatchPreparationService, RpsBatchPreparationService>();
                 services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
                 services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
                 services.AddScoped<IListCertificatesUseCase, ListCertificatesUseCase>();
