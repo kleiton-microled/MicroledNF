@@ -95,6 +95,7 @@ builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
 builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
 builder.Services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
 builder.Services.AddScoped<IWebServiceProbeService, WebServiceProbeService>();
+builder.Services.AddScoped<CertificateUnlockService>();
 builder.Services.AddScoped<LocalRpsProcessingService>();
 
 builder.Services.AddHttpClient();

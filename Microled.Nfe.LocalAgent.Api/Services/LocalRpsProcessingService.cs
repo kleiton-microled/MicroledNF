@@ -10,6 +10,7 @@ namespace Microled.Nfe.LocalAgent.Api.Services;
 
 public class LocalRpsProcessingService
 {
+    private readonly CertificateUnlockService _certificateUnlockService;
     private readonly IRpsBatchPreparationService _rpsBatchPreparationService;
     private readonly IRpsXmlValidationExportService _validationExportService;
     private readonly ISendRpsUseCase _sendRpsUseCase;
@@ -17,12 +18,14 @@ public class LocalRpsProcessingService
     private readonly NfeValidationOptions _validationOptions;
 
     public LocalRpsProcessingService(
+        CertificateUnlockService certificateUnlockService,
         IRpsBatchPreparationService rpsBatchPreparationService,
         IRpsXmlValidationExportService validationExportService,
         ISendRpsUseCase sendRpsUseCase,
         IOptions<NfeIntegrationOptions> integrationOptions,
         IOptions<NfeValidationOptions> validationOptions)
     {
+        _certificateUnlockService = certificateUnlockService ?? throw new ArgumentNullException(nameof(certificateUnlockService));
         _rpsBatchPreparationService = rpsBatchPreparationService ?? throw new ArgumentNullException(nameof(rpsBatchPreparationService));
         _validationExportService = validationExportService ?? throw new ArgumentNullException(nameof(validationExportService));
         _sendRpsUseCase = sendRpsUseCase ?? throw new ArgumentNullException(nameof(sendRpsUseCase));
@@ -34,6 +37,34 @@ public class LocalRpsProcessingService
         SendRpsRequestDto request,
         CancellationToken cancellationToken)
     {
+        return await GenerateFilesInternalAsync(request, ensureUnlocked: true, cancellationToken);
+    }
+
+    public async Task<LocalRpsProcessResponse> ProcessAsync(
+        SendRpsRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        await _certificateUnlockService.UnlockAsync(cancellationToken);
+
+        if (_validationOptions.ValidateXmlAndRps || !_integrationOptions.SendToWebService)
+        {
+            return await GenerateFilesInternalAsync(request, ensureUnlocked: false, cancellationToken);
+        }
+
+        var response = await _sendRpsUseCase.ExecuteAsync(request, cancellationToken);
+        return MapSendResponse(response);
+    }
+
+    private async Task<LocalRpsProcessResponse> GenerateFilesInternalAsync(
+        SendRpsRequestDto request,
+        bool ensureUnlocked,
+        CancellationToken cancellationToken)
+    {
+        if (ensureUnlocked)
+        {
+            await _certificateUnlockService.UnlockAsync(cancellationToken);
+        }
+
         var batch = _rpsBatchPreparationService.PrepareSignedBatch(request);
         var export = await _validationExportService.ExportAsync(
             batch,
@@ -48,19 +79,6 @@ public class LocalRpsProcessingService
             SoapFilePath = export.SoapFilePath,
             Message = "Arquivos gerados com sucesso."
         };
-    }
-
-    public async Task<LocalRpsProcessResponse> ProcessAsync(
-        SendRpsRequestDto request,
-        CancellationToken cancellationToken)
-    {
-        if (_validationOptions.ValidateXmlAndRps || !_integrationOptions.SendToWebService)
-        {
-            return await GenerateFilesAsync(request, cancellationToken);
-        }
-
-        var response = await _sendRpsUseCase.ExecuteAsync(request, cancellationToken);
-        return MapSendResponse(response);
     }
 
     private LocalRpsProcessResponse MapSendResponse(SendRpsResponseDto response)

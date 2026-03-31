@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microled.Nfe.LocalAgent.Api.Infrastructure;
+using Microled.Nfe.LocalAgent.Api.Contracts;
+using Microled.Nfe.LocalAgent.Api.Services;
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Interfaces;
 
@@ -34,6 +36,14 @@ public static class CertificatesEndpoints
             }
 
             var response = await useCase.ExecuteAsync(request, cancellationToken);
+            return TypedResults.Ok(response);
+        });
+
+        group.MapPost("/unlock", async Task<Ok<CertificateUnlockResponse>> (
+            CertificateUnlockService unlockService,
+            CancellationToken cancellationToken) =>
+        {
+            var response = await unlockService.UnlockAsync(cancellationToken);
             return TypedResults.Ok(response);
         });
 
