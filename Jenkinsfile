@@ -30,7 +30,7 @@ pipeline {
                 scp -o StrictHostKeyChecking=no -r ${PUBLISH_DIR}/* ${VPS_USER}@${VPS_HOST}:${VPS_APP_DIR}/
 
                 echo "== RESTART SERVICE =="
-                ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "sudo systemctl restart ${SERVICE_NAME} && sudo systemctl status ${SERVICE_NAME} --no-pager"
+                ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "sudo /usr/bin/systemctl restart ${SERVICE_NAME} && sudo /usr/bin/systemctl status ${SERVICE_NAME} --no-pager"
             '''
                 }
             }
