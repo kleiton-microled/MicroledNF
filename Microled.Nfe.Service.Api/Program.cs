@@ -169,19 +169,19 @@ builder.Services.AddScoped<IGetActiveCertificateProfileUseCase, GetActiveCertifi
 
 // Add logging
 builder.Services.AddLogging();
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders =
-        ForwardedHeaders.XForwardedFor |
-        ForwardedHeaders.XForwardedProto;
+//builder.Services.Configure<ForwardedHeadersOptions>(options =>
+//{
+//    options.ForwardedHeaders =
+//        ForwardedHeaders.XForwardedFor |
+//        ForwardedHeaders.XForwardedProto;
 
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
+//    options.KnownNetworks.Clear();
+//    options.KnownProxies.Clear();
+//});
 
 var app = builder.Build();
 
-app.UseForwardedHeaders();
+//app.UseForwardedHeaders();
 
 
 // Configure the HTTP request pipeline
