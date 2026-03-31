@@ -156,6 +156,7 @@ public class NfeSoapClient : INfeGateway
 
             // 3. Build SOAP envelope
             var soapEnvelope = _soapEnvelopeBuilder.Build("ConsultaNFe", xmlContent);
+            LogXmlIfEnabled("Request SOAP (ConsultaNFe)", soapEnvelope);
 
             // 4. Send HTTP request
             var endpoint = GetEndpoint();
