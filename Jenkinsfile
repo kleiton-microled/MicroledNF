@@ -40,7 +40,7 @@ pipeline {
 
         stage('Deploy to VPS') {
             steps {
-                sshagent(credentials: ['vps-root-ssh']) {
+                sshagent(credentials: ['root-ssh']) {
                     sh '''
                         echo "== CREATE REMOTE DIR =="
                         ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"
