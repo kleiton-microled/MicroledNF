@@ -7,7 +7,7 @@ pipeline {
         PROJECT_PATH = "Microled.Nfe.Service.Api/Microled.Nfe.Service.Api.csproj"
         PUBLISH_DIR = "publish"
         VPS_HOST = "147.93.15.250"
-        VPS_USER = "root"
+        VPS_USER = "amktech"
         VPS_APP_DIR = "/var/www/amktechsistemas/notafiscal-api"
         SERVICE_NAME = "notafiscal-api"
     }
@@ -40,7 +40,7 @@ pipeline {
 
         stage('Deploy to VPS') {
             steps {
-                sshagent(credentials: ['root-ssh']) {
+                sshagent(credentials: ['vps-amktech-ssh']) {
                     sh '''
                         echo "== CREATE REMOTE DIR =="
                         ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "mkdir -p ${VPS_APP_DIR}"
