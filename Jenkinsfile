@@ -4,7 +4,7 @@ pipeline {
     environment {
         DOTNET_ROOT = "/usr/local/share/dotnet"
         PATH = "/usr/local/share/dotnet:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-        PROJECT_PATH = "Microled.Nfe.Service.Api/Microled.Nfe.Service.Api.csproj"
+        PROJECT_PATH = "/Microled.Nfe.Service.Api/Microled.Nfe.Service.Api.csproj"
         PUBLISH_DIR = "publish"
         VPS_HOST = "147.93.15.250"
         VPS_USER = "root"
