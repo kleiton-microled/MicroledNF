@@ -169,6 +169,7 @@ app.UseCors("LocalAgentCors");
 
 app.MapHealthEndpoints();
 app.MapCertificatesEndpoints();
+app.MapNfeEndpoints();
 app.MapRpsEndpoints();
 app.MapWebServiceProbeEndpoints();
 

@@ -36,7 +36,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendDevCors", policy =>
     {
         policy
-            .WithOrigins("http://localhost:4200")
+            .WithOrigins("https://app.amktechsistemas.com.br")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
