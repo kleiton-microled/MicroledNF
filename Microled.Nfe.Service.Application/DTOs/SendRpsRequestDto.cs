@@ -54,6 +54,8 @@ public class RpsDto
     public string TributacaoRPS { get; set; } = null!;
     public RpsItemDto Item { get; set; } = null!;
     public ServiceCustomerDto? Tomador { get; set; }
+    public RpsTributosDto? Tributos { get; set; }
+    public RpsIbsCbsDto? IbsCbs { get; set; }
 }
 
 public class RpsItemDto
@@ -64,5 +66,58 @@ public class RpsItemDto
     public decimal ValorDeducoes { get; set; }
     public decimal AliquotaServicos { get; set; }
     public bool IssRetido { get; set; }
+}
+
+public class RpsTributosDto
+{
+    public decimal? ValorPIS { get; set; }
+    public decimal? ValorCOFINS { get; set; }
+    public decimal? ValorINSS { get; set; }
+    public decimal? ValorIR { get; set; }
+    public decimal? ValorCSLL { get; set; }
+    public decimal? ValorIPI { get; set; }
+    public decimal? ValorCargaTributaria { get; set; }
+    public decimal? PercentualCargaTributaria { get; set; }
+    public string? FonteCargaTributaria { get; set; }
+    public decimal? ValorTotalRecebido { get; set; }
+    public decimal? ValorFinalCobrado { get; set; }
+    public decimal? ValorMulta { get; set; }
+    public decimal? ValorJuros { get; set; }
+    public string? NCM { get; set; }
+}
+
+public class RpsIbsCbsDto
+{
+    public int? FinNFSe { get; set; }
+    public int? IndFinal { get; set; }
+    public string? CIndOp { get; set; }
+    public int? TpOper { get; set; }
+    public List<string> RefNfSe { get; set; } = new();
+    public int? TpEnteGov { get; set; }
+    public int? IndDest { get; set; }
+    public RpsIbsCbsPessoaDto? Dest { get; set; }
+    public string? CClassTrib { get; set; }
+    public string? CClassTribReg { get; set; }
+    public string? NBS { get; set; }
+    public int? CLocPrestacao { get; set; }
+    public RpsIbsCbsImovelObraDto? ImovelObra { get; set; }
+}
+
+public class RpsIbsCbsPessoaDto
+{
+    public string? CpfCnpj { get; set; }
+    public string? Nif { get; set; }
+    public int? NaoNif { get; set; }
+    public string RazaoSocial { get; set; } = null!;
+    public AddressDto? Endereco { get; set; }
+    public string? Email { get; set; }
+}
+
+public class RpsIbsCbsImovelObraDto
+{
+    public string? InscricaoImobiliariaFiscal { get; set; }
+    public string? CCib { get; set; }
+    public string? CObra { get; set; }
+    public AddressDto? Endereco { get; set; }
 }
 

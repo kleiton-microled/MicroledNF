@@ -827,12 +827,14 @@ public class NfeSoapClient : INfeGateway
 
         // Layout 2 / IBSCBS: cClassTrib obrigatório (erro 628 quando inexistente/não vigente)
         var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+        var tributos = rps.Tributos;
+        var ibsCbsInfo = rps.IbsCbs;
         string cClassTrib;
         if (versaoSchema >= 2)
         {
             // Compatibilidade: alguns fluxos (ex. API) podem não informar cClassTrib.
             // Nesses casos, usamos fallback "000001" (tabela vigente) para evitar erro 628.
-            var cClassTribRaw = rps.IbsCbsCClassTrib;
+            var cClassTribRaw = ibsCbsInfo?.CClassTrib ?? rps.IbsCbsCClassTrib;
             cClassTrib = IbsCbsCClassTribValidator.ValidateAndGet(cClassTribRaw ?? "000001");
 
             if (string.IsNullOrWhiteSpace(cClassTribRaw))
@@ -862,7 +864,7 @@ public class NfeSoapClient : INfeGateway
 
         // Layout 2 / IBSCBS: cIndOp deve ser sempre 6 dígitos numéricos; PMSP exige 100301 para nosso caso.
         // Mesmo que venha do Access, normalizamos e fazemos fallback para 100301 quando vazio/nulo/inválido.
-        var cIndOp = IbsCbsCIndOpNormalizer.NormalizeOrDefault(rps.IbsCbsCIndOp);
+        var cIndOp = IbsCbsCIndOpNormalizer.NormalizeOrDefault(ibsCbsInfo?.CIndOp ?? rps.IbsCbsCIndOp);
 
         var originalAliquota = rps.Item.AliquotaServicos.Value;
         var providerAliquota = _serviceTaxRateProvider.GetAliquota(rps.Item.CodigoServico);
@@ -879,7 +881,8 @@ public class NfeSoapClient : INfeGateway
 
         // Regra erro 1630: CodigoServico 2919 não permite informar ValorTotalRecebido => omitir a tag (null)
         var omitValorTotalRecebido = rps.Item.CodigoServico == 2919;
-        var valorTotalRecebido = omitValorTotalRecebido ? (decimal?)null : rps.Item.ValorServicos.Value;
+        var valorTotalRecebidoBase = tributos?.ValorTotalRecebido?.Value ?? rps.Item.ValorServicos.Value;
+        var valorTotalRecebido = omitValorTotalRecebido ? (decimal?)null : valorTotalRecebidoBase;
 
         _logger.LogInformation(
             "RPS XML fields: CodigoServico={CodigoServico}, AliquotaServicos={AliquotaServicos}, OmitValorTotalRecebido={OmitValorTotalRecebido}",
@@ -911,11 +914,11 @@ public class NfeSoapClient : INfeGateway
             StatusRPS = ((char)rps.StatusRPS).ToString(),
             TributacaoRPS = ((char)rps.TributacaoRPS).ToString(),
             ValorDeducoes = rps.Item.ValorDeducoes.Value,
-            ValorPIS = 0.00m,
-            ValorCOFINS = 0.00m,
-            ValorINSS = 0.00m,
-            ValorIR = 0.00m,
-            ValorCSLL = 0.00m,
+            ValorPIS = tributos?.ValorPIS?.Value ?? 0.00m,
+            ValorCOFINS = tributos?.ValorCOFINS?.Value ?? 0.00m,
+            ValorINSS = tributos?.ValorINSS?.Value ?? 0.00m,
+            ValorIR = tributos?.ValorIR?.Value ?? 0.00m,
+            ValorCSLL = tributos?.ValorCSLL?.Value ?? 0.00m,
             CodigoServico = rps.Item.CodigoServico,
             AliquotaServicos = aliquotaToSend,
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
@@ -925,17 +928,24 @@ public class NfeSoapClient : INfeGateway
             // mantemos apenas ValorFinalCobrado e, quando aplicável, ValorTotalRecebido.
             ValorTotalRecebido = valorTotalRecebido,
             ValorInicialCobrado = versaoSchema >= 2 ? null : rps.Item.ValorServicos.Value,
-            ValorFinalCobrado = rps.Item.ValorServicos.Value,
-            ValorIPI = 0.00m,
+            ValorFinalCobrado = tributos?.ValorFinalCobrado?.Value ?? rps.Item.ValorServicos.Value,
+            ValorMulta = tributos?.ValorMulta?.Value,
+            ValorJuros = tributos?.ValorJuros?.Value,
+            ValorIPI = tributos?.ValorIPI?.Value ?? 0.00m,
             ExigibilidadeSuspensa = 0,
             PagamentoParceladoAntecipado = 0,
-            NBS = "123456789", // TODO: Get from configuration or RPS item
+            NCM = tributos?.NCM,
+            NBS = ibsCbsInfo?.Nbs ?? "123456789",
             // Como nosso serviço é prestado no Brasil, preencher cLocPrestacao por padrão
             // Usar código do município do prestador se disponível, senão usar São Paulo (3550308)
-            cLocPrestacao = rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308, // São Paulo por padrão
+            cLocPrestacao = ibsCbsInfo?.CLocPrestacao ?? rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308, // São Paulo por padrão
             cPaisPrestacao = null, // NUNCA preencher (sistema não suporta prestação fora do Brasil)
-            IBSCBS = CreateDefaultIBSCBS(cClassTrib, cIndOp)
+            IBSCBS = CreateIbsCbs(rps, cClassTrib, cIndOp)
         };
+
+        tpRps.ValorCargaTributaria = tributos?.ValorCargaTributaria?.Value;
+        tpRps.PercentualCargaTributaria = tributos?.PercentualCargaTributaria;
+        tpRps.FonteCargaTributaria = tributos?.FonteCargaTributaria;
 
         // Fail-fast:
         // - Decisão de negócio: ignorar cPaisPrestacao (não suportamos prestação fora do Brasil)
@@ -1385,16 +1395,49 @@ public class NfeSoapClient : INfeGateway
             tpNFe.ChaveNFe.CodigoVerificacao);
     }
 
-    private tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp)
+    private tpIBSCBS CreateIbsCbs(DomainEntities.Rps rps, string cClassTrib, string cIndOp)
     {
-        // Create a default IBSCBS structure
-        // TODO: This should be configurable or come from RPS item
+        var ibsCbs = rps.IbsCbs;
+        if (ibsCbs == null)
+        {
+            return CreateDefaultIBSCBS(cClassTrib, cIndOp);
+        }
+
         return new tpIBSCBS
         {
-            finNFSe = 0, // NFS-e regular
-            indFinal = 0, // Não é consumidor final
+            finNFSe = ibsCbs.FinNfSe ?? 0,
+            indFinal = ibsCbs.IndFinal ?? 0,
             cIndOp = cIndOp,
-            indDest = 0, // Não informado
+            tpOper = ibsCbs.TpOper,
+            gRefNFSe = ibsCbs.RefNfSe.Count > 0 ? new tpGRefNFSe { refNFSe = ibsCbs.RefNfSe.ToList() } : null,
+            tpEnteGov = ibsCbs.TpEnteGov,
+            indDest = ibsCbs.IndDest ?? 0,
+            dest = MapIbsCbsPessoa(ibsCbs.Dest),
+            valores = new tpValores
+            {
+                trib = new tpTrib
+                {
+                    gIBSCBS = new tpGIBSCBS
+                    {
+                        cClassTrib = cClassTrib,
+                        gTribRegular = string.IsNullOrWhiteSpace(ibsCbs.CClassTribReg)
+                            ? null
+                            : new tpGTribRegular { cClassTribReg = ibsCbs.CClassTribReg }
+                    }
+                }
+            },
+            imovelobra = MapIbsCbsImovelObra(ibsCbs.ImovelObra)
+        };
+    }
+
+    private static tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp)
+    {
+        return new tpIBSCBS
+        {
+            finNFSe = 0,
+            indFinal = 0,
+            cIndOp = cIndOp,
+            indDest = 0,
             valores = new tpValores
             {
                 trib = new tpTrib
@@ -1405,6 +1448,81 @@ public class NfeSoapClient : INfeGateway
                     }
                 }
             }
+        };
+    }
+
+    private tpInformacoesPessoa? MapIbsCbsPessoa(DomainEntities.RpsIbsCbsPersonInfo? pessoa)
+    {
+        if (pessoa == null)
+        {
+            return null;
+        }
+
+        return new tpInformacoesPessoa
+        {
+            CPF = pessoa.Cpf,
+            CNPJ = pessoa.Cnpj,
+            NIF = pessoa.Nif,
+            NaoNIF = pessoa.NaoNif,
+            xNome = pessoa.RazaoSocial,
+            end = MapIbsCbsEndereco(pessoa.Endereco),
+            email = pessoa.Email
+        };
+    }
+
+    private tpImovelObra? MapIbsCbsImovelObra(DomainEntities.RpsIbsCbsImovelObraInfo? imovelObra)
+    {
+        if (imovelObra == null)
+        {
+            return null;
+        }
+
+        return new tpImovelObra
+        {
+            inscImobFisc = imovelObra.InscricaoImobiliariaFiscal,
+            cCIB = imovelObra.CCib,
+            cObra = imovelObra.CObra,
+            end = MapIbsCbsEnderecoSimples(imovelObra.Endereco)
+        };
+    }
+
+    private tpEnderecoIBSCBS? MapIbsCbsEndereco(Address? address)
+    {
+        if (address == null)
+        {
+            return null;
+        }
+
+        return new tpEnderecoIBSCBS
+        {
+            endNac = address.CodigoMunicipio.HasValue || address.CEP.HasValue
+                ? new tpEnderecoNacional
+                {
+                    cMun = address.CodigoMunicipio ?? 0,
+                    CEP = address.CEP ?? 0
+                }
+                : null,
+            xLgr = address.Logradouro ?? string.Empty,
+            nro = address.Numero ?? "S/N",
+            xCpl = address.Complemento,
+            xBairro = address.Bairro ?? string.Empty
+        };
+    }
+
+    private tpEnderecoSimplesIBSCBS? MapIbsCbsEnderecoSimples(Address? address)
+    {
+        if (address == null)
+        {
+            return null;
+        }
+
+        return new tpEnderecoSimplesIBSCBS
+        {
+            CEP = address.CEP,
+            xLgr = address.Logradouro ?? string.Empty,
+            nro = address.Numero ?? "S/N",
+            xCpl = address.Complemento,
+            xBairro = address.Bairro ?? string.Empty
         };
     }
 

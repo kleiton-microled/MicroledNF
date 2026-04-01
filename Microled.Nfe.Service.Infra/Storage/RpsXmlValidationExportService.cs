@@ -141,6 +141,13 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
 
         // Convert Base64 signature to byte array
         var assinaturaBytes = Convert.FromBase64String(rps.Assinatura);
+        var tributos = rps.Tributos;
+        var ibsCbs = rps.IbsCbs;
+        var cClassTrib = IbsCbsCClassTribValidator.ValidateAndGet(ibsCbs?.CClassTrib ?? rps.IbsCbsCClassTrib ?? "000001");
+        var cIndOp = IbsCbsCIndOpNormalizer.NormalizeOrDefault(ibsCbs?.CIndOp ?? rps.IbsCbsCIndOp);
+        var valorTotalRecebido = rps.Item.CodigoServico == 2919
+            ? (decimal?)null
+            : tributos?.ValorTotalRecebido?.Value ?? rps.Item.ValorServicos.Value;
 
         var tpRps = new tpRPS
         {
@@ -156,21 +163,31 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
             StatusRPS = ((char)rps.StatusRPS).ToString(),
             TributacaoRPS = ((char)rps.TributacaoRPS).ToString(),
             ValorDeducoes = rps.Item.ValorDeducoes.Value,
-            ValorPIS = 0.00m,
-            ValorCOFINS = 0.00m,
-            ValorINSS = 0.00m,
-            ValorIR = 0.00m,
-            ValorCSLL = 0.00m,
+            ValorPIS = tributos?.ValorPIS?.Value ?? 0.00m,
+            ValorCOFINS = tributos?.ValorCOFINS?.Value ?? 0.00m,
+            ValorINSS = tributos?.ValorINSS?.Value ?? 0.00m,
+            ValorIR = tributos?.ValorIR?.Value ?? 0.00m,
+            ValorCSLL = tributos?.ValorCSLL?.Value ?? 0.00m,
             CodigoServico = rps.Item.CodigoServico,
             AliquotaServicos = rps.Item.AliquotaServicos.Value,
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
-            ValorIPI = 0.00m,
+            ValorTotalRecebido = valorTotalRecebido,
+            ValorFinalCobrado = tributos?.ValorFinalCobrado?.Value ?? rps.Item.ValorServicos.Value,
+            ValorMulta = tributos?.ValorMulta?.Value,
+            ValorJuros = tributos?.ValorJuros?.Value,
+            ValorIPI = tributos?.ValorIPI?.Value ?? 0.00m,
             ExigibilidadeSuspensa = 0,
             PagamentoParceladoAntecipado = 0,
-            NBS = "123456789", // TODO: Get from configuration or RPS item
-            IBSCBS = CreateDefaultIBSCBS(IbsCbsCIndOpNormalizer.NormalizeOrDefault(rps.IbsCbsCIndOp))
+            NCM = tributos?.NCM,
+            NBS = ibsCbs?.Nbs ?? "123456789",
+            cLocPrestacao = ibsCbs?.CLocPrestacao ?? rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308,
+            IBSCBS = CreateIbsCbs(rps, cClassTrib, cIndOp)
         };
+
+        tpRps.ValorCargaTributaria = tributos?.ValorCargaTributaria?.Value;
+        tpRps.PercentualCargaTributaria = tributos?.PercentualCargaTributaria;
+        tpRps.FonteCargaTributaria = tributos?.FonteCargaTributaria;
 
         // Map tomador if present
         if (rps.Tomador != null)
@@ -247,26 +264,134 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
         };
     }
 
-    private tpIBSCBS CreateDefaultIBSCBS(string cIndOp)
+    private tpIBSCBS CreateIbsCbs(DomainEntities.Rps rps, string cClassTrib, string cIndOp)
     {
-        // Create a default IBSCBS structure
-        // TODO: This should be configurable or come from RPS item
+        var ibsCbs = rps.IbsCbs;
+        if (ibsCbs == null)
+        {
+            return CreateDefaultIBSCBS(cClassTrib, cIndOp);
+        }
+
         return new tpIBSCBS
         {
-            finNFSe = 0, // NFS-e regular
-            indFinal = 0, // Não é consumidor final
+            finNFSe = ibsCbs.FinNfSe ?? 0,
+            indFinal = ibsCbs.IndFinal ?? 0,
             cIndOp = cIndOp,
-            indDest = 0, // Não informado
+            tpOper = ibsCbs.TpOper,
+            gRefNFSe = ibsCbs.RefNfSe.Count > 0 ? new tpGRefNFSe { refNFSe = ibsCbs.RefNfSe.ToList() } : null,
+            tpEnteGov = ibsCbs.TpEnteGov,
+            indDest = ibsCbs.IndDest ?? 0,
+            dest = MapIbsCbsPessoa(ibsCbs.Dest),
             valores = new tpValores
             {
                 trib = new tpTrib
                 {
                     gIBSCBS = new tpGIBSCBS
                     {
-                        cClassTrib = "123456" // TODO: Get from configuration
+                        cClassTrib = cClassTrib,
+                        gTribRegular = string.IsNullOrWhiteSpace(ibsCbs.CClassTribReg)
+                            ? null
+                            : new tpGTribRegular { cClassTribReg = ibsCbs.CClassTribReg }
+                    }
+                }
+            },
+            imovelobra = MapIbsCbsImovelObra(ibsCbs.ImovelObra)
+        };
+    }
+
+    private static tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp)
+    {
+        return new tpIBSCBS
+        {
+            finNFSe = 0,
+            indFinal = 0,
+            cIndOp = cIndOp,
+            indDest = 0,
+            valores = new tpValores
+            {
+                trib = new tpTrib
+                {
+                    gIBSCBS = new tpGIBSCBS
+                    {
+                        cClassTrib = cClassTrib
                     }
                 }
             }
+        };
+    }
+
+    private static tpInformacoesPessoa? MapIbsCbsPessoa(DomainEntities.RpsIbsCbsPersonInfo? pessoa)
+    {
+        if (pessoa == null)
+        {
+            return null;
+        }
+
+        return new tpInformacoesPessoa
+        {
+            CPF = pessoa.Cpf,
+            CNPJ = pessoa.Cnpj,
+            NIF = pessoa.Nif,
+            NaoNIF = pessoa.NaoNif,
+            xNome = pessoa.RazaoSocial,
+            end = MapIbsCbsEndereco(pessoa.Endereco),
+            email = pessoa.Email
+        };
+    }
+
+    private static tpImovelObra? MapIbsCbsImovelObra(DomainEntities.RpsIbsCbsImovelObraInfo? imovelObra)
+    {
+        if (imovelObra == null)
+        {
+            return null;
+        }
+
+        return new tpImovelObra
+        {
+            inscImobFisc = imovelObra.InscricaoImobiliariaFiscal,
+            cCIB = imovelObra.CCib,
+            cObra = imovelObra.CObra,
+            end = MapIbsCbsEnderecoSimples(imovelObra.Endereco)
+        };
+    }
+
+    private static tpEnderecoIBSCBS? MapIbsCbsEndereco(Address? address)
+    {
+        if (address == null)
+        {
+            return null;
+        }
+
+        return new tpEnderecoIBSCBS
+        {
+            endNac = address.CodigoMunicipio.HasValue || address.CEP.HasValue
+                ? new tpEnderecoNacional
+                {
+                    cMun = address.CodigoMunicipio ?? 0,
+                    CEP = address.CEP ?? 0
+                }
+                : null,
+            xLgr = address.Logradouro ?? string.Empty,
+            nro = address.Numero ?? "S/N",
+            xCpl = address.Complemento,
+            xBairro = address.Bairro ?? string.Empty
+        };
+    }
+
+    private static tpEnderecoSimplesIBSCBS? MapIbsCbsEnderecoSimples(Address? address)
+    {
+        if (address == null)
+        {
+            return null;
+        }
+
+        return new tpEnderecoSimplesIBSCBS
+        {
+            CEP = address.CEP,
+            xLgr = address.Logradouro ?? string.Empty,
+            nro = address.Numero ?? "S/N",
+            xCpl = address.Complemento,
+            xBairro = address.Bairro ?? string.Empty
         };
     }
 }

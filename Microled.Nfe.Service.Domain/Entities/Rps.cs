@@ -17,6 +17,8 @@ public sealed class Rps
     public ServiceProvider Prestador { get; }
     public ServiceCustomer? Tomador { get; }
     public string? Assinatura { get; private set; }
+    public RpsTaxInfo? Tributos { get; private set; }
+    public RpsIbsCbsInfo? IbsCbs { get; private set; }
 
     /// <summary>
     /// Layout 2 (IBSCBS): classificação tributária (IBSCBS/valores/trib/gIBSCBS/cClassTrib).
@@ -53,6 +55,26 @@ public sealed class Rps
     public void SetAssinatura(string assinatura)
     {
         Assinatura = assinatura ?? throw new ArgumentNullException(nameof(assinatura));
+    }
+
+    public void SetTributos(RpsTaxInfo? tributos)
+    {
+        Tributos = tributos;
+    }
+
+    public void SetIbsCbs(RpsIbsCbsInfo? ibsCbs)
+    {
+        IbsCbs = ibsCbs;
+
+        if (ibsCbs == null)
+        {
+            IbsCbsCClassTrib = null;
+            IbsCbsCIndOp = null;
+            return;
+        }
+
+        IbsCbsCClassTrib = ibsCbs.CClassTrib;
+        IbsCbsCIndOp = ibsCbs.CIndOp;
     }
 
     public void SetIbsCbsCClassTrib(string? cClassTrib)
