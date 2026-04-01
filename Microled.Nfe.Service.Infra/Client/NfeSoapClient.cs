@@ -78,9 +78,15 @@ public class NfeSoapClient : INfeGateway
             LogRpsFragmentsIfEnabled(xmlContent);
             _logger.LogDebug("Serialized PedidoEnvioLoteRPS XML (length: {Length})", xmlContent.Length);
 
+            var useAsyncSendContract = _options.UseAsyncSendContract();
+
             // 3. Build SOAP envelope (using specialized method for EnvioLoteRPS)
             var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
             var soapEnvelope = _soapEnvelopeBuilder.BuildEnvioLoteRPS(xmlContent, versaoSchema);
+            if (useAsyncSendContract)
+            {
+                soapEnvelope = NormalizeAsyncSendEnvelope(soapEnvelope);
+            }
 
             // 4. Save XML to file before sending
             await SaveXmlToFileAsync(soapEnvelope, cancellationToken);
@@ -95,7 +101,6 @@ public class NfeSoapClient : INfeGateway
                     $"or {nameof(NfeServiceOptions.ProductionEndpoint)}/{nameof(NfeServiceOptions.TestEndpoint)} in appsettings.json");
             }
 
-            var useAsyncSendContract = _options.UseAsyncSendContract();
             _logger.LogInformation(
                 "Sending SOAP request to {Endpoint} using {ContractMode} contract",
                 endpoint,
@@ -514,6 +519,13 @@ public class NfeSoapClient : INfeGateway
             _logger.LogError(ex, "Error parsing async send SOAP response");
             throw new NfeSoapException("Error parsing async send SOAP response", ex);
         }
+    }
+
+    private static string NormalizeAsyncSendEnvelope(string soapEnvelope)
+    {
+        return soapEnvelope
+            .Replace("<VersaoSchema>", "<versaoSchema>", StringComparison.Ordinal)
+            .Replace("</VersaoSchema>", "</versaoSchema>", StringComparison.Ordinal);
     }
 
     /// <summary>
