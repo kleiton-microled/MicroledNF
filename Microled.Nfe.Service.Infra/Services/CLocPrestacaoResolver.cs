@@ -3,11 +3,11 @@ using System.Globalization;
 namespace Microled.Nfe.Service.Infra.Services;
 
 /// <summary>
-/// Código IBGE do município (tpCidade no XSD: exatamente 7 dígitos). Valores 0 ou inválidos não podem ser enviados.
+/// Código IBGE do município (tpCidade: 7 dígitos). Com <c>cIndOp</c> padrão <see cref="IbsCbsCIndOpNormalizer.DefaultCIndOp"/> (100301) não se usa endereço de imóvel — apenas prestador / valor explícito em IBSCBS.
 /// </summary>
 public static class CLocPrestacaoResolver
 {
-    /// <summary>Município de São Paulo (IBGE) — fallback quando o MDB/config não traz código válido.</summary>
+    /// <summary>Município de São Paulo (IBGE) — fallback quando nenhum código válido é encontrado.</summary>
     public const int DefaultSaoPaulo = 3550308;
 
     public static int Resolve(int? cLocFromIbsCbs, int? codigoMunicipioPrestador)

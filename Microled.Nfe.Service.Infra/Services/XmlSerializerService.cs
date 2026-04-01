@@ -896,7 +896,8 @@ public class XmlSerializerService : IXmlSerializerService
         // Write valores (obrigatório)
         WriteValores(writer, ibscbs.valores);
         
-        if (ibscbs.imovelobra != null)
+        // PMSP 621: com cIndOp 100301 não deve existir imovelobra — não serializar mesmo se o objeto vier preenchido (ex.: front).
+        if (ibscbs.imovelobra != null && IbsCbsCIndOpNormalizer.ShouldSerializeImovelObra(ibscbs.cIndOp))
         {
             WriteImovelObra(writer, ibscbs.imovelobra);
         }

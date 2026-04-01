@@ -5,9 +5,21 @@ namespace Microled.Nfe.Service.Infra.Services;
 
 public static class IbsCbsCIndOpNormalizer
 {
+    /// <summary>Padrão Microled / PMSP exemplo: sem <c>imovelobra</c> nem endereço de imóvel no IBSCBS (erro 621 se enviado).</summary>
     public const string DefaultCIndOp = "100301";
 
     private static readonly Regex SixDigitsRegex = new(@"^\d{6}$", RegexOptions.Compiled);
+
+    /// <summary>
+    /// PMSP 621: com <c>cIndOp</c> <c>100301</c> não deve existir grupo <c>imovelobra</c> (nem endereço de imóvel nesse bloco).
+    /// Outros indicadores podem exigir <c>imovelobra</c> conforme manual.
+    /// </summary>
+    public static bool ShouldSerializeImovelObra(string normalizedCIndOp)
+    {
+        if (string.IsNullOrEmpty(normalizedCIndOp))
+            return false;
+        return !string.Equals(normalizedCIndOp, DefaultCIndOp, StringComparison.Ordinal);
+    }
 
     /// <summary>
     /// Sanitiza removendo qualquer caractere não numérico e valida se ficou com 6 dígitos.

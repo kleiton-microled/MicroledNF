@@ -300,7 +300,9 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
                     }
                 }
             },
-            imovelobra = MapIbsCbsImovelObra(ibsCbs.ImovelObra)
+            imovelobra = IbsCbsCIndOpNormalizer.ShouldSerializeImovelObra(cIndOp)
+                ? MapIbsCbsImovelObra(ibsCbs.ImovelObra)
+                : null
         };
     }
 
