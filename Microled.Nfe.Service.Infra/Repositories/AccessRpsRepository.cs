@@ -263,34 +263,8 @@ public class AccessRpsRepository : IAccessRpsRepository
                 ORDER BY [{primaryKeyColumn}]";
 
             using var command = new OleDbCommand(query, connection);
-            // Try to convert PendingStatus to appropriate type
-            // Access boolean columns typically use True/False or 0/-1
-            object statusValue;
-            if (bool.TryParse(_options.PendingStatus, out var boolValue))
-            {
-                statusValue = boolValue;
-            }
-            else if (int.TryParse(_options.PendingStatus, out var intValue))
-            {
-                statusValue = intValue;
-            }
-            else
-            {
-                // Try common boolean string representations
-                var upperStatus = _options.PendingStatus.ToUpperInvariant();
-                if (upperStatus == "N" || upperStatus == "FALSE" || upperStatus == "0" || upperStatus == "NO")
-                {
-                    statusValue = false;
-                }
-                else if (upperStatus == "S" || upperStatus == "TRUE" || upperStatus == "1" || upperStatus == "YES")
-                {
-                    statusValue = true;
-                }
-                else
-                {
-                    statusValue = _options.PendingStatus;
-                }
-            }
+            // PendingStatus must match the Access column type. "P"/"E"/"G" are NOT valid for Yes/No (Processado).
+            var statusValue = ResolveStatusParameterValue(connection, _options.RpsTableName, statusColumn, _options.PendingStatus);
             command.Parameters.AddWithValue("@Status", statusValue);
 
             using var reader = await command.ExecuteReaderAsync(cancellationToken) as OleDbDataReader;
@@ -526,6 +500,90 @@ public class AccessRpsRepository : IAccessRpsRepository
             _logger.LogError(ex, "Error updating RPS status to generated in Access database");
             throw;
         }
+    }
+
+    /// <summary>
+    /// Builds the parameter for WHERE [StatusColumn] = ? so the type matches the column (critical for Access Yes/No).
+    /// </summary>
+    private object ResolveStatusParameterValue(
+        OleDbConnection connection,
+        string tableName,
+        string statusColumn,
+        string configuredStatus)
+    {
+        if (StatusColumnStoresBoolean(connection, tableName, statusColumn))
+        {
+            _logger.LogDebug(
+                "Access status column '{StatusColumn}' is boolean; mapping PendingStatus '{Pending}' to bool.",
+                statusColumn,
+                configuredStatus);
+            return ConvertStatusToBoolean(configuredStatus);
+        }
+
+        // Text or numeric status column (e.g. "P" / "E")
+        if (bool.TryParse(configuredStatus, out var boolValue))
+        {
+            return boolValue;
+        }
+
+        if (int.TryParse(configuredStatus, out var intValue))
+        {
+            return intValue;
+        }
+
+        var upperStatus = configuredStatus.ToUpperInvariant();
+        if (upperStatus is "N" or "FALSE" or "0" or "NO")
+        {
+            return false;
+        }
+
+        if (upperStatus is "S" or "TRUE" or "1" or "YES")
+        {
+            return true;
+        }
+
+        return configuredStatus;
+    }
+
+    /// <summary>
+    /// Yes/No columns in Access (e.g. Processado) require bool parameters, not strings like "P".
+    /// </summary>
+    private bool StatusColumnStoresBoolean(OleDbConnection connection, string tableName, string statusColumn)
+    {
+        if (statusColumn.Equals("Processado", StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+
+        var dataType = TryGetColumnOleDbDataType(connection, tableName, statusColumn);
+        // 11 = DBTYPE_BOOL (Access Yes/No)
+        return dataType == 11;
+    }
+
+    private static int? TryGetColumnOleDbDataType(OleDbConnection connection, string tableName, string columnName)
+    {
+        try
+        {
+            var restrictions = new string?[] { null, null, tableName, columnName };
+            var schema = connection.GetSchema("Columns", restrictions);
+            foreach (DataRow row in schema.Rows)
+            {
+                var name = row["COLUMN_NAME"]?.ToString();
+                if (string.Equals(name, columnName, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (row["DATA_TYPE"] != DBNull.Value)
+                    {
+                        return Convert.ToInt32(row["DATA_TYPE"]);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // ignore; fall back to name heuristics only
+        }
+
+        return null;
     }
 
     private object ConvertStatusToBoolean(string statusValue)
