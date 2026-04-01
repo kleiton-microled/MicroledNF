@@ -1,6 +1,7 @@
 using System.Reflection;
 using FluentValidation;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.Extensions.Logging;
 using Microled.Nfe.LocalAgent.Api.Infrastructure;
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Interfaces;
@@ -33,15 +34,31 @@ public static class HealthEndpoints
             NfseSpTaxCalculationRequest request,
             IValidator<NfseSpTaxCalculationRequest> validator,
             INfseSpTaxCalculationService calculationService,
+            ILoggerFactory loggerFactory,
             CancellationToken cancellationToken) =>
         {
+            var log = loggerFactory.CreateLogger("Microled.Nfe.LocalAgent.NfseSpTax");
+            log.LogInformation(
+                "POST calculate-taxes: valorServico={ValorServico}, codigoServico={CodigoServico}, regime={Regime}",
+                request.ValorServico,
+                request.CodigoServico,
+                request.RegimeTributario);
+
             var validationProblem = await EndpointValidation.ValidateAsync(request, validator, cancellationToken);
             if (validationProblem is not null)
+            {
+                log.LogWarning("calculate-taxes: validação falhou.");
                 return validationProblem;
+            }
 
             var response = calculationService.Calculate(request);
+            log.LogInformation(
+                "calculate-taxes: ok. valorLiquido={ValorLiquido}, totalRetencoes={TotalRetencoes}",
+                response.ValorLiquido,
+                response.TotalRetencoes);
             return TypedResults.Ok(response);
-        });
+        })
+        .WithName("PostNfseSpCalculateTaxes");
 
         return endpoints;
     }
