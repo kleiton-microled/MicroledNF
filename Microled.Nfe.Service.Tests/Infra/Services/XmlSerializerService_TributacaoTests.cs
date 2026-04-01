@@ -71,7 +71,8 @@ public class XmlSerializerService_TributacaoTests
                     {
                         finNFSe = 0,
                         indFinal = 0,
-                        cIndOp = "100301",
+                        // 020101: exemplo oficial permite imovelobra; 100301 não (erro 621 PMSP).
+                        cIndOp = "020101",
                         indDest = 0,
                         valores = new tpValores { trib = new tpTrib { gIBSCBS = new tpGIBSCBS { cClassTrib = "000001" } } },
                         imovelobra = new tpImovelObra

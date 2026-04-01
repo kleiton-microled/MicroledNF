@@ -1430,7 +1430,9 @@ public class NfeSoapClient : INfeGateway
                     }
                 }
             },
-            imovelobra = MapIbsCbsImovelObra(ibsCbs.ImovelObra)
+            imovelobra = IbsCbsCIndOpNormalizer.ShouldSerializeImovelObra(cIndOp)
+                ? MapIbsCbsImovelObra(ibsCbs.ImovelObra)
+                : null
         };
     }
 
