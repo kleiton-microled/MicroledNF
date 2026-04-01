@@ -132,6 +132,53 @@ public class NfeSoapClientTests
     }
 
     [Fact]
+    public async Task SendRpsBatchAsync_ShouldParseAsyncResponse_WhenAsyncEndpointIsConfigured()
+    {
+        // Arrange
+        _options.AsyncTestEndpoint = "https://nfews.example.com/lotenfeasync.asmx";
+
+        _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
+            .Returns("<PedidoEnvioLoteRPS>...</PedidoEnvioLoteRPS>");
+
+        _soapEnvelopeBuilderMock
+            .Setup(x => x.BuildEnvioLoteRPS(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><EnvioLoteRPSRequest><VersaoSchema>{versao}</VersaoSchema><MensagemXML><![CDATA[{xml}]]></MensagemXML></EnvioLoteRPSRequest></soap:Body></soap:Envelope>");
+
+        var soapResponse = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"">
+  <soap:Body>
+    <EnvioLoteRPSResponseAsync xmlns=""http://www.prefeitura.sp.gov.br/nfe"">
+      <RetornoXML>
+        <Cabecalho Versao=""2"">
+          <Sucesso>true</Sucesso>
+          <InformacoesLote>
+            <NumeroProtocolo>PROTOCOLO-123</NumeroProtocolo>
+            <DataRecebimento>2026-03-31T12:00:00</DataRecebimento>
+          </InformacoesLote>
+        </Cabecalho>
+      </RetornoXML>
+    </EnvioLoteRPSResponseAsync>
+  </soap:Body>
+</soap:Envelope>";
+
+        var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.AsyncTestEndpoint) };
+
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var batch = CreateTestRpsBatch();
+
+        // Act
+        var result = await client.SendRpsBatchAsync(batch, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.Sucesso.Should().BeTrue();
+        result.Protocolo.Should().Be("PROTOCOLO-123");
+        result.ChavesNFeRPS.Should().BeEmpty();
+        result.Erros.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task ConsultNfeAsync_ShouldReturnSuccessResult_WhenSoapResponseIsSuccess()
     {
         // Arrange

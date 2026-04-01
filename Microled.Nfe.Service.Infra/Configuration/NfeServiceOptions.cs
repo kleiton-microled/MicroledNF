@@ -24,6 +24,18 @@ public class NfeServiceOptions
     public string TestEndpoint { get; set; } = string.Empty;
 
     /// <summary>
+    /// Production async send endpoint URL for schema v2 batch submission.
+    /// When configured, SendRpsBatchAsync uses this endpoint instead of ProductionEndpoint.
+    /// </summary>
+    public string AsyncProductionEndpoint { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Test/Homologation async send endpoint URL for schema v2 batch submission.
+    /// When configured, SendRpsBatchAsync uses this endpoint instead of TestEndpoint.
+    /// </summary>
+    public string AsyncTestEndpoint { get; set; } = string.Empty;
+
+    /// <summary>
     /// Whether to use production or test environment (used only if BaseUrl is not set)
     /// </summary>
     public bool UseProduction { get; set; } = false;
@@ -95,6 +107,63 @@ public class NfeServiceOptions
     /// Certificate configuration
     /// </summary>
     public CertificateOptions Certificate { get; set; } = new();
+
+    public string? GetPrimaryEndpoint()
+    {
+        if (!string.IsNullOrWhiteSpace(BaseUrl))
+        {
+            return BaseUrl;
+        }
+
+        var queryEndpoint = GetQueryEndpoint();
+        if (!string.IsNullOrWhiteSpace(queryEndpoint))
+        {
+            return queryEndpoint;
+        }
+
+        return GetAsyncSendEndpoint();
+    }
+
+    public string? GetQueryEndpoint()
+    {
+        if (!string.IsNullOrWhiteSpace(BaseUrl))
+        {
+            return BaseUrl;
+        }
+
+        return UseProduction ? ProductionEndpoint : TestEndpoint;
+    }
+
+    public string? GetSendEndpoint()
+    {
+        if (!string.IsNullOrWhiteSpace(BaseUrl))
+        {
+            return BaseUrl;
+        }
+
+        var asyncEndpoint = GetAsyncSendEndpoint();
+        if (!string.IsNullOrWhiteSpace(asyncEndpoint))
+        {
+            return asyncEndpoint;
+        }
+
+        return GetQueryEndpoint();
+    }
+
+    public bool UseAsyncSendContract()
+    {
+        if (!string.IsNullOrWhiteSpace(BaseUrl))
+        {
+            return false;
+        }
+
+        return !string.IsNullOrWhiteSpace(GetAsyncSendEndpoint());
+    }
+
+    private string GetAsyncSendEndpoint()
+    {
+        return UseProduction ? AsyncProductionEndpoint : AsyncTestEndpoint;
+    }
 }
 
 public class CertificateOptions
