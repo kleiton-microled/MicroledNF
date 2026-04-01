@@ -39,8 +39,8 @@ public class NfeSoapClientTests
         // Setup default SOAP envelope builder behavior
         _soapEnvelopeBuilderMock.Setup(x => x.Build(It.IsAny<string>(), It.IsAny<string>()))
             .Returns<string, string>((op, xml) => $"<soap:Envelope><soap:Body><{op}><MensagemXML><![CDATA[{xml}]]></MensagemXML></{op}></soap:Body></soap:Envelope>");
-        _soapEnvelopeBuilderMock.Setup(x => x.BuildConsultaNFe(It.IsAny<string>()))
-            .Returns<string>(xml => $"<soap:Envelope><soap:Body><ConsultaNFeRequest><MensagemXML><![CDATA[{xml}]]></MensagemXML></ConsultaNFeRequest></soap:Body></soap:Envelope>");
+        _soapEnvelopeBuilderMock.Setup(x => x.BuildConsultaNFe(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><ConsultaNFeRequest><VersaoSchema>{versao}</VersaoSchema><MensagemXML><![CDATA[{xml}]]></MensagemXML></ConsultaNFeRequest></soap:Body></soap:Envelope>");
     }
 
     [Fact]
