@@ -174,12 +174,6 @@ public class XmlSerializerService : IXmlSerializerService
         {
             const string nfeNamespace = "http://www.prefeitura.sp.gov.br/nfe";
             const string dsNamespace = "http://www.w3.org/2000/09/xmldsig#";
-
-            var namespaces = new XmlSerializerNamespaces();
-            namespaces.Add(string.Empty, nfeNamespace);
-            namespaces.Add("ds", dsNamespace);
-
-            var serializer = new XmlSerializer(typeof(PedidoConsultaNFe));
             using var stringWriter = new StringWriterWithEncoding(Encoding.UTF8);
             using var xmlWriter = XmlWriter.Create(stringWriter, new XmlWriterSettings
             {
@@ -188,7 +182,19 @@ public class XmlSerializerService : IXmlSerializerService
                 Encoding = Encoding.UTF8
             });
 
-            serializer.Serialize(xmlWriter, pedido, namespaces);
+            xmlWriter.WriteStartElement("PedidoConsultaNFe", nfeNamespace);
+            xmlWriter.WriteAttributeString("xmlns", "ds", null, dsNamespace);
+
+            WriteConsultaCabecalho(xmlWriter, pedido.Cabecalho);
+
+            foreach (var detalhe in pedido.Detalhe)
+            {
+                WriteConsultaDetalhe(xmlWriter, detalhe);
+            }
+
+            xmlWriter.WriteEndElement(); // PedidoConsultaNFe
+            xmlWriter.Flush();
+
             var xmlWithoutSignature = stringWriter.ToString().TrimStart();
 
             if (_certificateProvider != null && _options.EnableXmlSignature)
@@ -216,6 +222,47 @@ public class XmlSerializerService : IXmlSerializerService
             _logger.LogError(ex, "Error serializing PedidoConsultaNFe");
             throw;
         }
+    }
+
+    private static void WriteConsultaCabecalho(XmlWriter writer, PedidoConsultaNFeCabecalho cabecalho)
+    {
+        writer.WriteRaw($"<Cabecalho Versao=\"{cabecalho.Versao}\" xmlns=\"\">");
+        WriteCPFCNPJ(writer, "CPFCNPJRemetente", cabecalho.CPFCNPJRemetente);
+        writer.WriteRaw("</Cabecalho>");
+    }
+
+    private static void WriteConsultaDetalhe(XmlWriter writer, PedidoConsultaNFeDetalhe detalhe)
+    {
+        writer.WriteRaw("<Detalhe xmlns=\"\">");
+
+        if (detalhe.ChaveNFe != null)
+        {
+            writer.WriteStartElement("ChaveNFe");
+            writer.WriteElementString("InscricaoPrestador", detalhe.ChaveNFe.InscricaoPrestador.ToString());
+            writer.WriteElementString("NumeroNFe", detalhe.ChaveNFe.NumeroNFe.ToString());
+
+            if (!string.IsNullOrWhiteSpace(detalhe.ChaveNFe.CodigoVerificacao))
+            {
+                writer.WriteElementString("CodigoVerificacao", detalhe.ChaveNFe.CodigoVerificacao);
+            }
+
+            if (!string.IsNullOrWhiteSpace(detalhe.ChaveNFe.ChaveNotaNacional))
+            {
+                writer.WriteElementString("ChaveNotaNacional", detalhe.ChaveNFe.ChaveNotaNacional);
+            }
+
+            writer.WriteEndElement();
+        }
+        else if (detalhe.ChaveRPS != null)
+        {
+            WriteChaveRPS(writer, detalhe.ChaveRPS);
+        }
+        else
+        {
+            throw new InvalidOperationException("Detalhe de consulta deve conter ChaveNFe ou ChaveRPS.");
+        }
+
+        writer.WriteRaw("</Detalhe>");
     }
 
     public T Deserialize<T>(string xml) where T : class
