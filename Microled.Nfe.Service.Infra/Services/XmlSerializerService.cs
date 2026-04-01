@@ -1104,15 +1104,12 @@ public class XmlSerializerService : IXmlSerializerService
     {
         writer.WriteStartElement("end");
         
-        // Regra do schema (erro 1001): dentro de <end> só pode existir:
-        // - <CEP> (endereço nacional simplificado), OU
-        // - <endExt> (endereço exterior conforme XSD)
-        // NÃO escrever xLgr/nro/xBairro aqui.
+        // tpEnderecoSimplesIBSCBS: choice (CEP | endExt) + gpEnderecoBaseIBSCBS (xLgr, nro, xCpl?, xBairro) — todos obrigatórios após a choice, exceto xCpl.
         if (end.endExt != null)
         {
             WriteEnderecoExterior(writer, end.endExt);
         }
-        else if (end.CEP.HasValue)
+        else if (end.CEP.HasValue && end.CEP.Value > 0)
         {
             writer.WriteElementString("CEP", end.CEP.Value.ToString());
         }
@@ -1120,6 +1117,18 @@ public class XmlSerializerService : IXmlSerializerService
         {
             throw new InvalidOperationException("end deve conter CEP (Brasil) ou endExt (Exterior) conforme XSD.");
         }
+
+        var xLgr = string.IsNullOrWhiteSpace(end.xLgr) ? "-" : end.xLgr;
+        var nro = string.IsNullOrWhiteSpace(end.nro) ? "S/N" : end.nro;
+        var xBairro = string.IsNullOrWhiteSpace(end.xBairro) ? "-" : end.xBairro;
+        writer.WriteElementString("xLgr", xLgr);
+        writer.WriteElementString("nro", nro);
+        if (!string.IsNullOrEmpty(end.xCpl))
+        {
+            writer.WriteElementString("xCpl", end.xCpl);
+        }
+
+        writer.WriteElementString("xBairro", xBairro);
         
         writer.WriteEndElement();
     }

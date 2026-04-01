@@ -79,7 +79,6 @@ public class XmlSerializerService_TributacaoTests
                             end = new tpEnderecoSimplesIBSCBS
                             {
                                 CEP = 12345678,
-                                // estes campos existem no modelo, mas não devem ser serializados dentro de <end> (erro 1001)
                                 xLgr = "RUA TESTE",
                                 nro = "0",
                                 xBairro = "CENTRO"
@@ -102,9 +101,11 @@ public class XmlSerializerService_TributacaoTests
         var locIdx = xml.IndexOf("<cLocPrestacao>", StringComparison.Ordinal);
         var ibsIdx = xml.IndexOf("<IBSCBS>", StringComparison.Ordinal);
         Assert.True(nbsIdx >= 0 && locIdx > nbsIdx && ibsIdx > locIdx, "Expected order: NBS -> cLocPrestacao -> IBSCBS");
-        // end simplificado: não pode ter xLgr/nro/xBairro; só CEP ou endExt
-        Assert.DoesNotContain("<xLgr>", xml);
-        Assert.Contains("<end><CEP>12345678</CEP></end>", xml);
+        // tpEnderecoSimplesIBSCBS: após CEP vêm xLgr, nro e xBairro (gpEnderecoBaseIBSCBS)
+        Assert.Contains("<end><CEP>12345678</CEP>", xml);
+        Assert.Contains("<xLgr>RUA TESTE</xLgr>", xml);
+        Assert.Contains("<nro>0</nro>", xml);
+        Assert.Contains("<xBairro>CENTRO</xBairro>", xml);
         // sanity: tributação T ainda presente
         Assert.Matches(new Regex("<TributacaoRPS>\\s*T\\s*</TributacaoRPS>"), xml);
     }

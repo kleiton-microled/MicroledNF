@@ -936,9 +936,10 @@ public class NfeSoapClient : INfeGateway
             PagamentoParceladoAntecipado = 0,
             NCM = tributos?.NCM,
             NBS = ibsCbsInfo?.Nbs ?? "123456789",
-            // Como nosso serviço é prestado no Brasil, preencher cLocPrestacao por padrão
-            // Usar código do município do prestador se disponível, senão usar São Paulo (3550308)
-            cLocPrestacao = ibsCbsInfo?.CLocPrestacao ?? rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308, // São Paulo por padrão
+            // tpCidade: exatamente 7 dígitos; 0 vindo do MDB não é válido — usar Resolve (fallback SP).
+            cLocPrestacao = CLocPrestacaoResolver.Resolve(
+                ibsCbsInfo?.CLocPrestacao,
+                rps.Prestador.Endereco?.CodigoMunicipio),
             cPaisPrestacao = null, // NUNCA preencher (sistema não suporta prestação fora do Brasil)
             IBSCBS = CreateIbsCbs(rps, cClassTrib, cIndOp)
         };
@@ -1422,7 +1423,10 @@ public class NfeSoapClient : INfeGateway
                         cClassTrib = cClassTrib,
                         gTribRegular = string.IsNullOrWhiteSpace(ibsCbs.CClassTribReg)
                             ? null
-                            : new tpGTribRegular { cClassTribReg = ibsCbs.CClassTribReg }
+                            : new tpGTribRegular
+                            {
+                                cClassTribReg = IbsCbsCClassTribValidator.ValidateAndGet(ibsCbs.CClassTribReg!)
+                            }
                     }
                 }
             },
