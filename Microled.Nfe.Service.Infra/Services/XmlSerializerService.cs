@@ -165,6 +165,59 @@ public class XmlSerializerService : IXmlSerializerService
         }
     }
 
+    public string SerializePedidoConsultaNFe(PedidoConsultaNFe pedido)
+    {
+        if (pedido == null)
+            throw new ArgumentNullException(nameof(pedido));
+
+        try
+        {
+            const string nfeNamespace = "http://www.prefeitura.sp.gov.br/nfe";
+            const string dsNamespace = "http://www.w3.org/2000/09/xmldsig#";
+
+            var namespaces = new XmlSerializerNamespaces();
+            namespaces.Add(string.Empty, nfeNamespace);
+            namespaces.Add("ds", dsNamespace);
+
+            var serializer = new XmlSerializer(typeof(PedidoConsultaNFe));
+            using var stringWriter = new StringWriterWithEncoding(Encoding.UTF8);
+            using var xmlWriter = XmlWriter.Create(stringWriter, new XmlWriterSettings
+            {
+                Indent = false,
+                OmitXmlDeclaration = false,
+                Encoding = Encoding.UTF8
+            });
+
+            serializer.Serialize(xmlWriter, pedido, namespaces);
+            var xmlWithoutSignature = stringWriter.ToString().TrimStart();
+
+            if (_certificateProvider != null && _options.EnableXmlSignature)
+            {
+                try
+                {
+                    var signedXml = SignXmlDocument(xmlWithoutSignature, nfeNamespace, dsNamespace);
+                    return signedXml;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to sign PedidoConsultaNFe, returning unsigned XML");
+                    return xmlWithoutSignature;
+                }
+            }
+            else if (!_options.EnableXmlSignature)
+            {
+                _logger.LogDebug("XML signature (ds:Signature) is disabled via configuration");
+            }
+
+            return xmlWithoutSignature;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error serializing PedidoConsultaNFe");
+            throw;
+        }
+    }
+
     public T Deserialize<T>(string xml) where T : class
     {
         if (string.IsNullOrWhiteSpace(xml))

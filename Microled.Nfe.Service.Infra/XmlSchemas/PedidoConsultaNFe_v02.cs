@@ -1,3 +1,4 @@
+using System.Xml;
 using System.Xml.Serialization;
 
 namespace Microled.Nfe.Service.Infra.XmlSchemas;
@@ -17,9 +18,8 @@ public class PedidoConsultaNFe
     [XmlElement("Detalhe", Order = 1)]
     public List<PedidoConsultaNFeDetalhe> Detalhe { get; set; } = new();
 
-    // TODO: Signature element from xmldsig namespace
-    // [XmlElement("Signature", Namespace = "http://www.w3.org/2000/09/xmldsig#", Order = 2)]
-    // public SignatureType? Signature { get; set; }
+    [XmlAnyElement(Order = 2)]
+    public XmlElement? Signature { get; set; }
 }
 
 /// <summary>
