@@ -242,6 +242,69 @@ public class NfeSoapClient : INfeGateway
         }
     }
 
+    public async Task<ConsultaSituacaoLoteResult> ConsultBatchStatusAsync(string numeroProtocolo, CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(numeroProtocolo))
+            throw new ArgumentException("NumeroProtocolo cannot be null or empty", nameof(numeroProtocolo));
+
+        _logger.LogInformation("Starting ConsultBatchStatusAsync for NumeroProtocolo: {NumeroProtocolo}", numeroProtocolo);
+
+        try
+        {
+            var xmlContent = BuildConsultaSituacaoLoteXml(numeroProtocolo);
+            LogXmlIfEnabled("Request XML (PedidoConsultaSituacaoLote)", xmlContent);
+
+            var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+            var soapEnvelope = _soapEnvelopeBuilder.BuildConsultaSituacaoLote(xmlContent, versaoSchema);
+            LogXmlIfEnabled("Request SOAP (ConsultaSituacaoLote)", soapEnvelope);
+
+            var endpoint = _options.GetSendEndpoint();
+            if (string.IsNullOrWhiteSpace(endpoint))
+            {
+                throw new InvalidOperationException(
+                    $"NFe async endpoint is not configured. Please set either {nameof(NfeServiceOptions.BaseUrl)} or " +
+                    $"{nameof(NfeServiceOptions.AsyncProductionEndpoint)}/{nameof(NfeServiceOptions.AsyncTestEndpoint)} in appsettings.json");
+            }
+
+            _logger.LogInformation("Sending batch status SOAP request to {Endpoint}", endpoint);
+
+            var requestContent = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
+            requestContent.Headers.Add("SOAPAction", $"{NfeNamespace}/ws/consultaSituacaoLote");
+
+            var response = await _httpClient.PostAsync(endpoint, requestContent, cancellationToken);
+            var responseContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            LogXmlIfEnabled("Response SOAP (ConsultaSituacaoLote)", responseContent);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorMessage = BuildHttpErrorMessage("consulting batch status", response.StatusCode, responseContent);
+                _logger.LogError("HTTP error {StatusCode} when consulting batch status. Details: {Details}", response.StatusCode, errorMessage);
+                throw new NfeSoapException(errorMessage, (int)response.StatusCode);
+            }
+
+            var retornoXml = ExtractXmlFromSoapResponse("ConsultaSituacaoLoteResponse", responseContent);
+            LogXmlIfEnabled("Response XML (RetornoConsultaSituacaoLote)", retornoXml);
+
+            var result = ParseConsultaSituacaoLoteResult(retornoXml);
+            _logger.LogInformation(
+                "ConsultBatchStatusAsync completed. Success: {Sucesso}, Situacao: {SituacaoCodigo}/{SituacaoNome}",
+                result.Sucesso,
+                result.SituacaoCodigo,
+                result.SituacaoNome);
+
+            return result;
+        }
+        catch (NfeSoapException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error in ConsultBatchStatusAsync");
+            throw new NfeSoapException("Error consulting batch status", ex);
+        }
+    }
+
     public async Task<CancelNfeResult> CancelNfeAsync(DomainEntities.NfeCancellation cancellation, CancellationToken cancellationToken)
     {
         _logger.LogInformation("Starting CancelNfeAsync for ChaveNFe: {ChaveNFe} with signature length {SignatureLength}",
@@ -404,6 +467,11 @@ public class NfeSoapClient : INfeGateway
                 throw new NfeSoapException("Could not find RetornoXML or MensagemXML element in SOAP response");
             }
 
+            if (retornoXmlElement != null && retornoXmlElement.Elements().Any())
+            {
+                return retornoXmlElement.ToString(SaveOptions.DisableFormatting);
+            }
+
             // Handle CDATA content
             var xmlContent = mensagemXmlElement.Value;
             if (string.IsNullOrEmpty(xmlContent) && mensagemXmlElement.Nodes().Any())
@@ -518,6 +586,50 @@ public class NfeSoapClient : INfeGateway
         {
             _logger.LogError(ex, "Error parsing async send SOAP response");
             throw new NfeSoapException("Error parsing async send SOAP response", ex);
+        }
+    }
+
+    private ConsultaSituacaoLoteResult ParseConsultaSituacaoLoteResult(string retornoXml)
+    {
+        try
+        {
+            var document = XDocument.Parse(retornoXml);
+            var root = document.Root;
+            if (root == null)
+            {
+                throw new NfeSoapException("Batch status response XML is empty");
+            }
+
+            var successText = FindChildByLocalName(root, "Sucesso")?.Value;
+            var situacaoElement = FindChildByLocalName(root, "Situacao");
+            var numeroLoteText = FindChildByLocalName(root, "NumeroLote")?.Value;
+            var dataRecebimentoText = FindChildByLocalName(root, "DataRecebimento")?.Value;
+            var dataProcessamentoText = FindChildByLocalName(root, "DataProcessamento")?.Value;
+            var resultadoOperacao = FindChildByLocalName(root, "ResultadoOperacao")?.Value;
+
+            return new ConsultaSituacaoLoteResult
+            {
+                Sucesso = bool.TryParse(successText, out var sucesso) && sucesso,
+                SituacaoCodigo = int.TryParse(situacaoElement?.Value, out var situacaoCodigo) ? situacaoCodigo : null,
+                SituacaoNome = situacaoElement?.Attribute("nome")?.Value,
+                NumeroLote = long.TryParse(numeroLoteText, out var numeroLote) ? numeroLote : null,
+                DataRecebimento = DateTime.TryParse(dataRecebimentoText, out var dataRecebimento) ? dataRecebimento : null,
+                DataProcessamento = DateTime.TryParse(dataProcessamentoText, out var dataProcessamento) ? dataProcessamento : null,
+                ResultadoOperacao = resultadoOperacao,
+                Erros = root.Elements()
+                    .Where(element => element.Name.LocalName == "Erro")
+                    .Select(ParseAsyncEvento)
+                    .ToList()
+            };
+        }
+        catch (NfeSoapException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error parsing batch status response XML");
+            throw new NfeSoapException("Error parsing batch status response XML", ex);
         }
     }
 
@@ -1108,6 +1220,20 @@ public class NfeSoapClient : INfeGateway
             Codigo = short.TryParse(codigoText, out var codigo) ? codigo : 0,
             Descricao = descricao
         };
+    }
+
+    private string BuildConsultaSituacaoLoteXml(string numeroProtocolo)
+    {
+        var cnpjRemetente = _options.DefaultCnpjRemetente ?? throw new InvalidOperationException(
+            "DefaultCnpjRemetente must be configured in NfeServiceOptions");
+
+        return $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<PedidoConsultaSituacaoLote xmlns=""{NfeNamespace}"">
+  <CPFCNPJRemetente>
+    <CNPJ>{cnpjRemetente}</CNPJ>
+  </CPFCNPJRemetente>
+  <NumeroProtocolo>{numeroProtocolo}</NumeroProtocolo>
+</PedidoConsultaSituacaoLote>";
     }
 
     /// <summary>

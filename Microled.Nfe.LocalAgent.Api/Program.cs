@@ -155,6 +155,7 @@ builder.Services.AddScoped<INfeGateway>(serviceProvider =>
 });
 
 builder.Services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
+builder.Services.AddScoped<IConsultBatchStatusUseCase, ConsultBatchStatusUseCase>();
 builder.Services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
 builder.Services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
 builder.Services.AddScoped<IListCertificatesUseCase, ListCertificatesUseCase>();

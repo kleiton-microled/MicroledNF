@@ -129,5 +129,24 @@ public class FakeNfeGateway : INfeGateway
 
         return Task.FromResult(result);
     }
+
+    public Task<ConsultaSituacaoLoteResult> ConsultBatchStatusAsync(string numeroProtocolo, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("FAKE: ConsultBatchStatusAsync called for NumeroProtocolo: {NumeroProtocolo}", numeroProtocolo);
+
+        var result = new ConsultaSituacaoLoteResult
+        {
+            Sucesso = true,
+            SituacaoCodigo = 3,
+            SituacaoNome = "processado",
+            NumeroLote = 123456,
+            DataRecebimento = DateTime.Now.AddMinutes(-5),
+            DataProcessamento = DateTime.Now,
+            ResultadoOperacao = "Lote processado com sucesso (FAKE)",
+            Erros = new List<Evento>()
+        };
+
+        return Task.FromResult(result);
+    }
 }
 
