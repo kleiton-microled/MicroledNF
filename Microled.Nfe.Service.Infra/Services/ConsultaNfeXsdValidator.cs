@@ -59,15 +59,15 @@ public class ConsultaNfeXsdValidator
     private XmlSchemaSet CreateSchemaSet()
     {
         var schemaDirectory = ResolveSchemaDirectory();
+        var rootSchemaPath = Path.Combine(schemaDirectory, RootSchemaFileName);
         var schemaSet = new XmlSchemaSet();
-
-        foreach (var filePath in Directory.GetFiles(schemaDirectory, "*.xsd"))
-        {
-            schemaSet.Add(null, filePath);
-        }
+        schemaSet.XmlResolver = new XmlUrlResolver();
+        schemaSet.Add(null, rootSchemaPath);
 
         schemaSet.Compile();
-        _logger.LogInformation("ConsultaNFe XSD validation loaded from {SchemaDirectory}", schemaDirectory);
+        _logger.LogInformation(
+            "ConsultaNFe XSD validation loaded from root schema {RootSchemaPath}",
+            rootSchemaPath);
         return schemaSet;
     }
 
