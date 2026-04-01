@@ -32,6 +32,24 @@ public static class NfeEndpoints
             return TypedResults.Ok(response);
         });
 
+        group.MapPost("/cancel", async Task<Results<Ok<CancelNfeResponseDto>, ValidationProblem>> (
+            CancelNfeRequestDto request,
+            IValidator<CancelNfeRequestDto> validator,
+            CertificateUnlockService unlockService,
+            ICancelNfeUseCase useCase,
+            CancellationToken cancellationToken) =>
+        {
+            var validationProblem = await EndpointValidation.ValidateAsync(request, validator, cancellationToken);
+            if (validationProblem is not null)
+            {
+                return validationProblem;
+            }
+
+            await unlockService.UnlockAsync(cancellationToken);
+            var response = await useCase.ExecuteAsync(request, cancellationToken);
+            return TypedResults.Ok(response);
+        });
+
         return endpoints;
     }
 }
