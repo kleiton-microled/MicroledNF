@@ -63,6 +63,7 @@ public class Program
                 });
                 services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
                 services.AddScoped<IAccessRpsRepository, AccessRpsRepository>();
+                services.AddScoped<AccessRpsPayloadMapper>();
                 services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
 
                 // Register HTTP client factory for SOAP calls
