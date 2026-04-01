@@ -21,5 +21,6 @@ public class NfeDto
     public decimal ValorDeducoes { get; set; }
     public decimal ValorISS { get; set; }
     public string? CodigoVerificacao { get; set; }
+    public string? NotaXml { get; set; }
 }
 

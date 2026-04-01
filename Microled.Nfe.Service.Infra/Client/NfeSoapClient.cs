@@ -213,12 +213,13 @@ public class NfeSoapClient : INfeGateway
             // 6. Extract XML from SOAP response
             var retornoXml = ExtractXmlFromSoapResponse("ConsultaNFeResponse", responseContent);
             LogXmlIfEnabled("Response XML (RetornoConsulta)", retornoXml);
+            var notaXmlList = ExtractNfeXmlList(retornoXml);
 
             // 7. Deserialize response
             var retorno = _xmlSerializer.Deserialize<RetornoConsulta>(retornoXml);
 
             // 8. Map to domain result
-            var result = MapRetornoConsultaToResult(retorno);
+            var result = MapRetornoConsultaToResult(retorno, notaXmlList);
 
             _logger.LogInformation("ConsultNfeAsync completed. Success: {Sucesso}, NFe count: {Count}",
                 result.Sucesso, result.NFeList.Count);
@@ -956,11 +957,12 @@ public class NfeSoapClient : INfeGateway
         return result;
     }
 
-    private ConsultaNfeResult MapRetornoConsultaToResult(RetornoConsulta retorno)
+    private ConsultaNfeResult MapRetornoConsultaToResult(RetornoConsulta retorno, List<string>? notaXmlList = null)
     {
         var result = new ConsultaNfeResult
         {
             Sucesso = retorno.Cabecalho.Sucesso,
+            NotaXmlList = notaXmlList ?? new List<string>(),
             Alertas = retorno.Alerta.Select(MapTpEventoToEvento).ToList(),
             Erros = retorno.Erro.Select(MapTpEventoToEvento).ToList(),
             NFeList = retorno.NFe.Select(MapTpNFeToNfe).ToList()
@@ -1055,6 +1057,28 @@ public class NfeSoapClient : INfeGateway
             ChaveRPS = tpEvento.ChaveRPS != null ? MapTpChaveRPSToRpsKey(tpEvento.ChaveRPS) : null,
             ChaveNFe = tpEvento.ChaveNFe != null ? MapTpChaveNFeToNfeKey(tpEvento.ChaveNFe) : null
         };
+    }
+
+    private static List<string> ExtractNfeXmlList(string retornoXml)
+    {
+        if (string.IsNullOrWhiteSpace(retornoXml))
+        {
+            return new List<string>();
+        }
+
+        try
+        {
+            var document = XDocument.Parse(retornoXml);
+            return document
+                .Descendants()
+                .Where(element => element.Name.LocalName == "NFe")
+                .Select(element => element.ToString(SaveOptions.DisableFormatting))
+                .ToList();
+        }
+        catch
+        {
+            return new List<string>();
+        }
     }
 
     private static XElement? FindChildByLocalName(XElement? parent, string localName)
