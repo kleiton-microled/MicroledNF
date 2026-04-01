@@ -1229,10 +1229,10 @@ public class NfeSoapClient : INfeGateway
 
         return $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <PedidoConsultaSituacaoLote xmlns=""{NfeNamespace}"">
-  <CPFCNPJRemetente>
+  <CPFCNPJRemetente xmlns="""">
     <CNPJ>{cnpjRemetente}</CNPJ>
   </CPFCNPJRemetente>
-  <NumeroProtocolo>{numeroProtocolo}</NumeroProtocolo>
+  <NumeroProtocolo xmlns="""">{numeroProtocolo}</NumeroProtocolo>
 </PedidoConsultaSituacaoLote>";
     }
 
