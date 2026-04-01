@@ -80,7 +80,13 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
             dto.Tomador.Email
         ) : null;
 
-        return new Rps(chaveRps, tipoRps, dto.DataEmissao, statusRps, tributacaoRps, item, prestador, tomador);
+        var rps = new Rps(chaveRps, tipoRps, dto.DataEmissao, statusRps, tributacaoRps, item, prestador, tomador);
+        rps.SetTributos(MapToTributos(dto.Tributos));
+
+        var ibsCbs = MapToIbsCbs(dto.IbsCbs);
+        rps.SetIbsCbs(ibsCbs);
+
+        return rps;
     }
 
     private static Address MapToAddress(AddressDto dto)
@@ -95,5 +101,91 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
             dto.UF,
             dto.CEP
         );
+    }
+
+    private static RpsTaxInfo? MapToTributos(RpsTributosDto? dto)
+    {
+        if (dto == null)
+        {
+            return null;
+        }
+
+        return new RpsTaxInfo(
+            MapMoney(dto.ValorPIS),
+            MapMoney(dto.ValorCOFINS),
+            MapMoney(dto.ValorINSS),
+            MapMoney(dto.ValorIR),
+            MapMoney(dto.ValorCSLL),
+            MapMoney(dto.ValorIPI),
+            MapMoney(dto.ValorCargaTributaria),
+            dto.PercentualCargaTributaria,
+            dto.FonteCargaTributaria,
+            MapMoney(dto.ValorTotalRecebido),
+            MapMoney(dto.ValorFinalCobrado),
+            MapMoney(dto.ValorMulta),
+            MapMoney(dto.ValorJuros),
+            dto.NCM);
+    }
+
+    private static RpsIbsCbsInfo? MapToIbsCbs(RpsIbsCbsDto? dto)
+    {
+        if (dto == null)
+        {
+            return null;
+        }
+
+        return new RpsIbsCbsInfo(
+            dto.FinNFSe,
+            dto.IndFinal,
+            dto.CIndOp,
+            dto.TpOper,
+            dto.RefNfSe,
+            dto.TpEnteGov,
+            dto.IndDest,
+            MapToIbsCbsPessoa(dto.Dest),
+            dto.CClassTrib,
+            dto.CClassTribReg,
+            dto.NBS,
+            dto.CLocPrestacao,
+            MapToIbsCbsImovelObra(dto.ImovelObra));
+    }
+
+    private static RpsIbsCbsPersonInfo? MapToIbsCbsPessoa(RpsIbsCbsPessoaDto? dto)
+    {
+        if (dto == null)
+        {
+            return null;
+        }
+
+        var cpf = dto.CpfCnpj?.Length == 11 ? dto.CpfCnpj : null;
+        var cnpj = dto.CpfCnpj?.Length == 14 ? dto.CpfCnpj : null;
+
+        return new RpsIbsCbsPersonInfo(
+            cpf,
+            cnpj,
+            dto.Nif,
+            dto.NaoNif,
+            dto.RazaoSocial,
+            dto.Endereco != null ? MapToAddress(dto.Endereco) : null,
+            dto.Email);
+    }
+
+    private static RpsIbsCbsImovelObraInfo? MapToIbsCbsImovelObra(RpsIbsCbsImovelObraDto? dto)
+    {
+        if (dto == null)
+        {
+            return null;
+        }
+
+        return new RpsIbsCbsImovelObraInfo(
+            dto.InscricaoImobiliariaFiscal,
+            dto.CCib,
+            dto.CObra,
+            dto.Endereco != null ? MapToAddress(dto.Endereco) : null);
+    }
+
+    private static Money? MapMoney(decimal? value)
+    {
+        return value.HasValue ? Money.Create(value.Value) : null;
     }
 }

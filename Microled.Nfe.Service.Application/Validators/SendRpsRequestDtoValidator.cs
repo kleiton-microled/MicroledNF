@@ -49,6 +49,14 @@ public class RpsDtoValidator : AbstractValidator<RpsDto>
         RuleFor(x => x.NumeroRps).GreaterThan(0);
         RuleFor(x => x.DataEmissao).NotEmpty();
         RuleFor(x => x.Item).NotNull().SetValidator(new RpsItemDtoValidator());
+        When(x => x.Tributos != null, () =>
+        {
+            RuleFor(x => x.Tributos!).SetValidator(new RpsTributosDtoValidator());
+        });
+        When(x => x.IbsCbs != null, () =>
+        {
+            RuleFor(x => x.IbsCbs!).SetValidator(new RpsIbsCbsDtoValidator());
+        });
     }
 }
 
@@ -62,5 +70,71 @@ public class RpsItemDtoValidator : AbstractValidator<RpsItemDto>
         RuleFor(x => x.ValorDeducoes).GreaterThanOrEqualTo(0);
         RuleFor(x => x.AliquotaServicos).InclusiveBetween(0, 100);
     }
+}
+
+public class RpsTributosDtoValidator : AbstractValidator<RpsTributosDto>
+{
+    public RpsTributosDtoValidator()
+    {
+        RuleFor(x => x.ValorPIS).GreaterThanOrEqualTo(0).When(x => x.ValorPIS.HasValue);
+        RuleFor(x => x.ValorCOFINS).GreaterThanOrEqualTo(0).When(x => x.ValorCOFINS.HasValue);
+        RuleFor(x => x.ValorINSS).GreaterThanOrEqualTo(0).When(x => x.ValorINSS.HasValue);
+        RuleFor(x => x.ValorIR).GreaterThanOrEqualTo(0).When(x => x.ValorIR.HasValue);
+        RuleFor(x => x.ValorCSLL).GreaterThanOrEqualTo(0).When(x => x.ValorCSLL.HasValue);
+        RuleFor(x => x.ValorIPI).GreaterThanOrEqualTo(0).When(x => x.ValorIPI.HasValue);
+        RuleFor(x => x.ValorCargaTributaria).GreaterThanOrEqualTo(0).When(x => x.ValorCargaTributaria.HasValue);
+        RuleFor(x => x.PercentualCargaTributaria).GreaterThanOrEqualTo(0).When(x => x.PercentualCargaTributaria.HasValue);
+        RuleFor(x => x.ValorTotalRecebido).GreaterThanOrEqualTo(0).When(x => x.ValorTotalRecebido.HasValue);
+        RuleFor(x => x.ValorFinalCobrado).GreaterThanOrEqualTo(0).When(x => x.ValorFinalCobrado.HasValue);
+        RuleFor(x => x.ValorMulta).GreaterThanOrEqualTo(0).When(x => x.ValorMulta.HasValue);
+        RuleFor(x => x.ValorJuros).GreaterThanOrEqualTo(0).When(x => x.ValorJuros.HasValue);
+    }
+}
+
+public class RpsIbsCbsDtoValidator : AbstractValidator<RpsIbsCbsDto>
+{
+    public RpsIbsCbsDtoValidator()
+    {
+        RuleFor(x => x.CIndOp)
+            .Matches(@"^\d{6}$")
+            .When(x => !string.IsNullOrWhiteSpace(x.CIndOp))
+            .WithMessage("IbsCbs.CIndOp must contain exactly 6 digits.");
+
+        RuleFor(x => x.CClassTrib)
+            .Matches(@"^\d{6}$")
+            .When(x => !string.IsNullOrWhiteSpace(x.CClassTrib))
+            .WithMessage("IbsCbs.CClassTrib must contain exactly 6 digits.");
+
+        RuleFor(x => x.CClassTribReg)
+            .Matches(@"^\d{6}$")
+            .When(x => !string.IsNullOrWhiteSpace(x.CClassTribReg))
+            .WithMessage("IbsCbs.CClassTribReg must contain exactly 6 digits.");
+
+        When(x => x.Dest != null, () =>
+        {
+            RuleFor(x => x.Dest!).SetValidator(new RpsIbsCbsPessoaDtoValidator());
+        });
+
+        When(x => x.ImovelObra != null, () =>
+        {
+            RuleFor(x => x.ImovelObra!).SetValidator(new RpsIbsCbsImovelObraDtoValidator());
+        });
+    }
+}
+
+public class RpsIbsCbsPessoaDtoValidator : AbstractValidator<RpsIbsCbsPessoaDto>
+{
+    public RpsIbsCbsPessoaDtoValidator()
+    {
+        RuleFor(x => x.RazaoSocial).NotEmpty().MaximumLength(75);
+        RuleFor(x => x.CpfCnpj)
+            .Matches(@"^(\d{11}|\d{14})$")
+            .When(x => !string.IsNullOrWhiteSpace(x.CpfCnpj))
+            .WithMessage("IbsCbs.Dest.CpfCnpj must contain 11 or 14 digits.");
+    }
+}
+
+public class RpsIbsCbsImovelObraDtoValidator : AbstractValidator<RpsIbsCbsImovelObraDto>
+{
 }
 
