@@ -168,6 +168,19 @@ builder.Services.AddScoped<IGetActiveCertificateProfileUseCase, GetActiveCertifi
 
 var app = builder.Build();
 
+var startupLogger = app.Services.GetRequiredService<ILoggerFactory>()
+    .CreateLogger("Microled.Nfe.LocalAgent.Api.Startup");
+var nfeOptions = app.Services.GetRequiredService<IOptions<NfeServiceOptions>>().Value;
+var integrationOptions = app.Services.GetRequiredService<IOptions<NfeIntegrationOptions>>().Value;
+var validationOptions = app.Services.GetRequiredService<IOptions<NfeValidationOptions>>().Value;
+var certificateStorageOptions = app.Services.GetRequiredService<IOptions<LocalCertificateProfileStorageOptions>>().Value;
+var resolvedEndpoint = !string.IsNullOrWhiteSpace(nfeOptions.BaseUrl)
+    ? nfeOptions.BaseUrl
+    : nfeOptions.UseProduction
+        ? nfeOptions.ProductionEndpoint
+        : nfeOptions.TestEndpoint;
+var localUrl = $"http://localhost:{localAgentOptions.Port}";
+
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("LocalAgentCors");
@@ -177,5 +190,35 @@ app.MapCertificatesEndpoints();
 app.MapNfeEndpoints();
 app.MapRpsEndpoints();
 app.MapWebServiceProbeEndpoints();
+
+app.Lifetime.ApplicationStarted.Register(() =>
+{
+    startupLogger.LogInformation("========================================");
+    startupLogger.LogInformation("Microled.Nfe.LocalAgent.Api started");
+    startupLogger.LogInformation("Local URL: {LocalUrl}", localUrl);
+    startupLogger.LogInformation("ASP.NET Environment: {AspNetEnvironment}", app.Environment.EnvironmentName);
+    startupLogger.LogInformation("NFS-e Environment: {NfeEnvironment}", nfeOptions.Environment);
+    startupLogger.LogInformation("NFS-e Endpoint: {ResolvedEndpoint}", resolvedEndpoint);
+    startupLogger.LogInformation("UseProduction: {UseProduction}", nfeOptions.UseProduction);
+    startupLogger.LogInformation("TimeoutSeconds: {TimeoutSeconds}", nfeOptions.TimeoutSeconds);
+    startupLogger.LogInformation("Certificate Mode: {CertificateMode}", nfeOptions.Certificate.Mode);
+    startupLogger.LogInformation(
+        "Certificate Store: {StoreLocation}/{StoreName}",
+        nfeOptions.Certificate.StoreLocation ?? "CurrentUser",
+        nfeOptions.Certificate.StoreName ?? "My");
+    startupLogger.LogInformation(
+        "Selected certificate profile file: {ProfileFilePath}",
+        Path.Combine(certificateStorageOptions.DataDirectory, certificateStorageOptions.FileName));
+    startupLogger.LogInformation(
+        "RPS Output Directory: {RpsOutputDirectory}",
+        integrationOptions.RpsOutputDirectory ?? "(not configured)");
+    startupLogger.LogInformation(
+        "Validation Output Directory: {ValidationOutputDirectory}",
+        validationOptions.OutputDirectory);
+    startupLogger.LogInformation(
+        "Allowed Origins: {AllowedOrigins}",
+        string.Join(", ", allowedOrigins));
+    startupLogger.LogInformation("========================================");
+});
 
 app.Run();
