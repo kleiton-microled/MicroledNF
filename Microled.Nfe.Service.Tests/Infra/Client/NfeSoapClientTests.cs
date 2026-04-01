@@ -135,7 +135,7 @@ public class NfeSoapClientTests
         // Arrange
         var retorno = CreateTestRetornoConsulta();
 
-        _xmlSerializerMock.Setup(x => x.Serialize(It.IsAny<PedidoConsultaNFe>()))
+        _xmlSerializerMock.Setup(x => x.SerializePedidoConsultaNFe(It.IsAny<PedidoConsultaNFe>()))
             .Returns("<PedidoConsultaNFe>...</PedidoConsultaNFe>");
 
         _xmlSerializerMock.Setup(x => x.Deserialize<RetornoConsulta>(It.IsAny<string>()))

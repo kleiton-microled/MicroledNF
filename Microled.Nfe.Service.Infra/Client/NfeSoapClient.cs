@@ -150,7 +150,7 @@ public class NfeSoapClient : INfeGateway
             var pedido = MapConsultNfeCriteriaToPedidoConsultaNFe(criteria);
 
             // 2. Serialize to XML
-            var xmlContent = _xmlSerializer.Serialize(pedido);
+            var xmlContent = _xmlSerializer.SerializePedidoConsultaNFe(pedido);
             LogXmlIfEnabled("Request XML (PedidoConsultaNFe)", xmlContent);
             _logger.LogDebug("Serialized PedidoConsultaNFe XML (length: {Length})", xmlContent.Length);
 
