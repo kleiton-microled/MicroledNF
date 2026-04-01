@@ -160,6 +160,7 @@ else
 // Register Application use cases
 builder.Services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
 builder.Services.AddScoped<IRpsBatchPreparationService, RpsBatchPreparationService>();
+builder.Services.AddScoped<IConsultBatchStatusUseCase, ConsultBatchStatusUseCase>();
 builder.Services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
 builder.Services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
 builder.Services.AddScoped<IListCertificatesUseCase, ListCertificatesUseCase>();

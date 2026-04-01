@@ -41,6 +41,8 @@ public class NfeSoapClientTests
             .Returns<string, string>((op, xml) => $"<soap:Envelope><soap:Body><{op}><MensagemXML><![CDATA[{xml}]]></MensagemXML></{op}></soap:Body></soap:Envelope>");
         _soapEnvelopeBuilderMock.Setup(x => x.BuildConsultaNFe(It.IsAny<string>(), It.IsAny<int>()))
             .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><ConsultaNFeRequest><VersaoSchema>{versao}</VersaoSchema><MensagemXML><![CDATA[{xml}]]></MensagemXML></ConsultaNFeRequest></soap:Body></soap:Envelope>");
+        _soapEnvelopeBuilderMock.Setup(x => x.BuildConsultaSituacaoLote(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><ConsultaSituacaoLoteRequest><versaoSchema>{versao}</versaoSchema><MensagemXML><![CDATA[{xml}]]></MensagemXML></ConsultaSituacaoLoteRequest></soap:Body></soap:Envelope>");
     }
 
     [Fact]
@@ -254,6 +256,46 @@ public class NfeSoapClientTests
         result.NotaXmlList.Should().HaveCount(1);
         result.NotaXmlList[0].Should().Contain("<NFe");
         result.NotaXmlList[0].Should().Contain("<NumeroNFe>12345</NumeroNFe>");
+    }
+
+    [Fact]
+    public async Task ConsultBatchStatusAsync_ShouldReturnSuccessResult_WhenSoapResponseIsSuccess()
+    {
+        // Arrange
+        _options.AsyncTestEndpoint = "https://nfews.example.com/lotenfeasync.asmx";
+
+        var soapResponse = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"">
+  <soap:Body>
+    <ConsultaSituacaoLoteResponse xmlns=""http://www.prefeitura.sp.gov.br/nfe"">
+      <RetornoXML>
+        <Sucesso>true</Sucesso>
+        <Situacao nome=""processado"">3</Situacao>
+        <NumeroLote>2466</NumeroLote>
+        <DataRecebimento>2026-03-31T12:00:00</DataRecebimento>
+        <DataProcessamento>2026-03-31T12:01:00</DataProcessamento>
+        <ResultadoOperacao>Lote processado com sucesso.</ResultadoOperacao>
+      </RetornoXML>
+    </ConsultaSituacaoLoteResponse>
+  </soap:Body>
+</soap:Envelope>";
+
+        var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.AsyncTestEndpoint) };
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+
+        // Act
+        var result = await client.ConsultBatchStatusAsync("b9cb09c99fa84be08598a182668c93c6", CancellationToken.None);
+
+        // Assert
+        result.Sucesso.Should().BeTrue();
+        result.SituacaoCodigo.Should().Be(3);
+        result.SituacaoNome.Should().Be("processado");
+        result.NumeroLote.Should().Be(2466);
+        result.ResultadoOperacao.Should().Be("Lote processado com sucesso.");
+        handler.LastSoapAction.Should().Be("http://www.prefeitura.sp.gov.br/nfe/ws/consultaSituacaoLote");
+        handler.LastRequestContent.Should().Contain("<versaoSchema>2</versaoSchema>");
+        handler.LastRequestContent.Should().Contain("<NumeroProtocolo>b9cb09c99fa84be08598a182668c93c6</NumeroProtocolo>");
     }
 
     [Fact]

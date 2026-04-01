@@ -18,6 +18,11 @@ public interface INfeGateway
     Task<ConsultaNfeResult> ConsultNfeAsync(ConsultNfeCriteria criteria, CancellationToken cancellationToken);
 
     /// <summary>
+    /// Consults async batch status by protocol number
+    /// </summary>
+    Task<ConsultaSituacaoLoteResult> ConsultBatchStatusAsync(string numeroProtocolo, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Cancels an NFe
     /// </summary>
     Task<CancelNfeResult> CancelNfeAsync(DomainEntities.NfeCancellation cancellation, CancellationToken cancellationToken);
@@ -67,6 +72,18 @@ public class ConsultaNfeResult
     public List<DomainEntities.Nfe> NFeList { get; set; } = new();
     public List<string> NotaXmlList { get; set; } = new();
     public List<Evento> Alertas { get; set; } = new();
+    public List<Evento> Erros { get; set; } = new();
+}
+
+public class ConsultaSituacaoLoteResult
+{
+    public bool Sucesso { get; set; }
+    public int? SituacaoCodigo { get; set; }
+    public string? SituacaoNome { get; set; }
+    public long? NumeroLote { get; set; }
+    public DateTime? DataRecebimento { get; set; }
+    public DateTime? DataProcessamento { get; set; }
+    public string? ResultadoOperacao { get; set; }
     public List<Evento> Erros { get; set; } = new();
 }
 

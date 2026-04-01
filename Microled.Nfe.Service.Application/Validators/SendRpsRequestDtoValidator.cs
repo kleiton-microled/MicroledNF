@@ -27,6 +27,16 @@ public class ServiceProviderDtoValidator : AbstractValidator<ServiceProviderDto>
     }
 }
 
+public class ConsultBatchStatusRequestDtoValidator : AbstractValidator<ConsultBatchStatusRequestDto>
+{
+    public ConsultBatchStatusRequestDtoValidator()
+    {
+        RuleFor(x => x.NumeroProtocolo)
+            .NotEmpty().WithMessage("NumeroProtocolo is required")
+            .Length(32).WithMessage("NumeroProtocolo must contain exactly 32 characters");
+    }
+}
+
 public class RpsDtoValidator : AbstractValidator<RpsDto>
 {
     public RpsDtoValidator()
