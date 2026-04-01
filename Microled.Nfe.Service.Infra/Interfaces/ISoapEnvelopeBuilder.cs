@@ -24,6 +24,6 @@ public interface ISoapEnvelopeBuilder
     /// <summary>
     /// Builds a SOAP envelope for ConsultaNFe using the request wrapper expected by the ASMX endpoint.
     /// </summary>
-    string BuildConsultaNFe(string xmlPayload);
+    string BuildConsultaNFe(string xmlPayload, int versaoSchema);
 }
 

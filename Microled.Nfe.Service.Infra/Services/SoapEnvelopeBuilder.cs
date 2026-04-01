@@ -60,7 +60,7 @@ public class SoapEnvelopeBuilder : ISoapEnvelopeBuilder
         return soapEnvelope;
     }
 
-    public string BuildConsultaNFe(string xmlPayload)
+    public string BuildConsultaNFe(string xmlPayload, int versaoSchema)
     {
         if (string.IsNullOrWhiteSpace(xmlPayload))
             throw new ArgumentException("XML payload cannot be null or empty", nameof(xmlPayload));
@@ -71,6 +71,7 @@ public class SoapEnvelopeBuilder : ISoapEnvelopeBuilder
 <soap:Envelope xmlns:soap=""{SoapNamespace}"">
     <soap:Body>
         <ConsultaNFeRequest xmlns=""{NfeNamespace}"">
+            <VersaoSchema>{versaoSchema}</VersaoSchema>
             <MensagemXML><![CDATA[{escapedXml}]]></MensagemXML>
         </ConsultaNFeRequest>
     </soap:Body>
