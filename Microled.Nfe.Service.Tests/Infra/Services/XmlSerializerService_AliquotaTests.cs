@@ -80,6 +80,8 @@ public class XmlSerializerService_AliquotaTests
         var xml = svc.SerializePedidoEnvioLoteRPS(pedido);
         Assert.Contains("<AliquotaServicos>0.029</AliquotaServicos>", xml);
         Assert.DoesNotContain("ValorTotalRecebido", xml);
+        Assert.DoesNotContain("<ValorInicialCobrado>", xml);
+        Assert.Contains("<ValorFinalCobrado>10.00</ValorFinalCobrado>", xml);
     }
 }
 

@@ -94,6 +94,8 @@ public class XmlSerializerService_TributacaoTests
 
         Assert.DoesNotContain("<MunicipioPrestacao>", xml);
         Assert.DoesNotContain("cPaisPrestacao", xml); // must not exist anywhere
+        Assert.DoesNotContain("<ValorInicialCobrado>", xml);
+        Assert.Contains("<ValorFinalCobrado>10.00</ValorFinalCobrado>", xml);
         Assert.Contains("<cLocPrestacao>", xml);
         Assert.Contains("<IBSCBS>", xml);
         var nbsIdx = xml.IndexOf("<NBS>", StringComparison.Ordinal);
