@@ -6,4 +6,5 @@ namespace Microled.Nfe.Service.Application.DTOs;
 public class ConsultBatchStatusRequestDto
 {
     public string NumeroProtocolo { get; set; } = string.Empty;
+    public string CnpjRemetente { get; set; } = string.Empty;
 }

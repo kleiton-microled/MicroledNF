@@ -34,6 +34,10 @@ public class ConsultBatchStatusRequestDtoValidator : AbstractValidator<ConsultBa
         RuleFor(x => x.NumeroProtocolo)
             .NotEmpty().WithMessage("NumeroProtocolo is required")
             .Length(32).WithMessage("NumeroProtocolo must contain exactly 32 characters");
+
+        RuleFor(x => x.CnpjRemetente)
+            .NotEmpty().WithMessage("CnpjRemetente is required")
+            .Matches(@"^\d{14}$").WithMessage("CnpjRemetente must contain exactly 14 digits");
     }
 }
 

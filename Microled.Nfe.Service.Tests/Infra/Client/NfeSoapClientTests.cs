@@ -285,7 +285,10 @@ public class NfeSoapClientTests
         var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
 
         // Act
-        var result = await client.ConsultBatchStatusAsync("b9cb09c99fa84be08598a182668c93c6", CancellationToken.None);
+        var result = await client.ConsultBatchStatusAsync(
+            "b9cb09c99fa84be08598a182668c93c6",
+            "02126914000129",
+            CancellationToken.None);
 
         // Assert
         result.Sucesso.Should().BeTrue();
@@ -297,6 +300,7 @@ public class NfeSoapClientTests
         handler.LastRequestContent.Should().Contain("<versaoSchema>2</versaoSchema>");
         handler.LastRequestContent.Should().Contain("<PedidoConsultaSituacaoLote xmlns=\"http://www.prefeitura.sp.gov.br/nfe\">");
         handler.LastRequestContent.Should().Contain("<CPFCNPJRemetente xmlns=\"\">");
+        handler.LastRequestContent.Should().Contain("<CNPJ>02126914000129</CNPJ>");
         handler.LastRequestContent.Should().Contain("<NumeroProtocolo xmlns=\"\">b9cb09c99fa84be08598a182668c93c6</NumeroProtocolo>");
     }
 
