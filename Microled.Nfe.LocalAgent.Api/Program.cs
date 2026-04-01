@@ -16,8 +16,14 @@ using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.Storage;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 
 var localAgentOptions = builder.Configuration
     .GetSection(LocalAgentOptions.SectionName)
@@ -103,6 +109,7 @@ builder.Services.AddScoped<ConsultaNfeXsdValidator>();
 builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 builder.Services.AddScoped<CertificateUnlockService>();
 builder.Services.AddScoped<LocalRpsProcessingService>();
+builder.Services.AddScoped<INfseSpTaxCalculationService, NfseSpTaxCalculationService>();
 
 builder.Services.AddHttpClient();
 builder.Services.AddHttpClient(nameof(NfeSoapClient), (serviceProvider, client) =>
