@@ -916,11 +916,10 @@ public class NfeSoapClient : INfeGateway
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
             // IMPORTANTE:
-            // O schema v2 do RPS da prefeitura usa campos como ValorTotalRecebido / ValorInicialCobrado / ValorFinalCobrado.
-            // Se não preencher, o webservice tende a assumir 0 (e então a "String verificada" do 1206 vem com ValorServicos=0).
-            // Para manter consistência entre XML e assinatura, espelhamos o ValorServicos do domínio nesses campos.
+            // A prefeitura passou a rejeitar ValorInicialCobrado (erro 640), então no layout atual
+            // mantemos apenas ValorFinalCobrado e, quando aplicável, ValorTotalRecebido.
             ValorTotalRecebido = valorTotalRecebido,
-            ValorInicialCobrado = rps.Item.ValorServicos.Value,
+            ValorInicialCobrado = versaoSchema >= 2 ? null : rps.Item.ValorServicos.Value,
             ValorFinalCobrado = rps.Item.ValorServicos.Value,
             ValorIPI = 0.00m,
             ExigibilidadeSuspensa = 0,

@@ -592,8 +592,12 @@ public class XmlSerializerService : IXmlSerializerService
             writer.WriteElementString("ValorTotalRecebido", FormatDecimal(rps.ValorTotalRecebido.Value));
         }
         
-        // Always write ValorInicialCobrado (required by schema)
-        writer.WriteElementString("ValorInicialCobrado", FormatDecimal(rps.ValorInicialCobrado ?? 0m));
+        // PMSP now rejects ValorInicialCobrado (erro 640) on the current layout.
+        // Keep backward compatibility for older schema versions only.
+        if (rps.ValorInicialCobrado.HasValue && !isSchemaV2)
+        {
+            writer.WriteElementString("ValorInicialCobrado", FormatDecimal(rps.ValorInicialCobrado.Value));
+        }
         
         // Always write ValorMulta (required by schema)
         writer.WriteElementString("ValorMulta", FormatDecimal(rps.ValorMulta ?? 0m));
