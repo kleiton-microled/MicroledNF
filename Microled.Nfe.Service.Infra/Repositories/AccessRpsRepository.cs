@@ -210,9 +210,8 @@ public class AccessRpsRepository : IAccessRpsRepository
                     [Numero_RPS] AS NumeroRps,
                     'A' AS Serie,
                     [Dt_emissao] AS DataEmissao,
-                    [CNPJ] AS CnpjPrestador,
                     0 AS ImPrestador,
-                    '' AS RazaoSocialPrestador,
+                    [CNPJ] AS CnpjTomador,
                     {cpfCnpjTomadorSelect},
                     {nomeTomadorSelect},
                     {inscricaoEstadualTomadorSelect},
@@ -739,15 +738,20 @@ public class AccessRpsRepository : IAccessRpsRepository
         var statusRps = ParseStatusRps(reader["StatusRPS"]?.ToString() ?? "N");
         var tributacaoRps = ParseTipoTributacao(reader["TributacaoRPS"]?.ToString() ?? "T");
 
-        // Prestador (can use defaults from configuration or read from MDB)
-        var cnpjPrestador = reader["CnpjPrestador"]?.ToString() ?? throw new InvalidOperationException("CnpjPrestador is required");
+        // Prestador: sempre o emitente configurado (não confundir com [CNPJ] do MDB, que é do tomador).
+        var cnpjPrestador = _nfeOptions.DefaultIssuerCnpj?.Trim();
+        if (string.IsNullOrEmpty(cnpjPrestador))
+        {
+            throw new InvalidOperationException(
+                "DefaultIssuerCnpj is required for Access RPS (prestador). Configure NfeService:DefaultIssuerCnpj.");
+        }
+
         var prestador = new ServiceProvider(
             CpfCnpj.CreateFromCnpj(cnpjPrestador),
             inscricaoPrestador,
-            reader["RazaoSocialPrestador"]?.ToString() ?? "PRESTADOR",
+            "PRESTADOR",
             null,
-            null
-        );
+            null);
 
         // Item
         var valorServicos = Convert.ToDecimal(reader["ValorServico"]);
@@ -767,9 +771,14 @@ public class AccessRpsRepository : IAccessRpsRepository
             tributacaoRps
         );
 
-        // Tomador (optional)
+        // Tomador: coluna dedicada (se existir) ou [CNPJ] AS CnpjTomador + e-mail etc. no MDB.
         ServiceCustomer? tomador = null;
         var cpfCnpjTomador = GetStringOrNull(reader, "CpfCnpjTomador");
+        if (string.IsNullOrEmpty(cpfCnpjTomador))
+        {
+            cpfCnpjTomador = GetStringOrNull(reader, "CnpjTomador");
+        }
+
         if (!string.IsNullOrEmpty(cpfCnpjTomador))
         {
             var nomeTomador = GetStringOrNull(reader, "NomeTomador");
