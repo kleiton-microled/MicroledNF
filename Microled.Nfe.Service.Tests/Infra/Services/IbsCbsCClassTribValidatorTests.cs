@@ -25,6 +25,18 @@ public class IbsCbsCClassTribValidatorTests
     {
         Assert.Equal("000001", IbsCbsCClassTribValidator.ValidateAndGet(" 000001 "));
     }
+
+    [Fact]
+    public void ValidateAndGet_WhenFewerThanSixDigits_ShouldPadLeftToSix()
+    {
+        Assert.Equal("000220", IbsCbsCClassTribValidator.ValidateAndGet("220"));
+    }
+
+    [Fact]
+    public void ValidateAndGet_WhenMoreThanSixDigits_ShouldThrow()
+    {
+        Assert.Throws<InvalidOperationException>(() => IbsCbsCClassTribValidator.ValidateAndGet("1234567"));
+    }
 }
 
 

@@ -181,7 +181,9 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
             PagamentoParceladoAntecipado = 0,
             NCM = tributos?.NCM,
             NBS = ibsCbs?.Nbs ?? "123456789",
-            cLocPrestacao = ibsCbs?.CLocPrestacao ?? rps.Prestador.Endereco?.CodigoMunicipio ?? 3550308,
+            cLocPrestacao = CLocPrestacaoResolver.Resolve(
+                ibsCbs?.CLocPrestacao,
+                rps.Prestador.Endereco?.CodigoMunicipio),
             IBSCBS = CreateIbsCbs(rps, cClassTrib, cIndOp)
         };
 
@@ -291,7 +293,10 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
                         cClassTrib = cClassTrib,
                         gTribRegular = string.IsNullOrWhiteSpace(ibsCbs.CClassTribReg)
                             ? null
-                            : new tpGTribRegular { cClassTribReg = ibsCbs.CClassTribReg }
+                            : new tpGTribRegular
+                            {
+                                cClassTribReg = IbsCbsCClassTribValidator.ValidateAndGet(ibsCbs.CClassTribReg!)
+                            }
                     }
                 }
             },
