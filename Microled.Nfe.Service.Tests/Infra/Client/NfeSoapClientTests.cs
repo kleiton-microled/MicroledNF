@@ -179,6 +179,50 @@ public class NfeSoapClientTests
     }
 
     [Fact]
+    public async Task SendRpsBatchAsync_ShouldUseLowercaseVersaoSchema_WhenAsyncEndpointIsConfigured()
+    {
+        // Arrange
+        _options.AsyncTestEndpoint = "https://nfews.example.com/lotenfeasync.asmx";
+
+        _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
+            .Returns("<PedidoEnvioLoteRPS>...</PedidoEnvioLoteRPS>");
+
+        _soapEnvelopeBuilderMock
+            .Setup(x => x.BuildEnvioLoteRPS(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><EnvioLoteRPSRequest><VersaoSchema>{versao}</VersaoSchema><MensagemXML><![CDATA[{xml}]]></MensagemXML></EnvioLoteRPSRequest></soap:Body></soap:Envelope>");
+
+        var soapResponse = @"<?xml version=""1.0"" encoding=""utf-8""?>
+<soap:Envelope xmlns:soap=""http://schemas.xmlsoap.org/soap/envelope/"">
+  <soap:Body>
+    <EnvioLoteRPSResponseAsync xmlns=""http://www.prefeitura.sp.gov.br/nfe"">
+      <RetornoXML>
+        <Cabecalho Versao=""2"">
+          <Sucesso>true</Sucesso>
+          <InformacoesLote>
+            <NumeroProtocolo>PROTOCOLO-123</NumeroProtocolo>
+            <DataRecebimento>2026-03-31T12:00:00</DataRecebimento>
+          </InformacoesLote>
+        </Cabecalho>
+      </RetornoXML>
+    </EnvioLoteRPSResponseAsync>
+  </soap:Body>
+</soap:Envelope>";
+
+        var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
+        var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.AsyncTestEndpoint) };
+        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var batch = CreateTestRpsBatch();
+
+        // Act
+        await client.SendRpsBatchAsync(batch, CancellationToken.None);
+
+        // Assert
+        handler.LastRequestContent.Should().Contain("<versaoSchema>2</versaoSchema>");
+        handler.LastRequestContent.Should().NotContain("<VersaoSchema>2</VersaoSchema>");
+        handler.LastSoapAction.Should().Be("http://www.prefeitura.sp.gov.br/nfe/ws/envioLoteRPSAsync");
+    }
+
+    [Fact]
     public async Task ConsultNfeAsync_ShouldReturnSuccessResult_WhenSoapResponseIsSuccess()
     {
         // Arrange
@@ -527,6 +571,8 @@ public class FakeHttpMessageHandler : HttpMessageHandler
 {
     private readonly string _responseContent;
     private readonly HttpStatusCode _statusCode;
+    public string? LastRequestContent { get; private set; }
+    public string? LastSoapAction { get; private set; }
 
     public FakeHttpMessageHandler(string responseContent, HttpStatusCode statusCode = HttpStatusCode.OK)
     {
@@ -534,13 +580,20 @@ public class FakeHttpMessageHandler : HttpMessageHandler
         _statusCode = statusCode;
     }
 
-    protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        LastRequestContent = request.Content == null
+            ? null
+            : await request.Content.ReadAsStringAsync(cancellationToken);
+        LastSoapAction = request.Headers.TryGetValues("SOAPAction", out var soapActionValues)
+            ? soapActionValues.FirstOrDefault()
+            : null;
+
         var response = new HttpResponseMessage(_statusCode)
         {
             Content = new StringContent(_responseContent, Encoding.UTF8, "text/xml")
         };
-        return Task.FromResult(response);
+        return response;
     }
 }
 

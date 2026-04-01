@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Interfaces;
+using System.Text;
 
 namespace Microled.Nfe.Service.Api.Controllers;
 
@@ -80,6 +81,38 @@ public class NfeController : ControllerBase
     }
 
     /// <summary>
+    /// Returns the provided NF-e XML as a downloadable file.
+    /// </summary>
+    /// <remarks>
+    /// Sample request:
+    ///
+    ///     POST /api/v1/nfe/download-xml
+    ///     {
+    ///       "xmlContent": "&lt;NFe&gt;...&lt;/NFe&gt;",
+    ///       "fileName": "nfse-2466.xml"
+    ///     }
+    /// </remarks>
+    /// <param name="request">XML content and optional file name</param>
+    /// <returns>XML file download</returns>
+    [HttpPost("download-xml")]
+    [Produces("application/xml")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    public ActionResult DownloadXml([FromBody] DownloadXmlRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(request.XmlContent))
+        {
+            ModelState.AddModelError(nameof(request.XmlContent), "XmlContent is required.");
+            return ValidationProblem(ModelState);
+        }
+
+        var fileName = SanitizeFileName(request.FileName);
+        var bytes = Encoding.UTF8.GetBytes(request.XmlContent);
+
+        return File(bytes, "application/xml; charset=utf-8", fileName);
+    }
+
+    /// <summary>
     /// Cancels an NFe
     /// </summary>
     /// <remarks>
@@ -119,6 +152,27 @@ public class NfeController : ControllerBase
             _logger.LogError(ex, "Error canceling NFe");
             throw;
         }
+    }
+
+    private static string SanitizeFileName(string? fileName)
+    {
+        var fallback = $"nfse-{DateTime.UtcNow:yyyyMMdd-HHmmss}.xml";
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            return fallback;
+        }
+
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = new string(fileName.Where(ch => !invalidChars.Contains(ch)).ToArray()).Trim();
+
+        if (string.IsNullOrWhiteSpace(sanitized))
+        {
+            return fallback;
+        }
+
+        return sanitized.EndsWith(".xml", StringComparison.OrdinalIgnoreCase)
+            ? sanitized
+            : $"{sanitized}.xml";
     }
 }
 
