@@ -862,8 +862,7 @@ public class NfeSoapClient : INfeGateway
             cClassTrib = "0";
         }
 
-        // Layout 2 / IBSCBS: cIndOp deve ser sempre 6 dígitos numéricos; PMSP exige 100301 para nosso caso.
-        // Mesmo que venha do Access, normalizamos e fazemos fallback para 100301 quando vazio/nulo/inválido.
+        // Layout 2 / IBSCBS: cIndOp com 6 dígitos; padrão Microled = 100301 (sem grupo imóvel/obra no XML).
         var cIndOp = IbsCbsCIndOpNormalizer.NormalizeOrDefault(ibsCbsInfo?.CIndOp ?? rps.IbsCbsCIndOp);
 
         var originalAliquota = rps.Item.AliquotaServicos.Value;
@@ -936,7 +935,7 @@ public class NfeSoapClient : INfeGateway
             PagamentoParceladoAntecipado = 0,
             NCM = tributos?.NCM,
             NBS = ibsCbsInfo?.Nbs ?? "123456789",
-            // tpCidade: exatamente 7 dígitos; 0 vindo do MDB não é válido — usar Resolve (fallback SP).
+            // tpCidade: 7 dígitos; 0 inválido. Com 100301 não há imóvel no IBSCBS — local a partir de IBSCBS ou prestador.
             cLocPrestacao = CLocPrestacaoResolver.Resolve(
                 ibsCbsInfo?.CLocPrestacao,
                 rps.Prestador.Endereco?.CodigoMunicipio),

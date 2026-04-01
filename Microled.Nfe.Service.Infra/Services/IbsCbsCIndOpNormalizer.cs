@@ -5,19 +5,19 @@ namespace Microled.Nfe.Service.Infra.Services;
 
 public static class IbsCbsCIndOpNormalizer
 {
+    /// <summary>Padrão Microled / PMSP exemplo: sem <c>imovelobra</c> nem endereço de imóvel no IBSCBS (erro 621 se enviado).</summary>
     public const string DefaultCIndOp = "100301";
 
     private static readonly Regex SixDigitsRegex = new(@"^\d{6}$", RegexOptions.Compiled);
 
     /// <summary>
-    /// PMSP retorno 621: "O grupo de informações relativo ao imóvel não deve constar na NFS-e para o indicador da operação informado."
-    /// No exemplo oficial, <c>cIndOp</c> <c>100301</c> não leva <c>imovelobra</c>; já <c>020101</c> pode levar (ver PedidoEnvioLoteRPS_exemplo.txt).
+    /// PMSP 621: com <c>cIndOp</c> <c>100301</c> não deve existir grupo <c>imovelobra</c> (nem endereço de imóvel nesse bloco).
+    /// Outros indicadores podem exigir <c>imovelobra</c> conforme manual.
     /// </summary>
     public static bool ShouldSerializeImovelObra(string normalizedCIndOp)
     {
         if (string.IsNullOrEmpty(normalizedCIndOp))
             return false;
-        // Operação padrão (serviços em geral / IBS): sem grupo imóvel/obra no XML.
         return !string.Equals(normalizedCIndOp, DefaultCIndOp, StringComparison.Ordinal);
     }
 
