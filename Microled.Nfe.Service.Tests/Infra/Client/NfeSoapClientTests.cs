@@ -336,6 +336,7 @@ public class NfeSoapClientTests
         // Assert
         result.Should().NotBeNull();
         result.Sucesso.Should().BeTrue();
+        handler.LastSoapAction.Should().Be("http://www.prefeitura.sp.gov.br/nfe/ws/cancelamentoNFe");
     }
 
     #region Helper Methods

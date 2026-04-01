@@ -330,7 +330,7 @@ public class NfeSoapClient : INfeGateway
             _logger.LogInformation("Sending SOAP request to {Endpoint}", endpoint);
 
             var requestContent = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
-            requestContent.Headers.Add("SOAPAction", $"{NfeNamespace}/CancelamentoNFe");
+            requestContent.Headers.Add("SOAPAction", $"{NfeNamespace}/ws/cancelamentoNFe");
 
             var response = await _httpClient.PostAsync(endpoint, requestContent, cancellationToken);
 
