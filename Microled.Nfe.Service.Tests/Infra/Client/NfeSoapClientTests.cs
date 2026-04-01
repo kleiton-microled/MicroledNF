@@ -207,6 +207,9 @@ public class NfeSoapClientTests
         result.Should().NotBeNull();
         result.Sucesso.Should().BeTrue();
         result.NFeList.Should().HaveCount(1);
+        result.NotaXmlList.Should().HaveCount(1);
+        result.NotaXmlList[0].Should().Contain("<NFe");
+        result.NotaXmlList[0].Should().Contain("<NumeroNFe>12345</NumeroNFe>");
     }
 
     [Fact]

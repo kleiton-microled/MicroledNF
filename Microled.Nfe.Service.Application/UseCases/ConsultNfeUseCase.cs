@@ -34,7 +34,7 @@ public class ConsultNfeUseCase : IConsultNfeUseCase
         return new ConsultNfeResponseDto
         {
             Sucesso = result.Sucesso,
-            NFeList = result.NFeList.Select(nfe => new NfeDto
+            NFeList = result.NFeList.Select((nfe, index) => new NfeDto
             {
                 ChaveNFe = new NfeKeyDto
                 {
@@ -49,7 +49,8 @@ public class ConsultNfeUseCase : IConsultNfeUseCase
                 ValorServicos = nfe.ValorServicos.Value,
                 ValorDeducoes = nfe.ValorDeducoes.Value,
                 ValorISS = nfe.ValorISS.Value,
-                CodigoVerificacao = nfe.CodigoVerificacao
+                CodigoVerificacao = nfe.CodigoVerificacao,
+                NotaXml = index < result.NotaXmlList.Count ? result.NotaXmlList[index] : null
             }).ToList(),
             Alertas = result.Alertas.Select(e => new EventoDto { Codigo = e.Codigo, Descricao = e.Descricao }).ToList(),
             Erros = result.Erros.Select(e => new EventoDto { Codigo = e.Codigo, Descricao = e.Descricao }).ToList()

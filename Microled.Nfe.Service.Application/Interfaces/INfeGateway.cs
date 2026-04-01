@@ -65,6 +65,7 @@ public class ConsultaNfeResult
 {
     public bool Sucesso { get; set; }
     public List<DomainEntities.Nfe> NFeList { get; set; } = new();
+    public List<string> NotaXmlList { get; set; } = new();
     public List<Evento> Alertas { get; set; } = new();
     public List<Evento> Erros { get; set; } = new();
 }
