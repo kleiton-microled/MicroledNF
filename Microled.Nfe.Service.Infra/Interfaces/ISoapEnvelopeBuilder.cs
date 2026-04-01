@@ -20,5 +20,10 @@ public interface ISoapEnvelopeBuilder
     /// <param name="versaoSchema">Schema version as integer (e.g., 2)</param>
     /// <returns>Complete SOAP envelope as string</returns>
     string BuildEnvioLoteRPS(string xmlPayload, int versaoSchema);
+
+    /// <summary>
+    /// Builds a SOAP envelope for ConsultaNFe using the request wrapper expected by the ASMX endpoint.
+    /// </summary>
+    string BuildConsultaNFe(string xmlPayload);
 }
 

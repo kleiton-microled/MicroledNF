@@ -155,7 +155,7 @@ public class NfeSoapClient : INfeGateway
             _logger.LogDebug("Serialized PedidoConsultaNFe XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope
-            var soapEnvelope = _soapEnvelopeBuilder.Build("ConsultaNFe", xmlContent);
+            var soapEnvelope = _soapEnvelopeBuilder.BuildConsultaNFe(xmlContent);
             LogXmlIfEnabled("Request SOAP (ConsultaNFe)", soapEnvelope);
 
             // 4. Send HTTP request
