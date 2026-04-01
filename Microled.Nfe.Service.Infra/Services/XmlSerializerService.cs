@@ -598,6 +598,11 @@ public class XmlSerializerService : IXmlSerializerService
         {
             writer.WriteElementString("ValorInicialCobrado", FormatDecimal(rps.ValorInicialCobrado.Value));
         }
+
+        if (rps.ValorFinalCobrado.HasValue)
+        {
+            writer.WriteElementString("ValorFinalCobrado", FormatDecimal(rps.ValorFinalCobrado.Value));
+        }
         
         // Always write ValorMulta (required by schema)
         writer.WriteElementString("ValorMulta", FormatDecimal(rps.ValorMulta ?? 0m));
