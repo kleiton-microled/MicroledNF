@@ -53,17 +53,25 @@ public class AccessRpsRepository : IAccessRpsRepository
 
             // Detect optional columns (so we can keep backward compatibility with older MDB schemas)
             var availableColumns = await GetAvailableColumnsAsync(connectionString, _options.RpsTableName, cancellationToken);
+            var primaryKeyColumn = ResolveRequiredColumnName(
+                availableColumns,
+                new[] { _options.PrimaryKeyColumn, "index", "Id", "ID" },
+                "PrimaryKeyColumn");
+            var statusColumn = ResolveRequiredColumnName(
+                availableColumns,
+                new[] { _options.StatusColumn, "Processado", "Status" },
+                "StatusColumn");
             var cIndOpSelect = BuildOptionalColumnSelect(
                 availableColumns,
                 new[] { "IBSCBS_CIndOp", "C_IND_OP", "CODIGO_INDICADOR_OPERACAO" },
                 "IbsCbsCIndOp");
             var valorPisSelect = BuildOptionalColumnSelect(
                 availableColumns,
-                new[] { "ValorPIS", "Valor_PIS", "VlrPIS" },
+                new[] { "ValorPIS", "Valor_PIS", "VlrPIS", "PIS" },
                 "ValorPIS");
             var valorCofinsSelect = BuildOptionalColumnSelect(
                 availableColumns,
-                new[] { "ValorCOFINS", "Valor_COFINS", "VlrCOFINS" },
+                new[] { "ValorCOFINS", "Valor_COFINS", "VlrCOFINS", "COFINS" },
                 "ValorCOFINS");
             var valorInssSelect = BuildOptionalColumnSelect(
                 availableColumns,
@@ -71,11 +79,11 @@ public class AccessRpsRepository : IAccessRpsRepository
                 "ValorINSS");
             var valorIrSelect = BuildOptionalColumnSelect(
                 availableColumns,
-                new[] { "ValorIR", "Valor_IR", "VlrIR", "ValorIRRF" },
+                new[] { "ValorIR", "Valor_IR", "VlrIR", "ValorIRRF", "IR" },
                 "ValorIR");
             var valorCsllSelect = BuildOptionalColumnSelect(
                 availableColumns,
-                new[] { "ValorCSLL", "Valor_CSLL", "VlrCSLL" },
+                new[] { "ValorCSLL", "Valor_CSLL", "VlrCSLL", "CSLL" },
                 "ValorCSLL");
             var valorIpiSelect = BuildOptionalColumnSelect(
                 availableColumns,
@@ -159,7 +167,7 @@ public class AccessRpsRepository : IAccessRpsRepository
                 "InscricaoEstadualTomador");
             var emailTomadorSelect = BuildOptionalColumnSelect(
                 availableColumns,
-                new[] { "EmailTomador", "TomadorEmail", "Email" },
+                new[] { "EmailTomador", "TomadorEmail", "Email", "e-mail" },
                 "EmailTomador");
             var tipoLogradouroTomadorSelect = BuildOptionalColumnSelect(
                 availableColumns,
@@ -198,7 +206,7 @@ public class AccessRpsRepository : IAccessRpsRepository
             // Using actual column names from Access database
             var query = $@"
                 SELECT TOP {batchSize} 
-                    [{_options.PrimaryKeyColumn}],
+                    [{primaryKeyColumn}] AS RecordId,
                     [Numero_RPS] AS NumeroRps,
                     'A' AS Serie,
                     [Dt_emissao] AS DataEmissao,
@@ -251,8 +259,8 @@ public class AccessRpsRepository : IAccessRpsRepository
                     'N' AS StatusRPS,
                     'T' AS TributacaoRPS
                 FROM [{_options.RpsTableName}]
-                WHERE [{_options.StatusColumn}] = ?
-                ORDER BY [{_options.PrimaryKeyColumn}]";
+                WHERE [{statusColumn}] = ?
+                ORDER BY [{primaryKeyColumn}]";
 
             using var command = new OleDbCommand(query, connection);
             // Try to convert PendingStatus to appropriate type
@@ -296,14 +304,14 @@ public class AccessRpsRepository : IAccessRpsRepository
                     var rps = MapToRps(reader);
                     var record = new RpsRecord
                     {
-                        Id = Convert.ToInt32(reader[_options.PrimaryKeyColumn]),
+                        Id = Convert.ToInt32(reader["RecordId"]),
                         Rps = rps
                     };
                     rpsRecords.Add(record);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error mapping RPS record with Id {Id}", reader[_options.PrimaryKeyColumn]);
+                    _logger.LogError(ex, "Error mapping RPS record with Id {Id}", reader["RecordId"]);
                     // Continue processing other records
                 }
             }
@@ -394,6 +402,38 @@ public class AccessRpsRepository : IAccessRpsRepository
         return $"[{found}] AS {alias}";
     }
 
+    private string ResolveRequiredColumnName(List<string> availableColumns, IEnumerable<string> candidates, string optionName)
+    {
+        var distinctCandidates = candidates
+            .Where(candidate => !string.IsNullOrWhiteSpace(candidate))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var found = distinctCandidates.FirstOrDefault(candidate =>
+            availableColumns.Any(ac => string.Equals(ac, candidate, StringComparison.OrdinalIgnoreCase)));
+
+        if (!string.IsNullOrWhiteSpace(found))
+        {
+            if (!string.Equals(found, distinctCandidates[0], StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "Using Access column '{Column}' for {OptionName} (configured/preferred '{Preferred}' not found). Table={Table}",
+                    found,
+                    optionName,
+                    distinctCandidates[0],
+                    _options.RpsTableName);
+            }
+
+            return found;
+        }
+
+        var available = string.Join(", ", availableColumns);
+        var expected = string.Join(", ", distinctCandidates);
+        throw new InvalidOperationException(
+            $"Required Access column for {optionName} was not found in table '{_options.RpsTableName}'. " +
+            $"Expected one of: {expected}. Available columns: {available}.");
+    }
+
     public async Task MarkAsSentAsync(IEnumerable<RpsRecord> rpsRecords, CancellationToken cancellationToken)
     {
         var records = rpsRecords.ToList();
@@ -406,13 +446,22 @@ public class AccessRpsRepository : IAccessRpsRepository
         {
             using var connection = new OleDbConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
+            var availableColumns = await GetAvailableColumnsAsync(connectionString, _options.RpsTableName, cancellationToken);
+            var primaryKeyColumn = ResolveRequiredColumnName(
+                availableColumns,
+                new[] { _options.PrimaryKeyColumn, "index", "Id", "ID" },
+                "PrimaryKeyColumn");
+            var statusColumn = ResolveRequiredColumnName(
+                availableColumns,
+                new[] { _options.StatusColumn, "Processado", "Status" },
+                "StatusColumn");
 
             foreach (var record in records)
             {
                 var updateQuery = $@"
                     UPDATE [{_options.RpsTableName}]
-                    SET [{_options.StatusColumn}] = ?
-                    WHERE [{_options.PrimaryKeyColumn}] = ?";
+                    SET [{statusColumn}] = ?
+                    WHERE [{primaryKeyColumn}] = ?";
 
                 using var command = new OleDbCommand(updateQuery, connection);
                 // Convert status string to boolean (column Processado is boolean)
@@ -444,13 +493,22 @@ public class AccessRpsRepository : IAccessRpsRepository
         {
             using var connection = new OleDbConnection(connectionString);
             await connection.OpenAsync(cancellationToken);
+            var availableColumns = await GetAvailableColumnsAsync(connectionString, _options.RpsTableName, cancellationToken);
+            var primaryKeyColumn = ResolveRequiredColumnName(
+                availableColumns,
+                new[] { _options.PrimaryKeyColumn, "index", "Id", "ID" },
+                "PrimaryKeyColumn");
+            var statusColumn = ResolveRequiredColumnName(
+                availableColumns,
+                new[] { _options.StatusColumn, "Processado", "Status" },
+                "StatusColumn");
 
             foreach (var record in records)
             {
                 var updateQuery = $@"
                     UPDATE [{_options.RpsTableName}]
-                    SET [{_options.StatusColumn}] = ?
-                    WHERE [{_options.PrimaryKeyColumn}] = ?";
+                    SET [{statusColumn}] = ?
+                    WHERE [{primaryKeyColumn}] = ?";
 
                 using var command = new OleDbCommand(updateQuery, connection);
                 // Convert status string to boolean (column Processado is boolean)
@@ -708,7 +766,7 @@ public class AccessRpsRepository : IAccessRpsRepository
             catch (Exception)
             {
                 normalized = "000001";
-                var rowId = reader[_options.PrimaryKeyColumn];
+                var rowId = reader["RecordId"];
                 _logger.LogWarning(
                     "IBSCBS_CClassTrib inválido/ausente no Access. Usando fallback {Fallback}. Table={Table}, RowId={RowId}, Numero_RPS={NumeroRps}, Codigo_ISS={CodigoServico}, Valor='{Valor}'. VersaoSchema={VersaoSchema}",
                     normalized,
@@ -732,7 +790,7 @@ public class AccessRpsRepository : IAccessRpsRepository
         var cIndOpFinal = cIndOpNormalized ?? IbsCbsCIndOpNormalizer.DefaultCIndOp;
         rps.SetIbsCbsCIndOp(cIndOpFinal);
 
-        var rowIdForIndOp = reader[_options.PrimaryKeyColumn];
+        var rowIdForIndOp = reader["RecordId"];
         if (cIndOpNormalized == null)
         {
             _logger.LogWarning(
