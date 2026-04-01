@@ -242,16 +242,18 @@ public class NfeSoapClient : INfeGateway
         }
     }
 
-    public async Task<ConsultaSituacaoLoteResult> ConsultBatchStatusAsync(string numeroProtocolo, CancellationToken cancellationToken)
+    public async Task<ConsultaSituacaoLoteResult> ConsultBatchStatusAsync(string numeroProtocolo, string cnpjRemetente, CancellationToken cancellationToken)
     {
         if (string.IsNullOrWhiteSpace(numeroProtocolo))
             throw new ArgumentException("NumeroProtocolo cannot be null or empty", nameof(numeroProtocolo));
+        if (string.IsNullOrWhiteSpace(cnpjRemetente))
+            throw new ArgumentException("CnpjRemetente cannot be null or empty", nameof(cnpjRemetente));
 
         _logger.LogInformation("Starting ConsultBatchStatusAsync for NumeroProtocolo: {NumeroProtocolo}", numeroProtocolo);
 
         try
         {
-            var xmlContent = BuildConsultaSituacaoLoteXml(numeroProtocolo);
+            var xmlContent = BuildConsultaSituacaoLoteXml(numeroProtocolo, cnpjRemetente);
             LogXmlIfEnabled("Request XML (PedidoConsultaSituacaoLote)", xmlContent);
 
             var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
@@ -1222,17 +1224,14 @@ public class NfeSoapClient : INfeGateway
         };
     }
 
-    private string BuildConsultaSituacaoLoteXml(string numeroProtocolo)
+    private string BuildConsultaSituacaoLoteXml(string numeroProtocolo, string cnpjRemetente)
     {
-        var cnpjRemetente = _options.DefaultCnpjRemetente ?? throw new InvalidOperationException(
-            "DefaultCnpjRemetente must be configured in NfeServiceOptions");
-
         return $@"<?xml version=""1.0"" encoding=""utf-8""?>
 <PedidoConsultaSituacaoLote xmlns=""{NfeNamespace}"">
-  <CPFCNPJRemetente>
+  <CPFCNPJRemetente xmlns="""">
     <CNPJ>{cnpjRemetente}</CNPJ>
   </CPFCNPJRemetente>
-  <NumeroProtocolo>{numeroProtocolo}</NumeroProtocolo>
+  <NumeroProtocolo xmlns="""">{numeroProtocolo}</NumeroProtocolo>
 </PedidoConsultaSituacaoLote>";
     }
 

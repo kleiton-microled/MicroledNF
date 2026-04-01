@@ -19,7 +19,10 @@ public class ConsultBatchStatusUseCase : IConsultBatchStatusUseCase
         ConsultBatchStatusRequestDto request,
         CancellationToken cancellationToken)
     {
-        var result = await _nfeGateway.ConsultBatchStatusAsync(request.NumeroProtocolo, cancellationToken);
+        var result = await _nfeGateway.ConsultBatchStatusAsync(
+            request.NumeroProtocolo,
+            request.CnpjRemetente,
+            cancellationToken);
 
         return new ConsultBatchStatusResponseDto
         {

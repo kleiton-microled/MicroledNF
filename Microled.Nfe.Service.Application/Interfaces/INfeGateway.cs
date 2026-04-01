@@ -20,7 +20,7 @@ public interface INfeGateway
     /// <summary>
     /// Consults async batch status by protocol number
     /// </summary>
-    Task<ConsultaSituacaoLoteResult> ConsultBatchStatusAsync(string numeroProtocolo, CancellationToken cancellationToken);
+    Task<ConsultaSituacaoLoteResult> ConsultBatchStatusAsync(string numeroProtocolo, string cnpjRemetente, CancellationToken cancellationToken);
 
     /// <summary>
     /// Cancels an NFe
