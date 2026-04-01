@@ -96,6 +96,7 @@ builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
 builder.Services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
 builder.Services.AddScoped<IWebServiceProbeService, WebServiceProbeService>();
 builder.Services.AddScoped<ConsultaNfeXsdValidator>();
+builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 builder.Services.AddScoped<CertificateUnlockService>();
 builder.Services.AddScoped<LocalRpsProcessingService>();
 
@@ -141,6 +142,7 @@ builder.Services.AddScoped<INfeGateway>(serviceProvider =>
     var certificateProvider = serviceProvider.GetRequiredService<ICertificateProvider>();
     var rpsSignatureService = serviceProvider.GetRequiredService<IRpsSignatureService>();
     var consultaNfeXsdValidator = serviceProvider.GetRequiredService<ConsultaNfeXsdValidator>();
+    var cancelamentoNfeXsdValidator = serviceProvider.GetRequiredService<CancelamentoNfeXsdValidator>();
 
     return new NfeSoapClient(
         httpClient,
@@ -151,7 +153,8 @@ builder.Services.AddScoped<INfeGateway>(serviceProvider =>
         certificateProvider,
         rpsSignatureService,
         null,
-        consultaNfeXsdValidator);
+        consultaNfeXsdValidator,
+        cancelamentoNfeXsdValidator);
 });
 
 builder.Services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();

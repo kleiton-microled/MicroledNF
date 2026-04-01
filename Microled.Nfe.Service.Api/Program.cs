@@ -85,6 +85,8 @@ builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
     return new XmlSerializerService(logger, options, certificateProvider);
 });
 builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
+builder.Services.AddScoped<ConsultaNfeXsdValidator>();
+builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 
 // Register Health Checks
 builder.Services.AddHealthChecks()
@@ -152,8 +154,20 @@ else
         var soapEnvelopeBuilder = serviceProvider.GetRequiredService<ISoapEnvelopeBuilder>();
         var certificateProvider = serviceProvider.GetService<ICertificateProvider>();
         var rpsSignatureService = serviceProvider.GetService<IRpsSignatureService>();
-        
-        return new NfeSoapClient(httpClient, logger, options, xmlSerializer, soapEnvelopeBuilder, certificateProvider, rpsSignatureService);
+        var consultaNfeXsdValidator = serviceProvider.GetRequiredService<ConsultaNfeXsdValidator>();
+        var cancelamentoNfeXsdValidator = serviceProvider.GetRequiredService<CancelamentoNfeXsdValidator>();
+
+        return new NfeSoapClient(
+            httpClient,
+            logger,
+            options,
+            xmlSerializer,
+            soapEnvelopeBuilder,
+            certificateProvider,
+            rpsSignatureService,
+            null,
+            consultaNfeXsdValidator,
+            cancelamentoNfeXsdValidator);
     });
 }
 

@@ -100,6 +100,26 @@ public class SoapEnvelopeBuilder : ISoapEnvelopeBuilder
         return soapEnvelope;
     }
 
+    public string BuildCancelamentoNFe(string xmlPayload, int versaoSchema)
+    {
+        if (string.IsNullOrWhiteSpace(xmlPayload))
+            throw new ArgumentException("XML payload cannot be null or empty", nameof(xmlPayload));
+
+        var escapedXml = EscapeXmlForCdata(xmlPayload);
+
+        var soapEnvelope = $@"<?xml version=""1.0"" encoding=""utf-8""?>
+<soap:Envelope xmlns:soap=""{SoapNamespace}"">
+    <soap:Body>
+        <CancelamentoNFeRequest xmlns=""{NfeNamespace}"">
+            <VersaoSchema>{versaoSchema}</VersaoSchema>
+            <MensagemXML><![CDATA[{escapedXml}]]></MensagemXML>
+        </CancelamentoNFeRequest>
+    </soap:Body>
+</soap:Envelope>";
+
+        return soapEnvelope;
+    }
+
     /// <summary>
     /// Escapes XML content for CDATA section
     /// CDATA sections cannot contain "]]>", so we need to escape it
