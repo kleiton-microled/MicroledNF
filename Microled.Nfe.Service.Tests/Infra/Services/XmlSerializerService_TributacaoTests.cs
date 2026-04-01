@@ -110,6 +110,89 @@ public class XmlSerializerService_TributacaoTests
         // sanity: tributação T ainda presente
         Assert.Matches(new Regex("<TributacaoRPS>\\s*T\\s*</TributacaoRPS>"), xml);
     }
+
+    [Fact]
+    public void SerializePedidoEnvioLoteRPS_WhenCIndOp100301_ShouldNotEmitImovelObraEvenIfSet()
+    {
+        var options = Options.Create(new NfeServiceOptions
+        {
+            Versao = "2",
+            EnableXmlSignature = false,
+            UseSchemaV2Fields = true
+        });
+
+        var svc = new XmlSerializerService(NullLogger<XmlSerializerService>.Instance, options);
+
+        var pedido = new PedidoEnvioLoteRPS
+        {
+            Cabecalho = new PedidoEnvioLoteRPSCabecalho
+            {
+                Versao = 2,
+                CPFCNPJRemetente = new tpCPFCNPJ { CNPJ = "02126914000129" },
+                transacao = true,
+                dtInicio = new DateTime(2025, 12, 1),
+                dtFim = new DateTime(2025, 12, 1),
+                QtdRPS = 1
+            },
+            RPS = new()
+            {
+                new tpRPS
+                {
+                    Assinatura = new byte[] { 1, 2, 3 },
+                    ChaveRPS = new tpChaveRPS { InscricaoPrestador = 37684280, SerieRPS = "A", NumeroRPS = 1 },
+                    TipoRPS = "RPS",
+                    DataEmissao = new DateTime(2025, 12, 1),
+                    StatusRPS = "N",
+                    TributacaoRPS = "T",
+                    ValorDeducoes = 0m,
+                    ValorPIS = 0m,
+                    ValorCOFINS = 0m,
+                    ValorINSS = 0m,
+                    ValorIR = 0m,
+                    ValorCSLL = 0m,
+                    CodigoServico = 2919,
+                    AliquotaServicos = 0.05m,
+                    ISSRetido = false,
+                    Discriminacao = "Teste",
+                    ValorCargaTributaria = 0m,
+                    PercentualCargaTributaria = 0m,
+                    FonteCargaTributaria = "0",
+                    ValorTotalRecebido = 10m,
+                    ValorFinalCobrado = 10m,
+                    ValorMulta = 0m,
+                    ValorJuros = 0m,
+                    ValorIPI = 0m,
+                    ExigibilidadeSuspensa = 0,
+                    PagamentoParceladoAntecipado = 0,
+                    NBS = "123456789",
+                    cLocPrestacao = 3550308,
+                    IBSCBS = new tpIBSCBS
+                    {
+                        finNFSe = 0,
+                        indFinal = 0,
+                        cIndOp = "100301",
+                        indDest = 0,
+                        valores = new tpValores { trib = new tpTrib { gIBSCBS = new tpGIBSCBS { cClassTrib = "000001" } } },
+                        imovelobra = new tpImovelObra
+                        {
+                            end = new tpEnderecoSimplesIBSCBS
+                            {
+                                CEP = 12345678,
+                                xLgr = "NÃO DEVE APARECER",
+                                nro = "1",
+                                xBairro = "X"
+                            }
+                        }
+                    }
+                }
+            }
+        };
+
+        var xml = svc.SerializePedidoEnvioLoteRPS(pedido);
+
+        Assert.DoesNotContain("<imovelobra>", xml);
+        Assert.DoesNotContain("NÃO DEVE APARECER", xml);
+    }
 }
 
 
