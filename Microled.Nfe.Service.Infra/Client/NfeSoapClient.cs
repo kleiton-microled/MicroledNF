@@ -37,6 +37,7 @@ public class NfeSoapClient : INfeGateway
     private readonly ICertificateProvider? _certificateProvider;
     private readonly IRpsSignatureService? _rpsSignatureService;
     private readonly IServiceTaxRateProvider _serviceTaxRateProvider;
+    private readonly ConsultaNfeXsdValidator? _consultaNfeXsdValidator;
 
     public NfeSoapClient(
         HttpClient httpClient,
@@ -46,7 +47,8 @@ public class NfeSoapClient : INfeGateway
         ISoapEnvelopeBuilder soapEnvelopeBuilder,
         ICertificateProvider? certificateProvider = null,
         IRpsSignatureService? rpsSignatureService = null,
-        IServiceTaxRateProvider? serviceTaxRateProvider = null)
+        IServiceTaxRateProvider? serviceTaxRateProvider = null,
+        ConsultaNfeXsdValidator? consultaNfeXsdValidator = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -56,6 +58,7 @@ public class NfeSoapClient : INfeGateway
         _certificateProvider = certificateProvider;
         _rpsSignatureService = rpsSignatureService;
         _serviceTaxRateProvider = serviceTaxRateProvider ?? new Microled.Nfe.Service.Infra.Services.ServiceTaxRateProvider();
+        _consultaNfeXsdValidator = consultaNfeXsdValidator;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
@@ -151,6 +154,7 @@ public class NfeSoapClient : INfeGateway
 
             // 2. Serialize to XML
             var xmlContent = _xmlSerializer.SerializePedidoConsultaNFe(pedido);
+            _consultaNfeXsdValidator?.Validate(xmlContent);
             LogXmlIfEnabled("Request XML (PedidoConsultaNFe)", xmlContent);
             _logger.LogDebug("Serialized PedidoConsultaNFe XML (length: {Length})", xmlContent.Length);
 
