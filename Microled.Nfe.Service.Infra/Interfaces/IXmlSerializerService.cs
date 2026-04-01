@@ -21,6 +21,11 @@ public interface IXmlSerializerService
     string SerializePedidoConsultaNFe(XmlSchemas.PedidoConsultaNFe pedido);
 
     /// <summary>
+    /// Serializes PedidoCancelamentoNFe and appends XML-DSig when enabled.
+    /// </summary>
+    string SerializePedidoCancelamentoNFe(XmlSchemas.PedidoCancelamentoNFe pedido);
+
+    /// <summary>
     /// Deserializes XML string to an object
     /// </summary>
     T Deserialize<T>(string xml) where T : class;

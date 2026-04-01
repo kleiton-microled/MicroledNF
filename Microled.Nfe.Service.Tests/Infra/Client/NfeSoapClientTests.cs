@@ -43,6 +43,8 @@ public class NfeSoapClientTests
             .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><ConsultaNFeRequest><VersaoSchema>{versao}</VersaoSchema><MensagemXML><![CDATA[{xml}]]></MensagemXML></ConsultaNFeRequest></soap:Body></soap:Envelope>");
         _soapEnvelopeBuilderMock.Setup(x => x.BuildConsultaSituacaoLote(It.IsAny<string>(), It.IsAny<int>()))
             .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><ConsultaSituacaoLoteRequest><versaoSchema>{versao}</versaoSchema><MensagemXML><![CDATA[{xml}]]></MensagemXML></ConsultaSituacaoLoteRequest></soap:Body></soap:Envelope>");
+        _soapEnvelopeBuilderMock.Setup(x => x.BuildCancelamentoNFe(It.IsAny<string>(), It.IsAny<int>()))
+            .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><CancelamentoNFeResponse><MensagemXML><![CDATA[{xml}]]></MensagemXML></CancelamentoNFeResponse></soap:Body></soap:Envelope>");
     }
 
     [Fact]
@@ -310,7 +312,7 @@ public class NfeSoapClientTests
         // Arrange
         var retorno = CreateTestRetornoCancelamentoNFe();
 
-        _xmlSerializerMock.Setup(x => x.Serialize(It.IsAny<PedidoCancelamentoNFe>()))
+        _xmlSerializerMock.Setup(x => x.SerializePedidoCancelamentoNFe(It.IsAny<PedidoCancelamentoNFe>()))
             .Returns("<PedidoCancelamentoNFe>...</PedidoCancelamentoNFe>");
 
         _xmlSerializerMock.Setup(x => x.Deserialize<RetornoCancelamentoNFe>(It.IsAny<string>()))

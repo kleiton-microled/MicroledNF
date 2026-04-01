@@ -224,6 +224,65 @@ public class XmlSerializerService : IXmlSerializerService
         }
     }
 
+    public string SerializePedidoCancelamentoNFe(PedidoCancelamentoNFe pedido)
+    {
+        if (pedido == null)
+            throw new ArgumentNullException(nameof(pedido));
+
+        try
+        {
+            const string nfeNamespace = "http://www.prefeitura.sp.gov.br/nfe";
+            const string dsNamespace = "http://www.w3.org/2000/09/xmldsig#";
+            using var stringWriter = new StringWriterWithEncoding(Encoding.UTF8);
+            using var xmlWriter = XmlWriter.Create(stringWriter, new XmlWriterSettings
+            {
+                Indent = false,
+                OmitXmlDeclaration = false,
+                Encoding = Encoding.UTF8
+            });
+
+            xmlWriter.WriteStartElement("PedidoCancelamentoNFe", nfeNamespace);
+            xmlWriter.WriteAttributeString("xmlns", "ds", null, dsNamespace);
+
+            WriteCancelamentoCabecalho(xmlWriter, pedido.Cabecalho);
+
+            foreach (var detalhe in pedido.Detalhe)
+            {
+                WriteCancelamentoDetalhe(xmlWriter, detalhe);
+            }
+
+            xmlWriter.WriteEndElement(); // PedidoCancelamentoNFe
+            xmlWriter.Flush();
+
+            var xmlWithoutSignature = stringWriter.ToString().TrimStart();
+
+            if (_certificateProvider != null && _options.EnableXmlSignature)
+            {
+                try
+                {
+                    var signedXml = SignXmlDocument(xmlWithoutSignature, nfeNamespace, dsNamespace);
+                    return signedXml;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Failed to sign PedidoCancelamentoNFe, returning unsigned XML");
+                    return xmlWithoutSignature;
+                }
+            }
+            else if (!_options.EnableXmlSignature)
+            {
+                _logger.LogDebug("XML signature (ds:Signature) is disabled via configuration");
+            }
+
+            return xmlWithoutSignature;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error serializing PedidoCancelamentoNFe");
+            throw;
+        }
+    }
+
     private static void WriteConsultaCabecalho(XmlWriter writer, PedidoConsultaNFeCabecalho cabecalho)
     {
         writer.WriteRaw($"<Cabecalho Versao=\"{cabecalho.Versao}\" xmlns=\"\">");
@@ -262,6 +321,37 @@ public class XmlSerializerService : IXmlSerializerService
             throw new InvalidOperationException("Detalhe de consulta deve conter ChaveNFe ou ChaveRPS.");
         }
 
+        writer.WriteRaw("</Detalhe>");
+    }
+
+    private static void WriteCancelamentoCabecalho(XmlWriter writer, PedidoCancelamentoNFeCabecalho cabecalho)
+    {
+        writer.WriteRaw($"<Cabecalho Versao=\"{cabecalho.Versao}\" xmlns=\"\">");
+        WriteCPFCNPJ(writer, "CPFCNPJRemetente", cabecalho.CPFCNPJRemetente);
+        writer.WriteElementString("transacao", cabecalho.transacao ? "true" : "false");
+        writer.WriteRaw("</Cabecalho>");
+    }
+
+    private static void WriteCancelamentoDetalhe(XmlWriter writer, PedidoCancelamentoNFeDetalhe detalhe)
+    {
+        writer.WriteRaw("<Detalhe xmlns=\"\">");
+
+        writer.WriteStartElement("ChaveNFe");
+        writer.WriteElementString("InscricaoPrestador", detalhe.ChaveNFe.InscricaoPrestador.ToString());
+        writer.WriteElementString("NumeroNFe", detalhe.ChaveNFe.NumeroNFe.ToString());
+
+        if (!string.IsNullOrWhiteSpace(detalhe.ChaveNFe.CodigoVerificacao))
+        {
+            writer.WriteElementString("CodigoVerificacao", detalhe.ChaveNFe.CodigoVerificacao);
+        }
+
+        if (!string.IsNullOrWhiteSpace(detalhe.ChaveNFe.ChaveNotaNacional))
+        {
+            writer.WriteElementString("ChaveNotaNacional", detalhe.ChaveNFe.ChaveNotaNacional);
+        }
+
+        writer.WriteEndElement();
+        writer.WriteElementString("AssinaturaCancelamento", Convert.ToBase64String(detalhe.AssinaturaCancelamento));
         writer.WriteRaw("</Detalhe>");
     }
 

@@ -38,6 +38,7 @@ public class NfeSoapClient : INfeGateway
     private readonly IRpsSignatureService? _rpsSignatureService;
     private readonly IServiceTaxRateProvider _serviceTaxRateProvider;
     private readonly ConsultaNfeXsdValidator? _consultaNfeXsdValidator;
+    private readonly CancelamentoNfeXsdValidator? _cancelamentoNfeXsdValidator;
 
     public NfeSoapClient(
         HttpClient httpClient,
@@ -48,7 +49,8 @@ public class NfeSoapClient : INfeGateway
         ICertificateProvider? certificateProvider = null,
         IRpsSignatureService? rpsSignatureService = null,
         IServiceTaxRateProvider? serviceTaxRateProvider = null,
-        ConsultaNfeXsdValidator? consultaNfeXsdValidator = null)
+        ConsultaNfeXsdValidator? consultaNfeXsdValidator = null,
+        CancelamentoNfeXsdValidator? cancelamentoNfeXsdValidator = null)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -59,6 +61,7 @@ public class NfeSoapClient : INfeGateway
         _rpsSignatureService = rpsSignatureService;
         _serviceTaxRateProvider = serviceTaxRateProvider ?? new Microled.Nfe.Service.Infra.Services.ServiceTaxRateProvider();
         _consultaNfeXsdValidator = consultaNfeXsdValidator;
+        _cancelamentoNfeXsdValidator = cancelamentoNfeXsdValidator;
 
         _httpClient.Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds);
     }
@@ -318,12 +321,14 @@ public class NfeSoapClient : INfeGateway
             var pedido = MapNfeCancellationToPedidoCancelamentoNFe(cancellation);
 
             // 2. Serialize to XML
-            var xmlContent = _xmlSerializer.Serialize(pedido);
+            var xmlContent = _xmlSerializer.SerializePedidoCancelamentoNFe(pedido);
+            _cancelamentoNfeXsdValidator?.Validate(xmlContent);
             LogXmlIfEnabled("Request XML (PedidoCancelamentoNFe)", xmlContent);
             _logger.LogDebug("Serialized PedidoCancelamentoNFe XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope
-            var soapEnvelope = _soapEnvelopeBuilder.Build("CancelamentoNFe", xmlContent);
+            var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+            var soapEnvelope = _soapEnvelopeBuilder.BuildCancelamentoNFe(xmlContent, versaoSchema);
 
             // 4. Send HTTP request
             var endpoint = GetEndpoint();
