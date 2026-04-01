@@ -86,11 +86,27 @@ public class NfeSoapClient : INfeGateway
             await SaveXmlToFileAsync(soapEnvelope, cancellationToken);
 
             // 5. Send HTTP request
-            var endpoint = GetEndpoint();
-            _logger.LogInformation("Sending SOAP request to {Endpoint}", endpoint);
+            var endpoint = _options.GetSendEndpoint();
+            if (string.IsNullOrWhiteSpace(endpoint))
+            {
+                throw new InvalidOperationException(
+                    $"NFe send endpoint is not configured. Please set either {nameof(NfeServiceOptions.BaseUrl)}, " +
+                    $"{nameof(NfeServiceOptions.AsyncProductionEndpoint)}/{nameof(NfeServiceOptions.AsyncTestEndpoint)} " +
+                    $"or {nameof(NfeServiceOptions.ProductionEndpoint)}/{nameof(NfeServiceOptions.TestEndpoint)} in appsettings.json");
+            }
+
+            var useAsyncSendContract = _options.UseAsyncSendContract();
+            _logger.LogInformation(
+                "Sending SOAP request to {Endpoint} using {ContractMode} contract",
+                endpoint,
+                useAsyncSendContract ? "async" : "sync");
 
             var requestContent = new StringContent(soapEnvelope, Encoding.UTF8, "text/xml");
-            requestContent.Headers.Add("SOAPAction", $"{NfeNamespace}/ws/envioLoteRPS");
+            requestContent.Headers.Add(
+                "SOAPAction",
+                useAsyncSendContract
+                    ? $"{NfeNamespace}/ws/envioLoteRPSAsync"
+                    : $"{NfeNamespace}/ws/envioLoteRPS");
 
             var response = await _httpClient.PostAsync(endpoint, requestContent, cancellationToken);
 
@@ -109,16 +125,23 @@ public class NfeSoapClient : INfeGateway
                     (int)response.StatusCode);
             }
 
+            RetornoEnvioLoteRpsResult result;
+            if (useAsyncSendContract)
+            {
+                result = ParseAsyncSendResult(responseContent);
+            }
+            else
+            {
+                // 6. Extract XML from SOAP response
+                var retornoXml = ExtractXmlFromSoapResponse("EnvioLoteRPSResponse", responseContent);
+                LogXmlIfEnabled("Response XML (RetornoEnvioLoteRPS)", retornoXml);
 
-            // 6. Extract XML from SOAP response
-            var retornoXml = ExtractXmlFromSoapResponse("EnvioLoteRPSResponse", responseContent);
-         LogXmlIfEnabled("Response XML (RetornoEnvioLoteRPS)", retornoXml);
+                // 7. Deserialize response
+                var retorno = _xmlSerializer.Deserialize<RetornoEnvioLoteRPS>(retornoXml);
 
-            // 7. Deserialize response
-            var retorno = _xmlSerializer.Deserialize<RetornoEnvioLoteRPS>(retornoXml);
-
-            // 8. Map to domain result
-            var result = MapRetornoEnvioLoteRPSToResult(retorno, batch);
+                // 8. Map to domain result
+                result = MapRetornoEnvioLoteRPSToResult(retorno, batch);
+            }
 
             // 9. Check for error 1206 and perform automatic signature comparison
             if (_rpsSignatureService != null)
@@ -410,13 +433,7 @@ public class NfeSoapClient : INfeGateway
     /// </summary>
     private string GetEndpoint()
     {
-        // Use BaseUrl if configured, otherwise fallback to ProductionEndpoint/TestEndpoint
-        if (!string.IsNullOrEmpty(_options.BaseUrl))
-        {
-            return _options.BaseUrl;
-        }
-
-        var endpoint = _options.UseProduction ? _options.ProductionEndpoint : _options.TestEndpoint;
+        var endpoint = _options.GetQueryEndpoint();
         if (string.IsNullOrEmpty(endpoint))
         {
             throw new InvalidOperationException(
@@ -426,6 +443,76 @@ public class NfeSoapClient : INfeGateway
         }
 
         return endpoint;
+    }
+
+    private RetornoEnvioLoteRpsResult ParseAsyncSendResult(string soapResponse)
+    {
+        try
+        {
+            var doc = XDocument.Parse(soapResponse);
+            var ns = XNamespace.Get(SoapNamespace);
+            var nfeNs = XNamespace.Get(NfeNamespace);
+
+            var fault = doc.Descendants(ns + "Fault").FirstOrDefault();
+            if (fault != null)
+            {
+                var faultCode = fault.Element(ns + "faultcode")?.Value;
+                var faultString = fault.Element(ns + "faultstring")?.Value;
+                var faultDetail = fault.Element(ns + "detail")?.ToString();
+
+                throw new NfeSoapException(
+                    $"SOAP Fault: {faultString}",
+                    faultCode,
+                    faultString,
+                    faultDetail);
+            }
+
+            var responseElement = doc.Descendants(nfeNs + "EnvioLoteRPSResponseAsync").FirstOrDefault();
+            if (responseElement == null)
+            {
+                throw new NfeSoapException("Could not find EnvioLoteRPSResponseAsync element in SOAP response");
+            }
+
+            var retornoXmlElement = responseElement.Element(nfeNs + "RetornoXML");
+            if (retornoXmlElement == null)
+            {
+                throw new NfeSoapException("Could not find RetornoXML element in async SOAP response");
+            }
+
+            var cabecalho = FindChildByLocalName(retornoXmlElement, "Cabecalho");
+            var sucesso = bool.TryParse(FindChildByLocalName(cabecalho, "Sucesso")?.Value, out var sucessoValue) && sucessoValue;
+            var informacoesLote = FindChildByLocalName(cabecalho, "InformacoesLote");
+            var protocolo = FindChildByLocalName(informacoesLote, "NumeroProtocolo")?.Value;
+
+            var result = new RetornoEnvioLoteRpsResult
+            {
+                Sucesso = sucesso,
+                Protocolo = protocolo,
+                Alertas = new List<Evento>(),
+                Erros = retornoXmlElement.Elements()
+                    .Where(element => element.Name.LocalName == "Erro")
+                    .Select(ParseAsyncEvento)
+                    .ToList(),
+                ChavesNFeRPS = new List<NfeRpsKeyPair>()
+            };
+
+            _logger.LogInformation(
+                "Async send response parsed. Success: {Sucesso}, Protocolo: {Protocolo}, Errors: {ErrorCount}",
+                result.Sucesso,
+                result.Protocolo ?? "(none)",
+                result.Erros.Count);
+
+            return result;
+        }
+        catch (NfeSoapException)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error parsing async send SOAP response");
+            throw new NfeSoapException("Error parsing async send SOAP response", ex);
+        }
     }
 
     /// <summary>
@@ -967,6 +1054,23 @@ public class NfeSoapClient : INfeGateway
             Descricao = tpEvento.Descricao,
             ChaveRPS = tpEvento.ChaveRPS != null ? MapTpChaveRPSToRpsKey(tpEvento.ChaveRPS) : null,
             ChaveNFe = tpEvento.ChaveNFe != null ? MapTpChaveNFeToNfeKey(tpEvento.ChaveNFe) : null
+        };
+    }
+
+    private static XElement? FindChildByLocalName(XElement? parent, string localName)
+    {
+        return parent?.Elements().FirstOrDefault(element => element.Name.LocalName == localName);
+    }
+
+    private static Evento ParseAsyncEvento(XElement erroElement)
+    {
+        var codigoText = FindChildByLocalName(erroElement, "Codigo")?.Value;
+        var descricao = FindChildByLocalName(erroElement, "Descricao")?.Value;
+
+        return new Evento
+        {
+            Codigo = short.TryParse(codigoText, out var codigo) ? codigo : 0,
+            Descricao = descricao
         };
     }
 

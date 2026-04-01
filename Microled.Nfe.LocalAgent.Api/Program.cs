@@ -103,16 +103,12 @@ builder.Services.AddHttpClient();
 builder.Services.AddHttpClient(nameof(NfeSoapClient), (serviceProvider, client) =>
 {
     var options = serviceProvider.GetRequiredService<IOptions<NfeServiceOptions>>().Value;
-    var endpoint = !string.IsNullOrWhiteSpace(options.BaseUrl)
-        ? options.BaseUrl
-        : options.UseProduction
-            ? options.ProductionEndpoint
-            : options.TestEndpoint;
+    var endpoint = options.GetPrimaryEndpoint();
 
     if (string.IsNullOrWhiteSpace(endpoint))
     {
         throw new InvalidOperationException(
-            "NfeServiceOptions:BaseUrl or the environment-specific endpoint must be configured.");
+            "NfeServiceOptions must define BaseUrl, the query endpoint, or the async send endpoint for the current environment.");
     }
 
     client.BaseAddress = new Uri(endpoint);
@@ -174,11 +170,8 @@ var nfeOptions = app.Services.GetRequiredService<IOptions<NfeServiceOptions>>().
 var integrationOptions = app.Services.GetRequiredService<IOptions<NfeIntegrationOptions>>().Value;
 var validationOptions = app.Services.GetRequiredService<IOptions<NfeValidationOptions>>().Value;
 var certificateStorageOptions = app.Services.GetRequiredService<IOptions<LocalCertificateProfileStorageOptions>>().Value;
-var resolvedEndpoint = !string.IsNullOrWhiteSpace(nfeOptions.BaseUrl)
-    ? nfeOptions.BaseUrl
-    : nfeOptions.UseProduction
-        ? nfeOptions.ProductionEndpoint
-        : nfeOptions.TestEndpoint;
+var resolvedQueryEndpoint = nfeOptions.GetQueryEndpoint();
+var resolvedSendEndpoint = nfeOptions.GetSendEndpoint();
 var localUrl = $"http://localhost:{localAgentOptions.Port}";
 
 app.UseSwagger();
@@ -198,7 +191,11 @@ app.Lifetime.ApplicationStarted.Register(() =>
     startupLogger.LogInformation("Local URL: {LocalUrl}", localUrl);
     startupLogger.LogInformation("ASP.NET Environment: {AspNetEnvironment}", app.Environment.EnvironmentName);
     startupLogger.LogInformation("NFS-e Environment: {NfeEnvironment}", nfeOptions.Environment);
-    startupLogger.LogInformation("NFS-e Endpoint: {ResolvedEndpoint}", resolvedEndpoint);
+    startupLogger.LogInformation("NFS-e Query/Cancel Endpoint: {ResolvedQueryEndpoint}", resolvedQueryEndpoint ?? "(not configured)");
+    startupLogger.LogInformation(
+        "NFS-e Send Endpoint: {ResolvedSendEndpoint} ({ContractMode})",
+        resolvedSendEndpoint ?? "(not configured)",
+        nfeOptions.UseAsyncSendContract() ? "async" : "sync");
     startupLogger.LogInformation("UseProduction: {UseProduction}", nfeOptions.UseProduction);
     startupLogger.LogInformation("TimeoutSeconds: {TimeoutSeconds}", nfeOptions.TimeoutSeconds);
     startupLogger.LogInformation("Certificate Mode: {CertificateMode}", nfeOptions.Certificate.Mode);
