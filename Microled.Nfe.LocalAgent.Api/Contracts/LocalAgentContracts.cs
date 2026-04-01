@@ -27,3 +27,12 @@ public class WebServiceProbeRequest
 {
     public List<string>? CandidateUrls { get; set; }
 }
+
+public class LocalAccessPendingRpsResponse
+{
+    public int Count { get; set; }
+
+    public List<int> RecordIds { get; set; } = [];
+
+    public SendRpsRequestDto? Request { get; set; }
+}

@@ -37,6 +37,8 @@ builder.Services.Configure<NfeValidationOptions>(
     builder.Configuration.GetSection(NfeValidationOptions.SectionName));
 builder.Services.Configure<WebServiceProbeOptions>(
     builder.Configuration.GetSection(WebServiceProbeOptions.SectionName));
+builder.Services.Configure<AccessDatabaseOptions>(
+    builder.Configuration.GetSection(AccessDatabaseOptions.SectionName));
 builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
 {
     options.DataDirectory = Path.Combine(
@@ -95,6 +97,8 @@ builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
 builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
 builder.Services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
 builder.Services.AddScoped<IWebServiceProbeService, WebServiceProbeService>();
+builder.Services.AddScoped<IAccessRpsRepository, AccessRpsRepository>();
+builder.Services.AddScoped<AccessRpsPayloadMapper>();
 builder.Services.AddScoped<ConsultaNfeXsdValidator>();
 builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 builder.Services.AddScoped<CertificateUnlockService>();
@@ -183,6 +187,7 @@ app.UseSwaggerUI();
 app.UseCors("LocalAgentCors");
 
 app.MapHealthEndpoints();
+app.MapAccessEndpoints();
 app.MapCertificatesEndpoints();
 app.MapNfeEndpoints();
 app.MapRpsEndpoints();

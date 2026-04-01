@@ -5,6 +5,7 @@ using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.Repositories;
+using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.Storage;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -29,6 +30,7 @@ public class RpsConsoleRunner : IRpsConsoleRunner
     private readonly IRpsXmlValidationExportService _validationExportService;
     private readonly IRpsSignatureService _signatureService;
     private readonly ICertificateProvider _certificateProvider;
+    private readonly AccessRpsPayloadMapper _payloadMapper;
     private readonly ILogger<RpsConsoleRunner> _logger;
     private readonly AccessDatabaseOptions _accessOptions;
     private readonly NfeServiceOptions _nfeOptions;
@@ -40,6 +42,7 @@ public class RpsConsoleRunner : IRpsConsoleRunner
         IRpsXmlValidationExportService validationExportService,
         IRpsSignatureService signatureService,
         ICertificateProvider certificateProvider,
+        AccessRpsPayloadMapper payloadMapper,
         ILogger<RpsConsoleRunner> logger,
         IOptions<AccessDatabaseOptions> accessOptions,
         IOptions<NfeServiceOptions> nfeOptions,
@@ -50,6 +53,7 @@ public class RpsConsoleRunner : IRpsConsoleRunner
         _validationExportService = validationExportService ?? throw new ArgumentNullException(nameof(validationExportService));
         _signatureService = signatureService ?? throw new ArgumentNullException(nameof(signatureService));
         _certificateProvider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
+        _payloadMapper = payloadMapper ?? throw new ArgumentNullException(nameof(payloadMapper));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _accessOptions = accessOptions.Value;
         _nfeOptions = nfeOptions.Value;
@@ -86,7 +90,7 @@ public class RpsConsoleRunner : IRpsConsoleRunner
             }
 
             // 2. Converter RPS do domínio para SendRpsRequestDto
-            var request = MapToSendRpsRequest(pendingRps);
+            var request = _payloadMapper.MapToSendRpsRequest(pendingRps);
 
             // 3. Chamar o caso de uso existente
             _logger.LogInformation("Enviando lote de {Count} RPS para o Web Service...", pendingRps.Count);
@@ -138,90 +142,6 @@ public class RpsConsoleRunner : IRpsConsoleRunner
             _logger.LogError(ex, "Erro durante o processamento de RPS");
             throw;
         }
-    }
-
-    private SendRpsRequestDto MapToSendRpsRequest(IReadOnlyList<RpsRecord> rpsRecords)
-    {
-        if (!rpsRecords.Any())
-            throw new ArgumentException("RPS records list cannot be empty", nameof(rpsRecords));
-
-        // Use first RPS to get prestador info (all RPS in batch should have same prestador)
-        var firstRps = rpsRecords[0].Rps;
-        var prestador = firstRps.Prestador;
-
-        // Map prestador to DTO
-        var prestadorDto = new ServiceProviderDto
-        {
-            CpfCnpj = prestador.CpfCnpj.GetValue(),
-            InscricaoMunicipal = prestador.InscricaoMunicipal,
-            RazaoSocial = prestador.RazaoSocial,
-            Endereco = prestador.Endereco != null ? MapToAddressDto(prestador.Endereco) : null,
-            Email = prestador.Email
-        };
-
-        // Map RPS list to DTOs
-        var rpsListDto = rpsRecords.Select(record => MapToRpsDto(record.Rps)).ToList();
-
-        // Determine date range from RPS
-        var dates = rpsListDto.Select(r => r.DataEmissao).ToList();
-        var dataInicio = dates.Min();
-        var dataFim = dates.Max();
-
-        return new SendRpsRequestDto
-        {
-            Prestador = prestadorDto,
-            RpsList = rpsListDto,
-            DataInicio = dataInicio,
-            DataFim = dataFim,
-            Transacao = true
-        };
-    }
-
-    private RpsDto MapToRpsDto(Rps rps)
-    {
-        return new RpsDto
-        {
-            InscricaoPrestador = rps.ChaveRPS.InscricaoPrestador,
-            SerieRps = rps.ChaveRPS.SerieRps,
-            NumeroRps = rps.ChaveRPS.NumeroRps,
-            TipoRPS = rps.TipoRPS.ToString().Replace("_", "-"),
-            DataEmissao = rps.DataEmissao,
-            StatusRPS = ((char)rps.StatusRPS).ToString(),
-            TributacaoRPS = ((char)rps.TributacaoRPS).ToString(),
-            Item = new RpsItemDto
-            {
-                CodigoServico = rps.Item.CodigoServico,
-                Discriminacao = rps.Item.Discriminacao,
-                ValorServicos = rps.Item.ValorServicos.Value,
-                ValorDeducoes = rps.Item.ValorDeducoes.Value,
-                AliquotaServicos = rps.Item.AliquotaServicos.Value,
-                IssRetido = rps.Item.IssRetido == Domain.Enums.IssRetido.Sim
-            },
-            Tomador = rps.Tomador != null ? new ServiceCustomerDto
-            {
-                CpfCnpj = rps.Tomador.CpfCnpj?.GetValue(),
-                InscricaoMunicipal = rps.Tomador.InscricaoMunicipal,
-                InscricaoEstadual = rps.Tomador.InscricaoEstadual,
-                RazaoSocial = rps.Tomador.RazaoSocial,
-                Endereco = rps.Tomador.Endereco != null ? MapToAddressDto(rps.Tomador.Endereco) : null,
-                Email = rps.Tomador.Email
-            } : null
-        };
-    }
-
-    private AddressDto MapToAddressDto(Domain.Entities.Address address)
-    {
-        return new AddressDto
-        {
-            TipoLogradouro = address.TipoLogradouro,
-            Logradouro = address.Logradouro,
-            Numero = address.Numero,
-            Complemento = address.Complemento,
-            Bairro = address.Bairro,
-            CodigoMunicipio = address.CodigoMunicipio,
-            UF = address.UF,
-            CEP = address.CEP
-        };
     }
 
     private async Task ProcessValidationModeAsync(IReadOnlyList<RpsRecord> rpsRecords, CancellationToken cancellationToken)
