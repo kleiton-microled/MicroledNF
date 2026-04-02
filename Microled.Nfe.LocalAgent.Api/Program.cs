@@ -4,6 +4,7 @@ using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.LocalAgent.Api.Endpoints;
 using Microled.Nfe.LocalAgent.Api.Services;
 using Microled.Nfe.Service.Application.Interfaces;
+using Microled.Nfe.Service.Application.NfseSpTax;
 using Microled.Nfe.Service.Application.Services;
 using Microled.Nfe.Service.Application.UseCases;
 using Microled.Nfe.Service.Application.Validators;
@@ -114,6 +115,7 @@ builder.Services.AddScoped<ConsultaNfeXsdValidator>();
 builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 builder.Services.AddScoped<CertificateUnlockService>();
 builder.Services.AddScoped<LocalRpsProcessingService>();
+builder.Services.AddSingleton<INfseSpFederalTaxRuleProvider, NfseSpFederalTaxRuleProvider>();
 builder.Services.AddScoped<INfseSpTaxCalculationService, NfseSpTaxCalculationService>();
 
 builder.Services.AddHttpClient();

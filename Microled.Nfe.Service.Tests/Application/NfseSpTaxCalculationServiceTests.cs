@@ -1,5 +1,6 @@
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Enums;
+using Microled.Nfe.Service.Application.NfseSpTax;
 using Microled.Nfe.Service.Application.Services;
 using Xunit;
 
@@ -9,6 +10,9 @@ public class NfseSpTaxCalculationServiceTests
 {
     private readonly NfseSpTaxCalculationService _sut = new();
 
+    /// <summary>
+    /// Cenário de referência (valores já validados) — Lucro Presumido com alíquotas padrão.
+    /// </summary>
     [Fact]
     public void Calculate_ExampleFromSpec_MatchesExpected()
     {
@@ -53,9 +57,80 @@ public class NfseSpTaxCalculationServiceTests
     }
 
     [Fact]
+    public void Calculate_LucroPresumido_WithWrongFederalRatesInRequest_IgnoresAndUsesDefaults()
+    {
+        var req = BaseLucroPresumidoRequest();
+        req.ArredondarNaCasaFiscal = true;
+        req.ReterPis = false;
+        req.AliquotaPis = 0.99m;
+        req.AliquotaCofins = 0.99m;
+        req.AliquotaCsll = 0.99m;
+        req.AliquotaIr = 0.99m;
+
+        var r = _sut.Calculate(req);
+
+        Assert.Equal(5.53m, r.ValorPis);
+        Assert.Equal(25.50m, r.ValorCofins);
+        Assert.Equal(52.28m, r.TotalRetencoesFederais);
+        Assert.Contains(
+            "foram ignorados",
+            string.Join(' ', r.MemoriaCalculo),
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void Calculate_LucroPresumido_WithoutFederalRatesInRequest_UsesDefaults()
+    {
+        var req = BaseLucroPresumidoRequest();
+        req.ArredondarNaCasaFiscal = true;
+        req.ReterPis = req.ReterCofins = req.ReterCsll = req.ReterIr = false;
+        req.AliquotaPis = req.AliquotaCofins = req.AliquotaCsll = req.AliquotaIr = 0m;
+
+        var r = _sut.Calculate(req);
+
+        Assert.Equal(5.53m, r.ValorPis);
+        Assert.Equal(855.22m, r.ValorLiquido);
+        Assert.Equal(94.78m, r.TotalRetencoes);
+    }
+
+    [Fact]
+    public void Calculate_SimplesNacional_NoFederalRetention_AppliesIssOnlyWhenRetido()
+    {
+        var req = BaseLucroPresumidoRequest();
+        req.RegimeTributario = RegimeTributarioNfseSp.SimplesNacional;
+        req.ReterPis = true;
+        req.AliquotaPis = 0.0065m;
+        req.IssRetido = true;
+
+        var r = _sut.Calculate(req);
+
+        Assert.Equal(0m, r.ValorPis);
+        Assert.Equal(0m, r.TotalRetencoesFederais);
+        Assert.Equal(42.50m, r.ValorIss);
+        Assert.Equal(42.50m, r.TotalRetencoes);
+    }
+
+    [Fact]
+    public void Calculate_LucroReal_UsesRequestFederalRates()
+    {
+        var req = BaseLucroPresumidoRequest();
+        req.RegimeTributario = RegimeTributarioNfseSp.LucroReal;
+        req.ReterPis = true;
+        req.AliquotaPis = 0.01m;
+        req.ReterCofins = req.ReterCsll = req.ReterIr = false;
+        req.AliquotaCofins = req.AliquotaCsll = req.AliquotaIr = 0m;
+
+        var r = _sut.Calculate(req);
+
+        Assert.Equal(8.50m, r.ValorPis);
+        Assert.Equal(0m, r.ValorCofins);
+        Assert.Contains("Lucro Real", string.Join(' ', r.MemoriaCalculo), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Calculate_IssNotRetido_DoesNotAddIssToTotalRetencoes()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
         req.IssRetido = false;
         req.ArredondarNaCasaFiscal = true;
 
@@ -67,9 +142,10 @@ public class NfseSpTaxCalculationServiceTests
     }
 
     [Fact]
-    public void Calculate_AllFederalRetentionsOff_OnlyIssMayApply()
+    public void Calculate_LucroReal_AllFederalRetentionsOff_OnlyIssMayApply()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
+        req.RegimeTributario = RegimeTributarioNfseSp.LucroReal;
         req.ReterPis = req.ReterCofins = req.ReterCsll = req.ReterIr = req.ReterInss = false;
         req.ArredondarNaCasaFiscal = true;
 
@@ -81,11 +157,11 @@ public class NfseSpTaxCalculationServiceTests
     }
 
     [Fact]
-    public void Calculate_NoRetentionsAtAll_IssNotRetido_LiquidoIsServicoMinusDesconto()
+    public void Calculate_SimplesNacional_NoRetentions_IssNotRetido_LiquidoIsServicoMinusDesconto()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
+        req.RegimeTributario = RegimeTributarioNfseSp.SimplesNacional;
         req.IssRetido = false;
-        req.ReterPis = req.ReterCofins = req.ReterCsll = req.ReterIr = req.ReterInss = false;
         req.ArredondarNaCasaFiscal = true;
 
         var r = _sut.Calculate(req);
@@ -97,7 +173,7 @@ public class NfseSpTaxCalculationServiceTests
     [Fact]
     public void Calculate_WithDeducoes_ReducesBases()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
         req.ValorDeducoes = 200m;
         req.ArredondarNaCasaFiscal = true;
 
@@ -110,7 +186,7 @@ public class NfseSpTaxCalculationServiceTests
     [Fact]
     public void Calculate_DescontoCondicionalNoLiquido_SubtractsFromLiquido()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
         req.DescontoCondicional = 10m;
         req.ConsiderarDescontoCondicionalNoLiquido = true;
         req.ArredondarNaCasaFiscal = true;
@@ -123,7 +199,7 @@ public class NfseSpTaxCalculationServiceTests
     [Fact]
     public void Calculate_ArredondarFalse_KeepsMorePrecision()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
         req.ArredondarNaCasaFiscal = false;
 
         var r = _sut.Calculate(req);
@@ -135,7 +211,7 @@ public class NfseSpTaxCalculationServiceTests
     [Fact]
     public void Calculate_BaseZerada_WhenServicoFullyOffset()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
         req.ValorServico = 150m;
         req.ValorDeducoes = 100m;
         req.DescontoIncondicional = 50m;
@@ -148,9 +224,10 @@ public class NfseSpTaxCalculationServiceTests
     }
 
     [Fact]
-    public void Calculate_LiquidoNegativo_DocumentedInMemoria()
+    public void Calculate_LucroReal_LiquidoNegativo_DocumentedInMemoria()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
+        req.RegimeTributario = RegimeTributarioNfseSp.LucroReal;
         req.ValorServico = 100m;
         req.ValorDeducoes = 0m;
         req.DescontoIncondicional = 0m;
@@ -169,7 +246,7 @@ public class NfseSpTaxCalculationServiceTests
     [Fact]
     public void Calculate_BaseFederalDefault_WithoutDeduçõesInBase()
     {
-        var req = BaseRequest();
+        var req = BaseLucroPresumidoRequest();
         req.BaseFederalSobreValorLiquido = false;
         req.ArredondarNaCasaFiscal = true;
 
@@ -178,7 +255,20 @@ public class NfseSpTaxCalculationServiceTests
         Assert.Equal(950.00m, r.BaseCalculoFederal);
     }
 
-    private static NfseSpTaxCalculationRequest BaseRequest() => new()
+    [Fact]
+    public void FederalRuleProvider_LucroPresumido_ReturnsExpectedConstants()
+    {
+        var p = new NfseSpFederalTaxRuleProvider();
+        var r = p.GetFederalTaxesByRegime(RegimeTributarioNfseSp.LucroPresumido);
+        Assert.True(r.UsesPreset);
+        Assert.True(r.Preset.ReterPis && r.Preset.ReterCofins && r.Preset.ReterCsll && r.Preset.ReterIr);
+        Assert.Equal(NfseSpFederalTaxRuleProvider.AliquotaPisLucroPresumido, r.Preset.AliquotaPis);
+        Assert.Equal(NfseSpFederalTaxRuleProvider.AliquotaCofinsLucroPresumido, r.Preset.AliquotaCofins);
+        Assert.Equal(NfseSpFederalTaxRuleProvider.AliquotaCsllLucroPresumido, r.Preset.AliquotaCsll);
+        Assert.Equal(NfseSpFederalTaxRuleProvider.AliquotaIrLucroPresumido, r.Preset.AliquotaIr);
+    }
+
+    private static NfseSpTaxCalculationRequest BaseLucroPresumidoRequest() => new()
     {
         ValorServico = 1000.00m,
         ValorDeducoes = 100.00m,

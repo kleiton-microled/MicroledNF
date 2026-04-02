@@ -1,5 +1,7 @@
 using Microled.Nfe.Service.Application.DTOs;
+using Microled.Nfe.Service.Application.Enums;
 using Microled.Nfe.Service.Application.Interfaces;
+using Microled.Nfe.Service.Application.NfseSpTax;
 
 namespace Microled.Nfe.Service.Application.Services;
 
@@ -8,11 +10,26 @@ namespace Microled.Nfe.Service.Application.Services;
 /// </summary>
 public sealed class NfseSpTaxCalculationService : INfseSpTaxCalculationService
 {
+    private readonly INfseSpFederalTaxRuleProvider _federalTaxRules;
+
+    public NfseSpTaxCalculationService(INfseSpFederalTaxRuleProvider federalTaxRules)
+    {
+        _federalTaxRules = federalTaxRules;
+    }
+
+    public NfseSpTaxCalculationService()
+        : this(NfseSpFederalTaxRuleProvider.Default)
+    {
+    }
+
     public NfseSpTaxCalculationResponse Calculate(NfseSpTaxCalculationRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
 
         var memoria = new List<string>();
+        var resolution = _federalTaxRules.GetFederalTaxesByRegime(request.RegimeTributario);
+        var federal = BuildEffectiveFederalSnapshot(request, resolution, memoria);
+
         AppendHeaderMemoria(request, memoria);
 
         var baseIss = ComputeBaseCalculoIss(request, memoria);
@@ -20,13 +37,13 @@ public sealed class NfseSpTaxCalculationService : INfseSpTaxCalculationService
         var valorIss = ComputeValorIss(baseIss, request.AliquotaIss, memoria);
 
         var valorPis = ComputeRetencaoFederal(
-            request.ReterPis, baseFederal, request.AliquotaPis, "PIS", memoria);
+            federal.ReterPis, baseFederal, federal.AliquotaPis, "PIS", memoria);
         var valorCofins = ComputeRetencaoFederal(
-            request.ReterCofins, baseFederal, request.AliquotaCofins, "COFINS", memoria);
+            federal.ReterCofins, baseFederal, federal.AliquotaCofins, "COFINS", memoria);
         var valorCsll = ComputeRetencaoFederal(
-            request.ReterCsll, baseFederal, request.AliquotaCsll, "CSLL", memoria);
+            federal.ReterCsll, baseFederal, federal.AliquotaCsll, "CSLL", memoria);
         var valorIr = ComputeRetencaoFederal(
-            request.ReterIr, baseFederal, request.AliquotaIr, "IR", memoria);
+            federal.ReterIr, baseFederal, federal.AliquotaIr, "IR", memoria);
         var valorInss = ComputeRetencaoFederal(
             request.ReterInss, baseFederal, request.AliquotaInss, "INSS", memoria);
 
@@ -81,11 +98,71 @@ public sealed class NfseSpTaxCalculationService : INfseSpTaxCalculationService
         return response;
     }
 
+    private static FederalTaxSnapshot BuildEffectiveFederalSnapshot(
+        NfseSpTaxCalculationRequest request,
+        FederalTaxResolution resolution,
+        List<string> memoria)
+    {
+        if (!resolution.UsesPreset)
+        {
+            memoria.Add($"Regime: {request.RegimeTributario} — PIS/COFINS/CSLL/IR conforme informado no request (Lucro Real).");
+            return new FederalTaxSnapshot(
+                request.ReterPis,
+                request.AliquotaPis,
+                request.ReterCofins,
+                request.AliquotaCofins,
+                request.ReterCsll,
+                request.AliquotaCsll,
+                request.ReterIr,
+                request.AliquotaIr);
+        }
+
+        var preset = resolution.Preset;
+        if (request.RegimeTributario == RegimeTributarioNfseSp.LucroPresumido)
+        {
+            memoria.Add($"Regime: {request.RegimeTributario}.");
+            memoria.Add(
+                "Aplicadas alíquotas padrão (retenção): PIS 0,65%; COFINS 3%; CSLL 1%; IR 1,5%.");
+            if (RequestFederalDiffersFromPreset(request, preset))
+            {
+                memoria.Add(
+                    "Valores de retenção e alíquotas federais (PIS, COFINS, CSLL, IR) informados no request foram ignorados.");
+            }
+        }
+        else if (request.RegimeTributario == RegimeTributarioNfseSp.SimplesNacional)
+        {
+            memoria.Add($"Regime: {request.RegimeTributario} — sem retenção federal PIS/COFINS/CSLL/IR (alíquotas zeradas).");
+            if (RequestFederalDiffersFromPreset(request, preset))
+            {
+                memoria.Add(
+                    "Flags e alíquotas federais (PIS, COFINS, CSLL, IR) informadas no request foram ignoradas (Simples Nacional).");
+            }
+        }
+        else
+        {
+            memoria.Add($"Regime: {request.RegimeTributario} — regras federais pré-definidas aplicadas.");
+        }
+
+        return preset;
+    }
+
+    private static bool RequestFederalDiffersFromPreset(
+        NfseSpTaxCalculationRequest r,
+        FederalTaxSnapshot p)
+    {
+        return r.ReterPis != p.ReterPis
+            || r.AliquotaPis != p.AliquotaPis
+            || r.ReterCofins != p.ReterCofins
+            || r.AliquotaCofins != p.AliquotaCofins
+            || r.ReterCsll != p.ReterCsll
+            || r.AliquotaCsll != p.AliquotaCsll
+            || r.ReterIr != p.ReterIr
+            || r.AliquotaIr != p.AliquotaIr;
+    }
+
     private static void AppendHeaderMemoria(NfseSpTaxCalculationRequest request, List<string> memoria)
     {
-        memoria.Add(
-            $"Regime tributário: {request.RegimeTributario} (recebido para evolução futura; nesta versão não altera alíquotas).");
-        memoria.Add($"Código de serviço: {request.CodigoServico}.");
+        memoria.Add($"Código de serviço: {request.CodigoServico} (evolução futura: regras por serviço/tomador/município).");
     }
 
     private static decimal ComputeBaseCalculoIss(NfseSpTaxCalculationRequest request, List<string> memoria)
