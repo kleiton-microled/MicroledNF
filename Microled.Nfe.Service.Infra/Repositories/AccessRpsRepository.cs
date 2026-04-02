@@ -938,6 +938,12 @@ public class AccessRpsRepository : IAccessRpsRepository
             return null;
         }
 
+        var valorFinalCobradoEfetivo = valorFinalCobrado is null
+            ? valorServicos
+            : valorFinalCobrado == 0m && valorServicos != 0m
+                ? valorServicos
+                : valorFinalCobrado.Value;
+
         return new RpsTaxInfo(
             MapMoney(valorPis),
             MapMoney(valorCofins),
@@ -949,7 +955,7 @@ public class AccessRpsRepository : IAccessRpsRepository
             percentualCargaTributaria,
             fonteCargaTributaria,
             MapMoney(valorTotalRecebido),
-            MapMoney(valorFinalCobrado ?? valorServicos),
+            MapMoney(valorFinalCobradoEfetivo),
             MapMoney(valorMulta),
             MapMoney(valorJuros),
             ncm);

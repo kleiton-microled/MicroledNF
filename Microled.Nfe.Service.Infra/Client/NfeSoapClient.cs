@@ -927,7 +927,7 @@ public class NfeSoapClient : INfeGateway
             // mantemos apenas ValorFinalCobrado e, quando aplicável, ValorTotalRecebido.
             ValorTotalRecebido = valorTotalRecebido,
             ValorInicialCobrado = versaoSchema >= 2 ? null : rps.Item.ValorServicos.Value,
-            ValorFinalCobrado = tributos?.ValorFinalCobrado?.Value ?? rps.Item.ValorServicos.Value,
+            ValorFinalCobrado = rps.GetValorFinalCobradoParaEnvio(),
             ValorMulta = tributos?.ValorMulta?.Value,
             ValorJuros = tributos?.ValorJuros?.Value,
             ValorIPI = tributos?.ValorIPI?.Value ?? 0.00m,

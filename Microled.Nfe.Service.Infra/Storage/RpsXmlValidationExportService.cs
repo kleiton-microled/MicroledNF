@@ -173,7 +173,7 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
             ValorTotalRecebido = valorTotalRecebido,
-            ValorFinalCobrado = tributos?.ValorFinalCobrado?.Value ?? rps.Item.ValorServicos.Value,
+            ValorFinalCobrado = rps.GetValorFinalCobradoParaEnvio(),
             ValorMulta = tributos?.ValorMulta?.Value,
             ValorJuros = tributos?.ValorJuros?.Value,
             ValorIPI = tributos?.ValorIPI?.Value ?? 0.00m,
