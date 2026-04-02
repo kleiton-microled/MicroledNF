@@ -6,6 +6,7 @@ using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.Storage;
@@ -62,6 +63,7 @@ public class Program
                     return new XmlSerializerService(logger, options, certificateProvider);
                 });
                 services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
+                services.AddScoped<IEnvioLoteRpsPedidoMapper, EnvioLoteRpsPedidoMapper>();
                 services.AddScoped<IAccessRpsRepository, AccessRpsRepository>();
                 services.AddScoped<AccessRpsPayloadMapper>();
                 services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
@@ -115,10 +117,19 @@ public class Program
                     var options = serviceProvider.GetRequiredService<IOptions<NfeServiceOptions>>();
                     var xmlSerializer = serviceProvider.GetRequiredService<IXmlSerializerService>();
                     var soapEnvelopeBuilder = serviceProvider.GetRequiredService<ISoapEnvelopeBuilder>();
+                    var pedidoMapper = serviceProvider.GetRequiredService<IEnvioLoteRpsPedidoMapper>();
                     var certificateProvider = serviceProvider.GetService<ICertificateProvider>();
                     var rpsSignatureService = serviceProvider.GetService<IRpsSignatureService>();
-                    
-                    return new NfeSoapClient(httpClient, logger, options, xmlSerializer, soapEnvelopeBuilder, certificateProvider, rpsSignatureService);
+
+                    return new NfeSoapClient(
+                        httpClient,
+                        logger,
+                        options,
+                        xmlSerializer,
+                        soapEnvelopeBuilder,
+                        pedidoMapper,
+                        certificateProvider,
+                        rpsSignatureService);
                 });
 
                 // Register Application use cases

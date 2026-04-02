@@ -9,8 +9,10 @@ using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Exceptions;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Infra.XmlSchemas;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
@@ -47,6 +49,15 @@ public class NfeSoapClientTests
             .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><CancelamentoNFeResponse><MensagemXML><![CDATA[{xml}]]></MensagemXML></CancelamentoNFeResponse></soap:Body></soap:Envelope>");
     }
 
+    private NfeSoapClient CreateSut(HttpClient httpClient) =>
+        new NfeSoapClient(
+            httpClient,
+            _loggerMock.Object,
+            Options.Create(_options),
+            _xmlSerializerMock.Object,
+            _soapEnvelopeBuilderMock.Object,
+            new EnvioLoteRpsPedidoMapper(Options.Create(_options), NullLogger<EnvioLoteRpsPedidoMapper>.Instance));
+
     [Fact]
     public async Task SendRpsBatchAsync_ShouldReturnSuccessResult_WhenSoapResponseIsSuccess()
     {
@@ -70,7 +81,7 @@ public class NfeSoapClientTests
             .Setup(x => x.BuildEnvioLoteRPS(It.IsAny<string>(), It.IsAny<int>()))
             .Returns<string, int>((xml, versao) => $"<soap:Envelope><soap:Body><EnvioLoteRPSResponse><RetornoXML><![CDATA[{SerializeRetornoEnvioLoteRPS(retorno)}]]></RetornoXML></EnvioLoteRPSResponse></soap:Body></soap:Envelope>");
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
         var batch = CreateTestRpsBatch();
 
         // Act
@@ -95,7 +106,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapFault, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
         var batch = CreateTestRpsBatch();
 
         _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
@@ -119,7 +130,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler("Error", HttpStatusCode.InternalServerError);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
         var batch = CreateTestRpsBatch();
 
         _xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
@@ -168,7 +179,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.AsyncTestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
         var batch = CreateTestRpsBatch();
 
         // Act
@@ -214,7 +225,7 @@ public class NfeSoapClientTests
 
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.AsyncTestEndpoint) };
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
         var batch = CreateTestRpsBatch();
 
         // Act
@@ -242,7 +253,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
         var criteria = new ConsultNfeCriteria
         {
             ChaveNFe = new NfeKey(12345678, 12345, "CODIGO123", "CHAVE123")
@@ -284,7 +295,7 @@ public class NfeSoapClientTests
 
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.AsyncTestEndpoint) };
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
 
         // Act
         var result = await client.ConsultBatchStatusAsync(
@@ -322,7 +333,7 @@ public class NfeSoapClientTests
         var handler = new FakeHttpMessageHandler(soapResponse, HttpStatusCode.OK);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(_options.TestEndpoint) };
 
-        var client = new NfeSoapClient(httpClient, _loggerMock.Object, Options.Create(_options), _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var client = CreateSut(httpClient);
         // Use a valid Base64 string for testing
         var fakeSignatureBytes = new byte[32];
         Array.Fill(fakeSignatureBytes, (byte)65); // Fill with 'A'

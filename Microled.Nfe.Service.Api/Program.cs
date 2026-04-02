@@ -12,6 +12,7 @@ using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -85,6 +86,7 @@ builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
     return new XmlSerializerService(logger, options, certificateProvider);
 });
 builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
+builder.Services.AddScoped<IEnvioLoteRpsPedidoMapper, EnvioLoteRpsPedidoMapper>();
 builder.Services.AddScoped<ConsultaNfeXsdValidator>();
 builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 
@@ -154,6 +156,7 @@ else
         var soapEnvelopeBuilder = serviceProvider.GetRequiredService<ISoapEnvelopeBuilder>();
         var certificateProvider = serviceProvider.GetService<ICertificateProvider>();
         var rpsSignatureService = serviceProvider.GetService<IRpsSignatureService>();
+        var pedidoMapper = serviceProvider.GetRequiredService<IEnvioLoteRpsPedidoMapper>();
         var consultaNfeXsdValidator = serviceProvider.GetRequiredService<ConsultaNfeXsdValidator>();
         var cancelamentoNfeXsdValidator = serviceProvider.GetRequiredService<CancelamentoNfeXsdValidator>();
 
@@ -163,9 +166,9 @@ else
             options,
             xmlSerializer,
             soapEnvelopeBuilder,
+            pedidoMapper,
             certificateProvider,
             rpsSignatureService,
-            null,
             consultaNfeXsdValidator,
             cancelamentoNfeXsdValidator);
     });
