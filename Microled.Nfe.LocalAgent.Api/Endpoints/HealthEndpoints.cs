@@ -47,12 +47,14 @@ public static class HealthEndpoints
                 request.CodigoServico,
                 request.RegimeTributario);
 
-            var validationProblem = await EndpointValidation.ValidateAsync(request, validator, cancellationToken);
+            var validationProblem = await EndpointValidation.ValidateAsync(
+                request,
+                validator,
+                log,
+                "calculate-taxes",
+                cancellationToken);
             if (validationProblem is not null)
-            {
-                log.LogWarning("calculate-taxes: validação falhou.");
                 return validationProblem;
-            }
 
             var response = calculationService.Calculate(request);
             log.LogInformation(

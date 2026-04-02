@@ -17,13 +17,17 @@ using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.Storage;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
-    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+    var json = options.SerializerOptions;
+    json.PropertyNameCaseInsensitive = true;
+    json.NumberHandling = JsonNumberHandling.AllowReadingFromString;
+    json.Converters.Add(new JsonStringEnumConverter());
 });
 
 var localAgentOptions = builder.Configuration
