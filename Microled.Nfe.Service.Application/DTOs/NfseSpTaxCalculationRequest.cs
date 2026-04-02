@@ -17,16 +17,34 @@ public sealed class NfseSpTaxCalculationRequest
 
     public bool IssRetido { get; set; }
 
+    /// <summary>
+    /// Lucro Presumido / Simples Nacional: ignorado (regras internas).
+    /// Lucro Real: define se há retenção de PIS.
+    /// </summary>
     public bool ReterPis { get; set; }
+
+    /// <summary>
+    /// Lucro Presumido / Simples Nacional: ignorado.
+    /// Lucro Real: alíquota de PIS (0–1). Opcional no sentido fiscal para LP/SN.
+    /// </summary>
     public decimal AliquotaPis { get; set; }
 
+    /// <summary>Lucro Presumido / Simples Nacional: ignorado. Lucro Real: retenção COFINS.</summary>
     public bool ReterCofins { get; set; }
+
+    /// <summary>Lucro Presumido / Simples Nacional: ignorado. Lucro Real: alíquota COFINS (0–1).</summary>
     public decimal AliquotaCofins { get; set; }
 
+    /// <summary>Lucro Presumido / Simples Nacional: ignorado. Lucro Real: retenção CSLL.</summary>
     public bool ReterCsll { get; set; }
+
+    /// <summary>Lucro Presumido / Simples Nacional: ignorado. Lucro Real: alíquota CSLL (0–1).</summary>
     public decimal AliquotaCsll { get; set; }
 
+    /// <summary>Lucro Presumido / Simples Nacional: ignorado. Lucro Real: retenção IR.</summary>
     public bool ReterIr { get; set; }
+
+    /// <summary>Lucro Presumido / Simples Nacional: ignorado. Lucro Real: alíquota IR (0–1).</summary>
     public decimal AliquotaIr { get; set; }
 
     public bool ReterInss { get; set; }

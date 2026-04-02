@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microled.Nfe.Service.Application.DTOs;
+using Microled.Nfe.Service.Application.Enums;
 
 namespace Microled.Nfe.Service.Application.Validators;
 
@@ -31,10 +32,16 @@ public sealed class NfseSpTaxCalculationRequestValidator : AbstractValidator<Nfs
         RuleFor(x => x.DescontoIncondicional).GreaterThanOrEqualTo(0);
         RuleFor(x => x.DescontoCondicional).GreaterThanOrEqualTo(0);
 
-        RuleFor(x => x.AliquotaPis).InclusiveBetween(0, 1);
-        RuleFor(x => x.AliquotaCofins).InclusiveBetween(0, 1);
-        RuleFor(x => x.AliquotaCsll).InclusiveBetween(0, 1);
-        RuleFor(x => x.AliquotaIr).InclusiveBetween(0, 1);
+        When(
+            x => x.RegimeTributario == RegimeTributarioNfseSp.LucroReal,
+            () =>
+            {
+                RuleFor(x => x.AliquotaPis).InclusiveBetween(0, 1);
+                RuleFor(x => x.AliquotaCofins).InclusiveBetween(0, 1);
+                RuleFor(x => x.AliquotaCsll).InclusiveBetween(0, 1);
+                RuleFor(x => x.AliquotaIr).InclusiveBetween(0, 1);
+            });
+
         RuleFor(x => x.AliquotaInss).InclusiveBetween(0, 1);
     }
 }
