@@ -1,4 +1,5 @@
 using FluentValidation;
+using Microsoft.Extensions.DependencyInjection;
 using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.LocalAgent.Api.Endpoints;
 using Microled.Nfe.LocalAgent.Api.Services;
@@ -192,6 +193,19 @@ var localUrl = $"http://localhost:{localAgentOptions.Port}";
 app.UseSwagger();
 app.UseSwaggerUI();
 app.UseCors("LocalAgentCors");
+
+app.Use(async (context, next) =>
+{
+    var httpLog = context.RequestServices.GetRequiredService<ILoggerFactory>()
+        .CreateLogger("Microled.Nfe.LocalAgent.Http");
+    httpLog.LogInformation(
+        ">>> {Method} {Path} ContentLength={ContentLength}",
+        context.Request.Method,
+        context.Request.Path,
+        context.Request.ContentLength);
+    await next();
+    httpLog.LogInformation("<<< {StatusCode} {Path}", context.Response.StatusCode, context.Request.Path);
+});
 
 app.MapHealthEndpoints();
 app.MapAccessEndpoints();

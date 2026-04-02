@@ -30,6 +30,9 @@ public static class HealthEndpoints
         var nfseSp = endpoints.MapGroup("/api/local/nfse-sp")
             .WithTags("NFS-e SP tax calculation");
 
+        nfseSp.MapGet("/ping", () => TypedResults.Ok(new { ok = true, message = "nfse-sp routes are reachable" }))
+            .WithName("GetNfseSpPing");
+
         nfseSp.MapPost("/calculate-taxes", async Task<Results<Ok<NfseSpTaxCalculationResponse>, ValidationProblem>> (
             NfseSpTaxCalculationRequest request,
             IValidator<NfseSpTaxCalculationRequest> validator,
