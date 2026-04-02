@@ -86,5 +86,13 @@ public sealed class Rps
     {
         IbsCbsCIndOp = cIndOp;
     }
+
+    /// <summary>
+    /// Valor para os 15 dígitos de "valor dos serviços" na assinatura digital do RPS.
+    /// Deve ser idêntico ao <c>ValorFinalCobrado</c> enviado no XML quando <c>Tributos.ValorFinalCobrado</c> existe;
+    /// caso contrário usa-se <c>Item.ValorServicos</c>. Divergência gera erro 1206 na prefeitura.
+    /// </summary>
+    public decimal GetValorParaAssinaturaDigital()
+        => Tributos?.ValorFinalCobrado?.Value ?? Item.ValorServicos.Value;
 }
 
