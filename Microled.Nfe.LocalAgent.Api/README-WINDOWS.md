@@ -52,6 +52,18 @@ After starting the LocalAgent, test:
 curl http://localhost:5278/api/local/health
 ```
 
+### POST JSON (NFS-e SP cálculo, etc.)
+
+No **PowerShell**, o comando `curl` é um alias de `Invoke-WebRequest` e **não** se comporta como o curl real. Para POST com corpo JSON, use **`curl.exe`** (binário do Windows) ou **`Invoke-RestMethod`**.
+
+Exemplo com `curl.exe`:
+
+```bat
+curl.exe -s -X POST "http://localhost:5278/api/local/nfse-sp/calculate-taxes" -H "Content-Type: application/json" -d "{\"valorServico\":1000,\"codigoServico\":10101,\"aliquotaIss\":0.05,\"regimeTributario\":\"LucroPresumido\"}"
+```
+
+Teste rápido do grupo de rotas: `curl http://localhost:5278/api/local/nfse-sp/ping`
+
 ## Notes
 
 - The selected certificate profile is stored under `%ProgramData%\Microled\Nfe\localagent\profiles.json`
