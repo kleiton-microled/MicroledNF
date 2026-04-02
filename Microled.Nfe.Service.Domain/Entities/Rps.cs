@@ -88,11 +88,31 @@ public sealed class Rps
     }
 
     /// <summary>
+    /// Valor de <c>ValorFinalCobrado</c> a enviar no XML (SOAP) e na DANFSE; deve coincidir com a assinatura (erro 1206).
+    /// Quando <c>Tributos.ValorFinalCobrado</c> é <b>0</b> e <c>Item.ValorServicos</c> é positivo, trata-se como
+    /// valor ausente/errado (ex.: default numérico no banco) e usa-se o valor do item.
+    /// </summary>
+    public decimal GetValorFinalCobradoParaEnvio()
+    {
+        var fromTributos = Tributos?.ValorFinalCobrado?.Value;
+        if (fromTributos is null)
+        {
+            return Item.ValorServicos.Value;
+        }
+
+        if (fromTributos == 0m && Item.ValorServicos.Value != 0m)
+        {
+            return Item.ValorServicos.Value;
+        }
+
+        return fromTributos.Value;
+    }
+
+    /// <summary>
     /// Valor para os 15 dígitos de "valor dos serviços" na assinatura digital do RPS.
-    /// Deve ser idêntico ao <c>ValorFinalCobrado</c> enviado no XML quando <c>Tributos.ValorFinalCobrado</c> existe;
-    /// caso contrário usa-se <c>Item.ValorServicos</c>. Divergência gera erro 1206 na prefeitura.
+    /// Deve ser idêntico ao <c>ValorFinalCobrado</c> enviado no XML; ver <see cref="GetValorFinalCobradoParaEnvio"/>.
     /// </summary>
     public decimal GetValorParaAssinaturaDigital()
-        => Tributos?.ValorFinalCobrado?.Value ?? Item.ValorServicos.Value;
+        => GetValorFinalCobradoParaEnvio();
 }
 
