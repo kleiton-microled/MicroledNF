@@ -46,11 +46,8 @@ public class RpsSignatureServiceTests
         Assert.Equal("000000000000101", sig.Substring(40, 15));
     }
 
-    /// <summary>
-    /// Mesma regra que MapRpsToTpRPS (ValorFinalCobrado); evita 1206 quando item.valorServicos ≠ tributos.valorFinalCobrado.
-    /// </summary>
     [Fact]
-    public void BuildSignatureString_UsesValorFinalCobradoFromTributos_WhenProvided()
+    public void BuildSignatureString_ShouldIgnoreValorFinalCobradoFromTributos_AndUseValorServicos()
     {
         var svc = new RpsSignatureService(NullLogger<RpsSignatureService>.Instance);
 
@@ -62,7 +59,7 @@ public class RpsSignatureServiceTests
 
         var sig = svc.BuildSignatureString(rps);
 
-        Assert.Equal("000000000419115", sig.Substring(40, 15));
+        Assert.Equal("000000000446580", sig.Substring(40, 15));
     }
 
     /// <summary>

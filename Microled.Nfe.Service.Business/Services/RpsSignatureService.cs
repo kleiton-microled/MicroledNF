@@ -74,8 +74,8 @@ public class RpsSignatureService : IRpsSignatureService
         // Referência: PDF - "ISS Retido com uma posição (sendo S: ISS Retido; N: Nota Fiscal sem ISS Retido)."
         var issRetido = rps.Item.IssRetido == IssRetido.Sim ? "S" : "N";
 
-        // Valor dos Serviços (15 posições, centavos) — deve coincidir com ValorFinalCobrado no XML quando tributos informa valorFinalCobrado.
-        // Ver Rps.GetValorParaAssinaturaDigital() e MapRpsToTpRPS (erro 1206 se assinar com Item.ValorServicos e XML com outro valor).
+        // Valor dos Serviços (15 posições, centavos) — deve coincidir com o valor bruto principal da prestação no XML.
+        // No layout v2 adotado, a referência é ValorInicialCobrado (valor bruto do serviço).
         var valorAssinatura = rps.GetValorParaAssinaturaDigital();
         var valorServicosCentavos = (long)Math.Round(valorAssinatura * 100m, 0, MidpointRounding.AwayFromZero);
         var valorServicos = valorServicosCentavos.ToString().PadLeft(15, '0');
