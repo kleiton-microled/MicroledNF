@@ -110,9 +110,9 @@ public sealed class Rps
 
     /// <summary>
     /// Valor para os 15 dígitos de "valor dos serviços" na assinatura digital do RPS.
-    /// Deve ser idêntico ao <c>ValorFinalCobrado</c> enviado no XML; ver <see cref="GetValorFinalCobradoParaEnvio"/>.
+    /// Deve ser idêntico ao valor bruto principal da prestação enviado no XML (ValorInicialCobrado no layout v2).
     /// </summary>
     public decimal GetValorParaAssinaturaDigital()
-        => GetValorFinalCobradoParaEnvio();
+        => Item.ValorServicos.Value;
 }
 
