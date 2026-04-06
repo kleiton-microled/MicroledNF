@@ -143,8 +143,10 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         var valorInss = tributos?.ValorINSS ?? 0m;
 
         var totalPisCofinsCsll = valorPis + valorCofins + valorCsll;
-        var valorLiquidoCalculado = tributos?.ValorTotalRecebido
-            ?? (valorServicoBruto - valorPis - valorCofins - valorCsll - valorIr - valorInss);
+        var valorTotalRecebidoInformado = tributos?.ValorTotalRecebido;
+        var valorLiquidoCalculado = ShouldUseProvidedValorTotalRecebido(valorTotalRecebidoInformado, valorServicoBruto)
+            ? valorTotalRecebidoInformado!.Value
+            : (valorServicoBruto - valorPis - valorCofins - valorCsll - valorIr - valorInss);
 
         var vencimento = AddBusinessDaysSkippingBrazilHolidays(dataEmissao, 19);
         var descricaoBase = StripAutoSummaryLines(descricaoOriginal);
@@ -175,6 +177,22 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
     private static string FormatCurrency(decimal value)
     {
         return $"R${value.ToString("N2", CultureInfo.GetCultureInfo("pt-BR"))}";
+    }
+
+    private static bool ShouldUseProvidedValorTotalRecebido(decimal? valorTotalRecebidoInformado, decimal valorServicoBruto)
+    {
+        if (!valorTotalRecebidoInformado.HasValue)
+        {
+            return false;
+        }
+
+        // Legacy payloads às vezes enviam 0 por default mesmo quando há valor bruto.
+        if (valorTotalRecebidoInformado.Value == 0m && valorServicoBruto > 0m)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     private static DateOnly AddBusinessDaysSkippingBrazilHolidays(DateOnly startDate, int businessDays)
