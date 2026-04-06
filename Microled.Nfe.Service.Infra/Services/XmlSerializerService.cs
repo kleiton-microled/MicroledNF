@@ -539,8 +539,7 @@ public class XmlSerializerService : IXmlSerializerService
     
     private static void WriteCabecalho(XmlWriter writer, PedidoEnvioLoteRPSCabecalho cabecalho)
     {
-        // Use version 1 for schema compatibility
-        var versao = "1";
+        var versao = cabecalho.Versao.ToString();
         
         // Start Cabecalho with xmlns="" (empty namespace) using WriteRaw to bypass XmlWriter's namespace restrictions
         writer.WriteRaw($"<Cabecalho Versao=\"{versao}\" xmlns=\"\">");
