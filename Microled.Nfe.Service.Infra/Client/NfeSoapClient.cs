@@ -8,12 +8,12 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Domain.Entities;
-using Microled.Nfe.Service.Domain.Enums;
 using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Domain.ValueObjects;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Exceptions;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.XmlSchemas;
 using DomainEntities = Microled.Nfe.Service.Domain.Entities;
@@ -36,7 +36,7 @@ public class NfeSoapClient : INfeGateway
     private readonly ISoapEnvelopeBuilder _soapEnvelopeBuilder;
     private readonly ICertificateProvider? _certificateProvider;
     private readonly IRpsSignatureService? _rpsSignatureService;
-    private readonly IServiceTaxRateProvider _serviceTaxRateProvider;
+    private readonly IEnvioLoteRpsPedidoMapper _envioLoteRpsPedidoMapper;
     private readonly ConsultaNfeXsdValidator? _consultaNfeXsdValidator;
     private readonly CancelamentoNfeXsdValidator? _cancelamentoNfeXsdValidator;
 
@@ -46,9 +46,9 @@ public class NfeSoapClient : INfeGateway
         IOptions<NfeServiceOptions> options,
         IXmlSerializerService xmlSerializer,
         ISoapEnvelopeBuilder soapEnvelopeBuilder,
+        IEnvioLoteRpsPedidoMapper envioLoteRpsPedidoMapper,
         ICertificateProvider? certificateProvider = null,
         IRpsSignatureService? rpsSignatureService = null,
-        IServiceTaxRateProvider? serviceTaxRateProvider = null,
         ConsultaNfeXsdValidator? consultaNfeXsdValidator = null,
         CancelamentoNfeXsdValidator? cancelamentoNfeXsdValidator = null)
     {
@@ -57,9 +57,9 @@ public class NfeSoapClient : INfeGateway
         _options = options.Value;
         _xmlSerializer = xmlSerializer ?? throw new ArgumentNullException(nameof(xmlSerializer));
         _soapEnvelopeBuilder = soapEnvelopeBuilder ?? throw new ArgumentNullException(nameof(soapEnvelopeBuilder));
+        _envioLoteRpsPedidoMapper = envioLoteRpsPedidoMapper ?? throw new ArgumentNullException(nameof(envioLoteRpsPedidoMapper));
         _certificateProvider = certificateProvider;
         _rpsSignatureService = rpsSignatureService;
-        _serviceTaxRateProvider = serviceTaxRateProvider ?? new Microled.Nfe.Service.Infra.Services.ServiceTaxRateProvider();
         _consultaNfeXsdValidator = consultaNfeXsdValidator;
         _cancelamentoNfeXsdValidator = cancelamentoNfeXsdValidator;
 
@@ -73,7 +73,7 @@ public class NfeSoapClient : INfeGateway
         try
         {
             // 1. Map domain entities to XSD-generated classes
-            var pedido = MapRpsBatchToPedidoEnvioLoteRPS(batch);
+            var pedido = _envioLoteRpsPedidoMapper.MapFromBatch(batch);
 
             // 2. Serialize to XML (using specialized method for PedidoEnvioLoteRPS)
             var xmlContent = _xmlSerializer.SerializePedidoEnvioLoteRPS(pedido);
@@ -745,245 +745,6 @@ public class NfeSoapClient : INfeGateway
 
     #region Mapping Methods - Domain to XML
 
-    private PedidoEnvioLoteRPS MapRpsBatchToPedidoEnvioLoteRPS(DomainEntities.RpsBatch batch)
-    {
-        if (batch.RpsList.Count == 0)
-            throw new ArgumentException("RPS batch cannot be empty", nameof(batch));
-
-        var primeiroRps = batch.RpsList[0];
-        var prestador = primeiroRps.Prestador;
-
-        // CPFCNPJRemetente deve ser o CNPJ do certificado digital usado na autenticação
-        // Se não houver certificado, usar o CNPJ do prestador como fallback
-        tpCPFCNPJ cpfCnpjRemetente;
-        string? cnpjFromCertificate = null;
-        
-        if (_certificateProvider != null)
-        {
-            try
-            {
-                var certificate = _certificateProvider.GetCertificate();
-                cnpjFromCertificate = ExtractCnpjFromCertificate(certificate);
-                if (!string.IsNullOrEmpty(cnpjFromCertificate))
-                {
-                    cpfCnpjRemetente = new tpCPFCNPJ { CNPJ = cnpjFromCertificate };
-                    _logger.LogInformation("Using CNPJ from certificate for CPFCNPJRemetente: {CNPJ}", cnpjFromCertificate);
-                    
-                    // Validação: alertar se o CNPJ do certificado difere do CNPJ do prestador
-                    var prestadorCnpj = prestador.CpfCnpj.GetValue();
-                    if (!string.Equals(cnpjFromCertificate, prestadorCnpj, StringComparison.OrdinalIgnoreCase))
-                    {
-                        _logger.LogWarning(
-                            "CNPJ mismatch detected: Certificate CNPJ ({CertificateCNPJ}) differs from Prestador CNPJ ({PrestadorCNPJ}). " +
-                            "The InscricaoMunicipal ({IM}) must correspond to the Certificate CNPJ. " +
-                            "If you get error 1202 (Prestador não encontrado), verify that the IM is registered for the Certificate CNPJ.",
-                            cnpjFromCertificate, prestadorCnpj, primeiroRps.ChaveRPS.InscricaoPrestador);
-                    }
-                }
-                else
-                {
-                    // Fallback: usar CNPJ do prestador se não conseguir extrair do certificado
-                    cpfCnpjRemetente = MapCpfCnpjToTpCPFCNPJ(prestador.CpfCnpj);
-                    _logger.LogWarning("Could not extract CNPJ from certificate, using prestador CNPJ: {CNPJ}", prestador.CpfCnpj.GetValue());
-                }
-            }
-            catch (Exception ex)
-            {
-                // Fallback: usar CNPJ do prestador se houver erro ao obter certificado
-                _logger.LogWarning(ex, "Error getting certificate, using prestador CNPJ for CPFCNPJRemetente");
-                cpfCnpjRemetente = MapCpfCnpjToTpCPFCNPJ(prestador.CpfCnpj);
-            }
-        }
-        else
-        {
-            // Sem certificado provider, usar CNPJ do prestador
-            cpfCnpjRemetente = MapCpfCnpjToTpCPFCNPJ(prestador.CpfCnpj);
-        }
-
-        var pedido = new PedidoEnvioLoteRPS
-        {
-            Cabecalho = new PedidoEnvioLoteRPSCabecalho
-            {
-                Versao = long.Parse(_options.Versao.Replace(".", "")),
-                CPFCNPJRemetente = cpfCnpjRemetente,
-                transacao = batch.Transacao,
-                dtInicio = batch.DataInicio.ToDateTime(TimeOnly.MinValue),
-                dtFim = batch.DataFim.ToDateTime(TimeOnly.MinValue),
-                QtdRPS = batch.RpsList.Count
-            },
-            RPS = batch.RpsList.Select(MapRpsToTpRPS).ToList()
-        };
-
-        return pedido;
-    }
-
-    private tpRPS MapRpsToTpRPS(DomainEntities.Rps rps)
-    {
-        if (string.IsNullOrEmpty(rps.Assinatura))
-            throw new InvalidOperationException($"RPS {rps.ChaveRPS.NumeroRps} does not have a signature. It must be signed before sending.");
-
-        // Convert Base64 signature to byte array
-        var assinaturaBytes = Convert.FromBase64String(rps.Assinatura);
-
-        // Layout 2 / IBSCBS: cClassTrib obrigatório (erro 628 quando inexistente/não vigente)
-        var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
-        var tributos = rps.Tributos;
-        var ibsCbsInfo = rps.IbsCbs;
-        string cClassTrib;
-        if (versaoSchema >= 2)
-        {
-            // Compatibilidade: alguns fluxos (ex. API) podem não informar cClassTrib.
-            // Nesses casos, usamos fallback "000001" (tabela vigente) para evitar erro 628.
-            var cClassTribRaw = ibsCbsInfo?.CClassTrib ?? rps.IbsCbsCClassTrib;
-            cClassTrib = IbsCbsCClassTribValidator.ValidateAndGet(cClassTribRaw ?? "000001");
-
-            if (string.IsNullOrWhiteSpace(cClassTribRaw))
-            {
-                _logger.LogWarning(
-                    "IBSCBS_CClassTrib ausente; usando fallback {Fallback}. RPS {InscricaoPrestador}-{NumeroRps}, CodigoServico={CodigoServico}",
-                    cClassTrib,
-                    rps.ChaveRPS.InscricaoPrestador,
-                    rps.ChaveRPS.NumeroRps,
-                    rps.Item.CodigoServico);
-            }
-            else if (!string.Equals(cClassTribRaw, cClassTrib, StringComparison.Ordinal))
-            {
-                _logger.LogInformation(
-                    "IBSCBS_CClassTrib normalizado. Raw='{Raw}' => Final='{Final}'. RPS {InscricaoPrestador}-{NumeroRps}, CodigoServico={CodigoServico}",
-                    cClassTribRaw,
-                    cClassTrib,
-                    rps.ChaveRPS.InscricaoPrestador,
-                    rps.ChaveRPS.NumeroRps,
-                    rps.Item.CodigoServico);
-            }
-        }
-        else
-        {
-            cClassTrib = "0";
-        }
-
-        // Layout 2 / IBSCBS: cIndOp com 6 dígitos; padrão Microled = 100301 (sem grupo imóvel/obra no XML).
-        var cIndOp = IbsCbsCIndOpNormalizer.NormalizeOrDefault(ibsCbsInfo?.CIndOp ?? rps.IbsCbsCIndOp);
-
-        var originalAliquota = rps.Item.AliquotaServicos.Value;
-        var providerAliquota = _serviceTaxRateProvider.GetAliquota(rps.Item.CodigoServico);
-        var aliquotaToSend = providerAliquota != 0m ? providerAliquota : originalAliquota;
-
-        if (aliquotaToSend != originalAliquota)
-        {
-            _logger.LogInformation(
-                "AliquotaServicos adjusted from {From} to {To} for CodigoServico {CodigoServico}",
-                originalAliquota,
-                aliquotaToSend,
-                rps.Item.CodigoServico);
-        }
-
-        // Regra erro 1630: CodigoServico 2919 não permite informar ValorTotalRecebido => omitir a tag (null)
-        var omitValorTotalRecebido = rps.Item.CodigoServico == 2919;
-        var valorTotalRecebidoBase = tributos?.ValorTotalRecebido?.Value ?? rps.Item.ValorServicos.Value;
-        var valorTotalRecebido = omitValorTotalRecebido ? (decimal?)null : valorTotalRecebidoBase;
-
-        _logger.LogInformation(
-            "RPS XML fields: CodigoServico={CodigoServico}, AliquotaServicos={AliquotaServicos}, OmitValorTotalRecebido={OmitValorTotalRecebido}",
-            rps.Item.CodigoServico,
-            aliquotaToSend,
-            omitValorTotalRecebido);
-
-        if (versaoSchema >= 2)
-        {
-            _logger.LogInformation(
-                "Applying IBSCBS cClassTrib={cClassTrib}, cIndOp={cIndOp} for RPS {InscricaoPrestador}-{NumeroRps}",
-                cClassTrib,
-                cIndOp,
-                rps.ChaveRPS.InscricaoPrestador,
-                rps.ChaveRPS.NumeroRps);
-        }
-
-        var tpRps = new tpRPS
-        {
-            Assinatura = assinaturaBytes,
-            ChaveRPS = new tpChaveRPS
-            {
-                InscricaoPrestador = rps.ChaveRPS.InscricaoPrestador,
-                SerieRPS = rps.ChaveRPS.SerieRps,
-                NumeroRPS = rps.ChaveRPS.NumeroRps
-            },
-            TipoRPS = MapTipoRpsToString(rps.TipoRPS),
-            DataEmissao = rps.DataEmissao.ToDateTime(TimeOnly.MinValue),
-            StatusRPS = ((char)rps.StatusRPS).ToString(),
-            TributacaoRPS = ((char)rps.TributacaoRPS).ToString(),
-            ValorDeducoes = rps.Item.ValorDeducoes.Value,
-            ValorPIS = tributos?.ValorPIS?.Value ?? 0.00m,
-            ValorCOFINS = tributos?.ValorCOFINS?.Value ?? 0.00m,
-            ValorINSS = tributos?.ValorINSS?.Value ?? 0.00m,
-            ValorIR = tributos?.ValorIR?.Value ?? 0.00m,
-            ValorCSLL = tributos?.ValorCSLL?.Value ?? 0.00m,
-            CodigoServico = rps.Item.CodigoServico,
-            AliquotaServicos = aliquotaToSend,
-            ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
-            Discriminacao = rps.Item.Discriminacao,
-            // IMPORTANTE:
-            // A prefeitura passou a rejeitar ValorInicialCobrado (erro 640), então no layout atual
-            // mantemos apenas ValorFinalCobrado e, quando aplicável, ValorTotalRecebido.
-            ValorTotalRecebido = valorTotalRecebido,
-            ValorInicialCobrado = versaoSchema >= 2 ? null : rps.Item.ValorServicos.Value,
-            ValorFinalCobrado = rps.GetValorFinalCobradoParaEnvio(),
-            ValorMulta = tributos?.ValorMulta?.Value,
-            ValorJuros = tributos?.ValorJuros?.Value,
-            ValorIPI = tributos?.ValorIPI?.Value ?? 0.00m,
-            ExigibilidadeSuspensa = 0,
-            PagamentoParceladoAntecipado = 0,
-            NCM = tributos?.NCM,
-            NBS = ibsCbsInfo?.Nbs ?? "123456789",
-            // tpCidade: 7 dígitos; 0 inválido. Com 100301 não há imóvel no IBSCBS — local a partir de IBSCBS ou prestador.
-            cLocPrestacao = CLocPrestacaoResolver.Resolve(
-                ibsCbsInfo?.CLocPrestacao,
-                rps.Prestador.Endereco?.CodigoMunicipio),
-            cPaisPrestacao = null, // NUNCA preencher (sistema não suporta prestação fora do Brasil)
-            IBSCBS = CreateIbsCbs(rps, cClassTrib, cIndOp)
-        };
-
-        tpRps.ValorCargaTributaria = tributos?.ValorCargaTributaria?.Value;
-        tpRps.PercentualCargaTributaria = tributos?.PercentualCargaTributaria;
-        tpRps.FonteCargaTributaria = tributos?.FonteCargaTributaria;
-
-        // Fail-fast:
-        // - Decisão de negócio: ignorar cPaisPrestacao (não suportamos prestação fora do Brasil)
-        // - Manter cLocPrestacao para Brasil (schema exige gpPrestacao antes do IBSCBS)
-        var tributacaoIsT = string.Equals(tpRps.TributacaoRPS, "T", StringComparison.OrdinalIgnoreCase);
-
-        if (tributacaoIsT)
-        {
-            if (tpRps.MunicipioPrestacao.HasValue)
-            {
-                _logger.LogWarning(
-                    "Removido MunicipioPrestacao por TributacaoRPS=T (regra erro 1223). MunicipioPrestacao={MunicipioPrestacao}",
-                    tpRps.MunicipioPrestacao);
-            }
-
-            tpRps.MunicipioPrestacao = null;
-        }
-
-        if (!string.IsNullOrWhiteSpace(tpRps.cPaisPrestacao))
-        {
-            _logger.LogInformation("Ignoring cPaisPrestacao — system does not support services outside Brazil. Provided='{Provided}'", tpRps.cPaisPrestacao);
-            tpRps.cPaisPrestacao = null;
-        }
-
-        // Map tomador if present
-        if (rps.Tomador != null)
-        {
-            tpRps.CPFCNPJTomador = MapCpfCnpjToTpCPFCNPJNIF(rps.Tomador.CpfCnpj);
-            tpRps.InscricaoMunicipalTomador = rps.Tomador.InscricaoMunicipal;
-            tpRps.InscricaoEstadualTomador = rps.Tomador.InscricaoEstadual;
-            tpRps.RazaoSocialTomador = rps.Tomador.RazaoSocial;
-            tpRps.EnderecoTomador = MapAddressToTpEndereco(rps.Tomador.Endereco);
-            tpRps.EmailTomador = rps.Tomador.Email;
-        }
-
-        return tpRps;
-    }
-
     private PedidoConsultaNFe MapConsultNfeCriteriaToPedidoConsultaNFe(ConsultNfeCriteria criteria)
     {
         if (criteria.ChaveNFe == null && criteria.ChaveRps == null)
@@ -1126,67 +887,6 @@ public class NfeSoapClient : INfeGateway
     #endregion
 
     #region Helper Mapping Methods
-
-    private tpCPFCNPJ MapCpfCnpjToTpCPFCNPJ(CpfCnpj cpfCnpj)
-    {
-        if (cpfCnpj == null)
-            throw new ArgumentNullException(nameof(cpfCnpj));
-
-        var value = cpfCnpj.GetValue();
-        if (cpfCnpj.IsCpf)
-        {
-            return new tpCPFCNPJ { CPF = value };
-        }
-        else
-        {
-            return new tpCPFCNPJ { CNPJ = value };
-        }
-    }
-
-    private tpCPFCNPJNIF? MapCpfCnpjToTpCPFCNPJNIF(CpfCnpj? cpfCnpj)
-    {
-        if (cpfCnpj == null)
-            return null;
-
-        var value = cpfCnpj.GetValue();
-        if (cpfCnpj.IsCpf)
-        {
-            return new tpCPFCNPJNIF { CPF = value };
-        }
-        else
-        {
-            return new tpCPFCNPJNIF { CNPJ = value };
-        }
-    }
-
-    private tpEndereco? MapAddressToTpEndereco(Address? address)
-    {
-        if (address == null)
-            return null;
-
-        return new tpEndereco
-        {
-            TipoLogradouro = address.TipoLogradouro,
-            Logradouro = address.Logradouro,
-            NumeroEndereco = address.Numero,
-            ComplementoEndereco = address.Complemento,
-            Bairro = address.Bairro,
-            Cidade = address.CodigoMunicipio,
-            UF = address.UF,
-            CEP = address.CEP
-        };
-    }
-
-    private string MapTipoRpsToString(TipoRps tipoRps)
-    {
-        return tipoRps switch
-        {
-            TipoRps.RPS => "RPS",
-            TipoRps.RPS_M => "RPS-M",
-            TipoRps.RPS_C => "RPS-C",
-            _ => throw new ArgumentException($"Unknown TipoRps: {tipoRps}")
-        };
-    }
 
     private Evento MapTpEventoToEvento(tpEvento tpEvento)
     {
@@ -1393,190 +1093,6 @@ public class NfeSoapClient : INfeGateway
             Money.Create(tpNFe.ValorDeducoes ?? 0),
             Money.Create(tpNFe.ValorISS),
             tpNFe.ChaveNFe.CodigoVerificacao);
-    }
-
-    private tpIBSCBS CreateIbsCbs(DomainEntities.Rps rps, string cClassTrib, string cIndOp)
-    {
-        var ibsCbs = rps.IbsCbs;
-        if (ibsCbs == null)
-        {
-            return CreateDefaultIBSCBS(cClassTrib, cIndOp);
-        }
-
-        return new tpIBSCBS
-        {
-            finNFSe = ibsCbs.FinNfSe ?? 0,
-            indFinal = ibsCbs.IndFinal ?? 0,
-            cIndOp = cIndOp,
-            tpOper = ibsCbs.TpOper,
-            gRefNFSe = ibsCbs.RefNfSe.Count > 0 ? new tpGRefNFSe { refNFSe = ibsCbs.RefNfSe.ToList() } : null,
-            tpEnteGov = ibsCbs.TpEnteGov,
-            indDest = ibsCbs.IndDest ?? 0,
-            dest = MapIbsCbsPessoa(ibsCbs.Dest),
-            valores = new tpValores
-            {
-                trib = new tpTrib
-                {
-                    gIBSCBS = new tpGIBSCBS
-                    {
-                        cClassTrib = cClassTrib,
-                        gTribRegular = string.IsNullOrWhiteSpace(ibsCbs.CClassTribReg)
-                            ? null
-                            : new tpGTribRegular
-                            {
-                                cClassTribReg = IbsCbsCClassTribValidator.ValidateAndGet(ibsCbs.CClassTribReg!)
-                            }
-                    }
-                }
-            },
-            imovelobra = IbsCbsCIndOpNormalizer.ShouldSerializeImovelObra(cIndOp)
-                ? MapIbsCbsImovelObra(ibsCbs.ImovelObra)
-                : null
-        };
-    }
-
-    private static tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp)
-    {
-        return new tpIBSCBS
-        {
-            finNFSe = 0,
-            indFinal = 0,
-            cIndOp = cIndOp,
-            indDest = 0,
-            valores = new tpValores
-            {
-                trib = new tpTrib
-                {
-                    gIBSCBS = new tpGIBSCBS
-                    {
-                        cClassTrib = cClassTrib
-                    }
-                }
-            }
-        };
-    }
-
-    private tpInformacoesPessoa? MapIbsCbsPessoa(DomainEntities.RpsIbsCbsPersonInfo? pessoa)
-    {
-        if (pessoa == null)
-        {
-            return null;
-        }
-
-        return new tpInformacoesPessoa
-        {
-            CPF = pessoa.Cpf,
-            CNPJ = pessoa.Cnpj,
-            NIF = pessoa.Nif,
-            NaoNIF = pessoa.NaoNif,
-            xNome = pessoa.RazaoSocial,
-            end = MapIbsCbsEndereco(pessoa.Endereco),
-            email = pessoa.Email
-        };
-    }
-
-    private tpImovelObra? MapIbsCbsImovelObra(DomainEntities.RpsIbsCbsImovelObraInfo? imovelObra)
-    {
-        if (imovelObra == null)
-        {
-            return null;
-        }
-
-        return new tpImovelObra
-        {
-            inscImobFisc = imovelObra.InscricaoImobiliariaFiscal,
-            cCIB = imovelObra.CCib,
-            cObra = imovelObra.CObra,
-            end = MapIbsCbsEnderecoSimples(imovelObra.Endereco)
-        };
-    }
-
-    private tpEnderecoIBSCBS? MapIbsCbsEndereco(Address? address)
-    {
-        if (address == null)
-        {
-            return null;
-        }
-
-        return new tpEnderecoIBSCBS
-        {
-            endNac = address.CodigoMunicipio.HasValue || address.CEP.HasValue
-                ? new tpEnderecoNacional
-                {
-                    cMun = address.CodigoMunicipio ?? 0,
-                    CEP = address.CEP ?? 0
-                }
-                : null,
-            xLgr = address.Logradouro ?? string.Empty,
-            nro = address.Numero ?? "S/N",
-            xCpl = address.Complemento,
-            xBairro = address.Bairro ?? string.Empty
-        };
-    }
-
-    private tpEnderecoSimplesIBSCBS? MapIbsCbsEnderecoSimples(Address? address)
-    {
-        if (address == null)
-        {
-            return null;
-        }
-
-        return new tpEnderecoSimplesIBSCBS
-        {
-            CEP = address.CEP,
-            xLgr = address.Logradouro ?? string.Empty,
-            nro = address.Numero ?? "S/N",
-            xCpl = address.Complemento,
-            xBairro = address.Bairro ?? string.Empty
-        };
-    }
-
-    /// <summary>
-    /// Extrai o CNPJ do certificado digital a partir do Subject.
-    /// O CNPJ geralmente está no formato "CN=RAZAO SOCIAL:47208271000109" ou similar.
-    /// </summary>
-    private static string? ExtractCnpjFromCertificate(System.Security.Cryptography.X509Certificates.X509Certificate2 certificate)
-    {
-        if (certificate == null)
-            return null;
-
-        var subject = certificate.Subject;
-        if (string.IsNullOrWhiteSpace(subject))
-            return null;
-
-        // Tenta encontrar CNPJ no Subject (formato comum: "CN=RAZAO SOCIAL:47208271000109")
-        // O CNPJ pode estar após dois pontos (:) ou no final do Subject
-        var parts = subject.Split(':', StringSplitOptions.RemoveEmptyEntries);
-        foreach (var part in parts)
-        {
-            var trimmed = part.Trim();
-            // CNPJ tem 14 dígitos
-            if (trimmed.Length >= 14)
-            {
-                // Tenta extrair sequência de 14 dígitos
-                var digits = new System.Text.StringBuilder();
-                foreach (var c in trimmed)
-                {
-                    if (char.IsDigit(c))
-                        digits.Append(c);
-                }
-                
-                if (digits.Length == 14)
-                {
-                    return digits.ToString();
-                }
-            }
-        }
-
-        // Tenta encontrar CNPJ em qualquer parte do Subject usando regex
-        var cnpjPattern = @"(\d{14})";
-        var match = Regex.Match(subject, cnpjPattern);
-        if (match.Success && match.Groups.Count > 1)
-        {
-            return match.Groups[1].Value;
-        }
-
-        return null;
     }
 
     #endregion

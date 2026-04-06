@@ -13,6 +13,7 @@ using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
 using Microled.Nfe.Service.Infra.Storage;
@@ -107,6 +108,7 @@ builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
     return new XmlSerializerService(logger, options, certificateProvider);
 });
 builder.Services.AddScoped<ISoapEnvelopeBuilder, SoapEnvelopeBuilder>();
+builder.Services.AddScoped<IEnvioLoteRpsPedidoMapper, EnvioLoteRpsPedidoMapper>();
 builder.Services.AddScoped<IRpsXmlValidationExportService, RpsXmlValidationExportService>();
 builder.Services.AddScoped<IWebServiceProbeService, WebServiceProbeService>();
 builder.Services.AddScoped<IAccessRpsRepository, AccessRpsRepository>();
@@ -159,6 +161,7 @@ builder.Services.AddScoped<INfeGateway>(serviceProvider =>
     var soapEnvelopeBuilder = serviceProvider.GetRequiredService<ISoapEnvelopeBuilder>();
     var certificateProvider = serviceProvider.GetRequiredService<ICertificateProvider>();
     var rpsSignatureService = serviceProvider.GetRequiredService<IRpsSignatureService>();
+    var pedidoMapper = serviceProvider.GetRequiredService<IEnvioLoteRpsPedidoMapper>();
     var consultaNfeXsdValidator = serviceProvider.GetRequiredService<ConsultaNfeXsdValidator>();
     var cancelamentoNfeXsdValidator = serviceProvider.GetRequiredService<CancelamentoNfeXsdValidator>();
 
@@ -168,9 +171,9 @@ builder.Services.AddScoped<INfeGateway>(serviceProvider =>
         options,
         xmlSerializer,
         soapEnvelopeBuilder,
+        pedidoMapper,
         certificateProvider,
         rpsSignatureService,
-        null,
         consultaNfeXsdValidator,
         cancelamentoNfeXsdValidator);
 });

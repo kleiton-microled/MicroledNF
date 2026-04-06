@@ -7,8 +7,10 @@ using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Exceptions;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Infra.XmlSchemas;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
@@ -38,12 +40,14 @@ public class NfeSoapClient_IBSCBSTests
         var handler = new FakeHttpMessageHandler("Error", HttpStatusCode.InternalServerError);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(options.TestEndpoint) };
 
+        var pedidoMapper = new EnvioLoteRpsPedidoMapper(Options.Create(options), NullLogger<EnvioLoteRpsPedidoMapper>.Instance);
         var client = new NfeSoapClient(
             httpClient,
             loggerMock.Object,
             Options.Create(options),
             xmlSerializerMock.Object,
-            soapEnvelopeBuilderMock.Object);
+            soapEnvelopeBuilderMock.Object,
+            pedidoMapper);
 
         var pedidoCaptured = (PedidoEnvioLoteRPS?)null;
         xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))
@@ -81,12 +85,14 @@ public class NfeSoapClient_IBSCBSTests
         var handler = new FakeHttpMessageHandler("Error", HttpStatusCode.InternalServerError);
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(options.TestEndpoint) };
 
+        var pedidoMapper = new EnvioLoteRpsPedidoMapper(Options.Create(options), NullLogger<EnvioLoteRpsPedidoMapper>.Instance);
         var client = new NfeSoapClient(
             httpClient,
             loggerMock.Object,
             Options.Create(options),
             xmlSerializerMock.Object,
-            soapEnvelopeBuilderMock.Object);
+            soapEnvelopeBuilderMock.Object,
+            pedidoMapper);
 
         PedidoEnvioLoteRPS? pedidoCaptured = null;
         xmlSerializerMock.Setup(x => x.SerializePedidoEnvioLoteRPS(It.IsAny<PedidoEnvioLoteRPS>()))

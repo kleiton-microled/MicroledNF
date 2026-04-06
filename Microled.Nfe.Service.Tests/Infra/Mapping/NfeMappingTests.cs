@@ -6,8 +6,10 @@ using Microled.Nfe.Service.Domain.ValueObjects;
 using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
+using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Infra.XmlSchemas;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using Moq;
 using Xunit;
@@ -39,7 +41,8 @@ public class NfeMappingTests
             .Returns<string, string>((op, xml) => $"<soap:Envelope><soap:Body><{op}><MensagemXML><![CDATA[{xml}]]></MensagemXML></{op}></soap:Body></soap:Envelope>");
 
         var httpClient = new HttpClient();
-        _client = new NfeSoapClient(httpClient, _loggerMock.Object, options, _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object);
+        var pedidoMapper = new EnvioLoteRpsPedidoMapper(options, NullLogger<EnvioLoteRpsPedidoMapper>.Instance);
+        _client = new NfeSoapClient(httpClient, _loggerMock.Object, options, _xmlSerializerMock.Object, _soapEnvelopeBuilderMock.Object, pedidoMapper);
     }
 
     [Fact]
