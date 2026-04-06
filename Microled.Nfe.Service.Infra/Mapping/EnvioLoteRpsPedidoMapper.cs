@@ -184,6 +184,23 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             ibsCbsInfo?.CLocPrestacao,
             rps.Prestador.Endereco?.CodigoMunicipio);
 
+        var valorInicialCobrado = rps.Item.ValorServicos.Value;
+        decimal? valorFinalCobrado = null;
+        if (versaoSchema < 2)
+        {
+            // Layout antigo: mantém comportamento anterior.
+            valorFinalCobrado = rps.GetValorFinalCobradoParaEnvio();
+        }
+        else if (tributos?.ValorFinalCobrado?.Value is decimal valorFinalInformado && valorFinalInformado != valorInicialCobrado)
+        {
+            _logger.LogInformation(
+                "ValorFinalCobrado ({ValorFinal}) ignorado no v2; usando ValorInicialCobrado com valor bruto ({ValorInicial}) para RPS {InscricaoPrestador}-{NumeroRps}.",
+                valorFinalInformado,
+                valorInicialCobrado,
+                rps.ChaveRPS.InscricaoPrestador,
+                rps.ChaveRPS.NumeroRps);
+        }
+
         var tpRps = new tpRPS
         {
             Assinatura = assinaturaBytes,
@@ -209,8 +226,8 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
             ValorTotalRecebido = valorTotalRecebido,
-            ValorInicialCobrado = versaoSchema >= 2 ? null : rps.Item.ValorServicos.Value,
-            ValorFinalCobrado = rps.GetValorFinalCobradoParaEnvio(),
+            ValorInicialCobrado = valorInicialCobrado,
+            ValorFinalCobrado = valorFinalCobrado,
             ValorMulta = tributos?.ValorMulta?.Value,
             ValorJuros = tributos?.ValorJuros?.Value,
             ValorIPI = tributos?.ValorIPI?.Value ?? 0.00m,
