@@ -513,8 +513,8 @@ public class XmlSerializerService : IXmlSerializerService
         if (rps.Onerosidade <= 0)
             throw new InvalidOperationException("Onerosidade é obrigatório e deve ser maior que zero (layout v2).");
 
-        if (rps.ValorFinalCobrado is null || rps.ValorFinalCobrado <= 0)
-            throw new InvalidOperationException("ValorFinalCobrado deve ser informado e maior que zero (layout v2).");
+        if (rps.ValorInicialCobrado is null || rps.ValorInicialCobrado <= 0)
+            throw new InvalidOperationException("ValorInicialCobrado deve ser informado e maior que zero (layout v2).");
 
         // Validação 1: Se atvEvento existir, deve conter TODOS os campos obrigatórios
         if (rps.atvEvento != null)
@@ -547,6 +547,9 @@ public class XmlSerializerService : IXmlSerializerService
 
         if (isSchemaV2)
         {
+            if (rps.ValorInicialCobrado.HasValue && rps.ValorFinalCobrado.HasValue)
+                throw new InvalidOperationException("No layout v2, não preencher ValorFinalCobrado quando ValorInicialCobrado estiver informado.");
+
             if (rps.IBSCBS?.serv == null)
                 throw new InvalidOperationException("IBSCBS.serv é obrigatório quando VersaoSchema=2.");
 
@@ -698,9 +701,7 @@ public class XmlSerializerService : IXmlSerializerService
             writer.WriteElementString("ValorTotalRecebido", FormatDecimal(rps.ValorTotalRecebido.Value));
         }
         
-        // PMSP now rejects ValorInicialCobrado (erro 640) on the current layout.
-        // Keep backward compatibility for older schema versions only.
-        if (rps.ValorInicialCobrado.HasValue && !isSchemaV2)
+        if (rps.ValorInicialCobrado.HasValue)
         {
             writer.WriteElementString("ValorInicialCobrado", FormatDecimal(rps.ValorInicialCobrado.Value));
         }
