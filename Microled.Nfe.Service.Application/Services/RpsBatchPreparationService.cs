@@ -4,6 +4,7 @@ using Microled.Nfe.Service.Domain.Entities;
 using Microled.Nfe.Service.Domain.Enums;
 using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Domain.ValueObjects;
+using System.Globalization;
 
 namespace Microled.Nfe.Service.Application.Services;
 
@@ -41,6 +42,8 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
 
     private static Rps MapToRps(RpsDto dto, ServiceProviderDto prestadorDto)
     {
+        var tributosDto = dto.Tributos ?? BuildLegacyTributos(dto);
+
         var prestador = new ServiceProvider(
             prestadorDto.CpfCnpj.Length == 11
                 ? CpfCnpj.CreateFromCpf(prestadorDto.CpfCnpj)
@@ -59,7 +62,7 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
 
         var item = new RpsItem(
             dto.Item.CodigoServico,
-            dto.Item.Discriminacao,
+            BuildEnrichedDiscriminacao(dto.Item.Discriminacao, dto.DataEmissao, dto.Item.ValorServicos, tributosDto),
             Money.Create(dto.Item.ValorServicos),
             Money.Create(dto.Item.ValorDeducoes),
             Aliquota.Create(dto.Item.AliquotaServicos),
@@ -81,7 +84,7 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         ) : null;
 
         var rps = new Rps(chaveRps, tipoRps, dto.DataEmissao, statusRps, tributacaoRps, item, prestador, tomador);
-        rps.SetTributos(MapToTributos(dto));
+        rps.SetTributos(MapToTributos(tributosDto));
 
         var ibsCbs = MapToIbsCbs(dto.IbsCbs);
         rps.SetIbsCbs(ibsCbs);
@@ -103,9 +106,8 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         );
     }
 
-    private static RpsTaxInfo? MapToTributos(RpsDto dto)
+    private static RpsTaxInfo? MapToTributos(RpsTributosDto? tributos)
     {
-        var tributos = dto.Tributos ?? BuildLegacyTributos(dto);
         if (tributos == null)
         {
             return null;
@@ -126,6 +128,120 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
             MapMoney(tributos.ValorMulta),
             MapMoney(tributos.ValorJuros),
             tributos.NCM);
+    }
+
+    private static string BuildEnrichedDiscriminacao(
+        string descricaoOriginal,
+        DateOnly dataEmissao,
+        decimal valorServicoBruto,
+        RpsTributosDto? tributos)
+    {
+        var valorPis = tributos?.ValorPIS ?? 0m;
+        var valorCofins = tributos?.ValorCOFINS ?? 0m;
+        var valorCsll = tributos?.ValorCSLL ?? 0m;
+        var valorIr = tributos?.ValorIR ?? 0m;
+        var valorInss = tributos?.ValorINSS ?? 0m;
+
+        var totalPisCofinsCsll = valorPis + valorCofins + valorCsll;
+        var valorLiquidoCalculado = tributos?.ValorTotalRecebido
+            ?? (valorServicoBruto - valorPis - valorCofins - valorCsll - valorIr - valorInss);
+
+        var vencimento = AddBusinessDaysSkippingBrazilHolidays(dataEmissao, 19);
+        var descricaoBase = StripAutoSummaryLines(descricaoOriginal);
+
+        return string.Join(
+            "\n",
+            descricaoBase,
+            $"PIS/COFINS/CSLL: {FormatCurrency(totalPisCofinsCsll)}",
+            $"Valor liquido: {FormatCurrency(valorLiquidoCalculado)}",
+            $"Vencimento: {vencimento:dd/MM/yyyy}");
+    }
+
+    private static string StripAutoSummaryLines(string descricao)
+    {
+        var lines = (descricao ?? string.Empty)
+            .Split('\n', StringSplitOptions.None)
+            .Select(l => l.TrimEnd('\r'))
+            .Where(l =>
+                !l.StartsWith("PIS/COFINS/CSLL:", StringComparison.OrdinalIgnoreCase) &&
+                !l.StartsWith("Valor liquido:", StringComparison.OrdinalIgnoreCase) &&
+                !l.StartsWith("Valor líquido:", StringComparison.OrdinalIgnoreCase) &&
+                !l.StartsWith("Vencimento:", StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        return string.Join("\n", lines).TrimEnd();
+    }
+
+    private static string FormatCurrency(decimal value)
+    {
+        return $"R${value.ToString("N2", CultureInfo.GetCultureInfo("pt-BR"))}";
+    }
+
+    private static DateOnly AddBusinessDaysSkippingBrazilHolidays(DateOnly startDate, int businessDays)
+    {
+        var current = startDate;
+        var added = 0;
+
+        while (added < businessDays)
+        {
+            current = current.AddDays(1);
+            if (IsBusinessDay(current))
+            {
+                added++;
+            }
+        }
+
+        return current;
+    }
+
+    private static bool IsBusinessDay(DateOnly date)
+    {
+        if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            return false;
+        }
+
+        return !GetBrazilNationalHolidays(date.Year).Contains(date);
+    }
+
+    private static HashSet<DateOnly> GetBrazilNationalHolidays(int year)
+    {
+        var easter = GetEasterSunday(year);
+        return new HashSet<DateOnly>
+        {
+            new(year, 1, 1),   // Confraternizacao Universal
+            easter.AddDays(-48), // Carnaval (segunda)
+            easter.AddDays(-47), // Carnaval (terca)
+            easter.AddDays(-2),  // Sexta-feira Santa
+            new(year, 4, 21),  // Tiradentes
+            new(year, 5, 1),   // Dia do Trabalho
+            easter.AddDays(60), // Corpus Christi
+            new(year, 9, 7),   // Independencia
+            new(year, 10, 12), // Nossa Senhora Aparecida
+            new(year, 11, 2),  // Finados
+            new(year, 11, 15), // Proclamacao da Republica
+            new(year, 11, 20), // Consciencia Negra (nacional desde 2023)
+            new(year, 12, 25)  // Natal
+        };
+    }
+
+    private static DateOnly GetEasterSunday(int year)
+    {
+        var a = year % 19;
+        var b = year / 100;
+        var c = year % 100;
+        var d = b / 4;
+        var e = b % 4;
+        var f = (b + 8) / 25;
+        var g = (b - f + 1) / 3;
+        var h = (19 * a + b - d - g + 15) % 30;
+        var i = c / 4;
+        var k = c % 4;
+        var l = (32 + 2 * e + 2 * i - h - k) % 7;
+        var m = (a + 11 * h + 22 * l) / 451;
+        var month = (h + l - 7 * m + 114) / 31;
+        var day = ((h + l - 7 * m + 114) % 31) + 1;
+        return new DateOnly(year, month, day);
     }
 
     private static RpsTributosDto? BuildLegacyTributos(RpsDto dto)
