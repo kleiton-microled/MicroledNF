@@ -510,6 +510,12 @@ public class XmlSerializerService : IXmlSerializerService
     /// </summary>
     private static void ValidateRPS(tpRPS rps, bool isSchemaV2)
     {
+        if (rps.Onerosidade <= 0)
+            throw new InvalidOperationException("Onerosidade é obrigatório e deve ser maior que zero (layout v2).");
+
+        if (rps.ValorFinalCobrado is null || rps.ValorFinalCobrado <= 0)
+            throw new InvalidOperationException("ValorFinalCobrado deve ser informado e maior que zero (layout v2).");
+
         // Validação 1: Se atvEvento existir, deve conter TODOS os campos obrigatórios
         if (rps.atvEvento != null)
         {
@@ -531,10 +537,22 @@ public class XmlSerializerService : IXmlSerializerService
         // Logo, sempre exigimos cLocPrestacao (Brasil) antes do IBSCBS.
         if (!rps.cLocPrestacao.HasValue)
             throw new InvalidOperationException("cLocPrestacao é obrigatório (sistema não suporta cPaisPrestacao / serviços fora do Brasil).");
+
+        if (rps.ChaveRPS.InscricaoPrestador.ToString().Length > 12)
+            throw new InvalidOperationException("InscricaoPrestador não pode exceder 12 dígitos.");
         
         // Validação 3: IBSCBS é obrigatório no schema v2
         if (isSchemaV2 && rps.IBSCBS == null)
             throw new InvalidOperationException("IBSCBS é obrigatório quando VersaoSchema=2 (schema v2)");
+
+        if (isSchemaV2)
+        {
+            if (rps.IBSCBS?.serv == null)
+                throw new InvalidOperationException("IBSCBS.serv é obrigatório quando VersaoSchema=2.");
+
+            if (rps.IBSCBS.serv.clocalPrestServ != rps.cLocPrestacao.Value)
+                throw new InvalidOperationException("IBSCBS.serv.clocalPrestServ deve ser igual ao cLocPrestacao.");
+        }
     }
     
     private static void WriteCabecalho(XmlWriter writer, PedidoEnvioLoteRPSCabecalho cabecalho)
@@ -589,7 +607,6 @@ public class XmlSerializerService : IXmlSerializerService
         writer.WriteElementString("TributacaoRPS", rps.TributacaoRPS);
 
         var tributacaoIsT = string.Equals(rps.TributacaoRPS, "T", StringComparison.OrdinalIgnoreCase);
-        var isExportacao = false; // não suportado
         
         // Write values
         writer.WriteElementString("ValorDeducoes", FormatDecimal(rps.ValorDeducoes));
@@ -599,6 +616,7 @@ public class XmlSerializerService : IXmlSerializerService
         writer.WriteElementString("ValorIR", FormatDecimal(rps.ValorIR));
         writer.WriteElementString("ValorCSLL", FormatDecimal(rps.ValorCSLL));
         writer.WriteElementString("CodigoServico", rps.CodigoServico.ToString());
+        writer.WriteElementString("Onerosidade", rps.Onerosidade.ToString());
         writer.WriteElementString("AliquotaServicos", FormatAliquota(rps.AliquotaServicos));
         // ISSRetido é xs:boolean no XSD (aceita true/false ou 1/0)
         writer.WriteElementString("ISSRetido", rps.ISSRetido ? "true" : "false");
@@ -800,7 +818,7 @@ public class XmlSerializerService : IXmlSerializerService
     {
         writer.WriteStartElement("ChaveRPS");
         
-        writer.WriteElementString("InscricaoPrestador", chaveRPS.InscricaoPrestador.ToString());
+        writer.WriteElementString("InscricaoPrestador", NormalizeInscricaoMunicipal12(chaveRPS.InscricaoPrestador));
         
         if (!string.IsNullOrEmpty(chaveRPS.SerieRPS))
         {
@@ -809,6 +827,18 @@ public class XmlSerializerService : IXmlSerializerService
         
         writer.WriteElementString("NumeroRPS", chaveRPS.NumeroRPS.ToString());
         
+        writer.WriteEndElement();
+    }
+
+    private static string NormalizeInscricaoMunicipal12(long inscricaoPrestador)
+        => inscricaoPrestador.ToString().PadLeft(12, '0');
+
+    private static void WriteServIBSCBS(XmlWriter writer, tpServIBSCBS serv)
+    {
+        writer.WriteStartElement("serv");
+        writer.WriteElementString("modoPrestServ", serv.modoPrestServ.ToString());
+        writer.WriteElementString("clocalPrestServ", serv.clocalPrestServ.ToString());
+        writer.WriteElementString("indCompGov", serv.indCompGov.ToString());
         writer.WriteEndElement();
     }
     
@@ -880,7 +910,7 @@ public class XmlSerializerService : IXmlSerializerService
             WriteGRefNFSe(writer, ibscbs.gRefNFSe);
         }
         
-        if (ibscbs.tpEnteGov.HasValue)
+        if (ibscbs.tpEnteGov.HasValue && ibscbs.tpEnteGov.Value > 0)
         {
             writer.WriteElementString("tpEnteGov", ibscbs.tpEnteGov.Value.ToString());
         }
@@ -891,6 +921,11 @@ public class XmlSerializerService : IXmlSerializerService
         {
             WriteInformacoesPessoa(writer, "dest", ibscbs.dest);
         }
+
+        if (ibscbs.serv == null)
+            throw new InvalidOperationException("IBSCBS.serv é obrigatório no layout v2.");
+
+        WriteServIBSCBS(writer, ibscbs.serv);
         
         // Write valores (obrigatório)
         WriteValores(writer, ibscbs.valores);

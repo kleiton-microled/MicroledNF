@@ -180,6 +180,10 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
                 rps.ChaveRPS.NumeroRps);
         }
 
+        var cLocPrestacao = CLocPrestacaoResolver.Resolve(
+            ibsCbsInfo?.CLocPrestacao,
+            rps.Prestador.Endereco?.CodigoMunicipio);
+
         var tpRps = new tpRPS
         {
             Assinatura = assinaturaBytes,
@@ -200,6 +204,7 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             ValorIR = tributos?.ValorIR?.Value ?? 0.00m,
             ValorCSLL = tributos?.ValorCSLL?.Value ?? 0.00m,
             CodigoServico = rps.Item.CodigoServico,
+            Onerosidade = 1,
             AliquotaServicos = aliquotaToSend,
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
@@ -213,11 +218,9 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             PagamentoParceladoAntecipado = 0,
             NCM = tributos?.NCM,
             NBS = ibsCbsInfo?.Nbs ?? "123456789",
-            cLocPrestacao = CLocPrestacaoResolver.Resolve(
-                ibsCbsInfo?.CLocPrestacao,
-                rps.Prestador.Endereco?.CodigoMunicipio),
+            cLocPrestacao = cLocPrestacao,
             cPaisPrestacao = null,
-            IBSCBS = CreateIbsCbs(rps, cClassTrib, cIndOp)
+            IBSCBS = BuildIbsCbs(rps, cClassTrib, cIndOp, cLocPrestacao)
         };
 
         tpRps.ValorCargaTributaria = tributos?.ValorCargaTributaria?.Value;
@@ -314,13 +317,15 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
         };
     }
 
-    private tpIBSCBS CreateIbsCbs(DomainEntities.Rps rps, string cClassTrib, string cIndOp)
+    private tpIBSCBS BuildIbsCbs(DomainEntities.Rps rps, string cClassTrib, string cIndOp, int cLocPrestacao)
     {
         var ibsCbs = rps.IbsCbs;
         if (ibsCbs == null)
         {
-            return CreateDefaultIBSCBS(cClassTrib, cIndOp);
+            return CreateDefaultIBSCBS(cClassTrib, cIndOp, cLocPrestacao);
         }
+
+        var tpEnteGov = NormalizeTpEnteGov(ibsCbs.TpEnteGov);
 
         return new tpIBSCBS
         {
@@ -329,9 +334,10 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             cIndOp = cIndOp,
             tpOper = ibsCbs.TpOper,
             gRefNFSe = ibsCbs.RefNfSe.Count > 0 ? new tpGRefNFSe { refNFSe = ibsCbs.RefNfSe.ToList() } : null,
-            tpEnteGov = ibsCbs.TpEnteGov,
+            tpEnteGov = tpEnteGov,
             indDest = ibsCbs.IndDest ?? 0,
             dest = MapIbsCbsPessoa(ibsCbs.Dest),
+            serv = BuildIbsCbsServ(cLocPrestacao),
             valores = new tpValores
             {
                 trib = new tpTrib
@@ -354,7 +360,7 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
         };
     }
 
-    private static tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp)
+    private static tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp, int cLocPrestacao)
     {
         return new tpIBSCBS
         {
@@ -362,6 +368,7 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             indFinal = 0,
             cIndOp = cIndOp,
             indDest = 0,
+            serv = BuildIbsCbsServ(cLocPrestacao),
             valores = new tpValores
             {
                 trib = new tpTrib
@@ -372,6 +379,21 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
                     }
                 }
             }
+        };
+    }
+
+    private static int? NormalizeTpEnteGov(int? tpEnteGov)
+    {
+        return tpEnteGov.HasValue && tpEnteGov.Value > 0 ? tpEnteGov : null;
+    }
+
+    private static tpServIBSCBS BuildIbsCbsServ(int cLocPrestacao)
+    {
+        return new tpServIBSCBS
+        {
+            modoPrestServ = 1,
+            clocalPrestServ = cLocPrestacao,
+            indCompGov = 0
         };
     }
 
