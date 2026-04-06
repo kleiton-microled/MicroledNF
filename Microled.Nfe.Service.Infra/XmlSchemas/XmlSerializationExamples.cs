@@ -49,7 +49,6 @@ public static class XmlSerializationExamples
                     ValorIR = 0,
                     ValorCSLL = 0,
                     CodigoServico = 1401,
-                    Onerosidade = 1,
                     AliquotaServicos = 5.00m,
                     ISSRetido = false,
                     Discriminacao = "Serviço de exemplo",
@@ -64,12 +63,6 @@ public static class XmlSerializationExamples
                         indFinal = 0, // Não é consumo pessoal
                         cIndOp = "000000", // Código indicador da operação (6 dígitos)
                         indDest = 0, // Destinatário é o próprio tomador
-                        serv = new tpServIBSCBS
-                        {
-                            modoPrestServ = 1,
-                            clocalPrestServ = 3550308,
-                            indCompGov = 0
-                        },
                         valores = new tpValores
                         {
                             trib = new tpTrib
