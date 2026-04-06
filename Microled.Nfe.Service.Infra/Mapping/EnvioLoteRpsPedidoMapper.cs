@@ -184,22 +184,10 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             ibsCbsInfo?.CLocPrestacao,
             rps.Prestador.Endereco?.CodigoMunicipio);
 
-        var valorInicialCobrado = rps.Item.ValorServicos.Value;
-        decimal? valorFinalCobrado = null;
-        if (versaoSchema < 2)
-        {
-            // Layout antigo: mantém comportamento anterior.
-            valorFinalCobrado = rps.GetValorFinalCobradoParaEnvio();
-        }
-        else if (tributos?.ValorFinalCobrado?.Value is decimal valorFinalInformado && valorFinalInformado != valorInicialCobrado)
-        {
-            _logger.LogInformation(
-                "ValorFinalCobrado ({ValorFinal}) ignorado no v2; usando ValorInicialCobrado com valor bruto ({ValorInicial}) para RPS {InscricaoPrestador}-{NumeroRps}.",
-                valorFinalInformado,
-                valorInicialCobrado,
-                rps.ChaveRPS.InscricaoPrestador,
-                rps.ChaveRPS.NumeroRps);
-        }
+        decimal? valorInicialCobrado = versaoSchema >= 2 ? null : rps.Item.ValorServicos.Value;
+        var valorFinalCobrado = versaoSchema >= 2
+            ? rps.Item.ValorServicos.Value
+            : rps.GetValorFinalCobradoParaEnvio();
 
         var tpRps = new tpRPS
         {

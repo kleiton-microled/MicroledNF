@@ -56,8 +56,8 @@ public class XmlSerializerService_AliquotaTests
                     PercentualCargaTributaria = 0m,
                     FonteCargaTributaria = "0",
                     ValorTotalRecebido = null, // must be omitted from XML for CodigoServico 2919 (erro 1630)
-                    ValorInicialCobrado = 10m,
-                    ValorFinalCobrado = null,
+                    ValorInicialCobrado = null,
+                    ValorFinalCobrado = 10m,
                     ValorMulta = 0m,
                     ValorJuros = 0m,
                     ValorIPI = 0m,
@@ -80,8 +80,8 @@ public class XmlSerializerService_AliquotaTests
         var xml = svc.SerializePedidoEnvioLoteRPS(pedido);
         Assert.Contains("<AliquotaServicos>0.029</AliquotaServicos>", xml);
         Assert.DoesNotContain("ValorTotalRecebido", xml);
-        Assert.Contains("<ValorInicialCobrado>10.00</ValorInicialCobrado>", xml);
-        Assert.DoesNotContain("<ValorFinalCobrado>", xml);
+        Assert.DoesNotContain("<ValorInicialCobrado>", xml);
+        Assert.Contains("<ValorFinalCobrado>10.00</ValorFinalCobrado>", xml);
     }
 }
 
