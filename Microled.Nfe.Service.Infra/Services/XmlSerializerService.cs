@@ -510,9 +510,6 @@ public class XmlSerializerService : IXmlSerializerService
     /// </summary>
     private static void ValidateRPS(tpRPS rps, bool isSchemaV2)
     {
-        if (rps.Onerosidade <= 0)
-            throw new InvalidOperationException("Onerosidade é obrigatório e deve ser maior que zero (layout v2).");
-
         if (rps.ValorInicialCobrado is null || rps.ValorInicialCobrado <= 0)
             throw new InvalidOperationException("ValorInicialCobrado deve ser informado e maior que zero (layout v2).");
 
@@ -550,11 +547,6 @@ public class XmlSerializerService : IXmlSerializerService
             if (rps.ValorInicialCobrado.HasValue && rps.ValorFinalCobrado.HasValue)
                 throw new InvalidOperationException("No layout v2, não preencher ValorFinalCobrado quando ValorInicialCobrado estiver informado.");
 
-            if (rps.IBSCBS?.serv == null)
-                throw new InvalidOperationException("IBSCBS.serv é obrigatório quando VersaoSchema=2.");
-
-            if (rps.IBSCBS.serv.clocalPrestServ != rps.cLocPrestacao.Value)
-                throw new InvalidOperationException("IBSCBS.serv.clocalPrestServ deve ser igual ao cLocPrestacao.");
         }
     }
     
@@ -723,9 +715,6 @@ public class XmlSerializerService : IXmlSerializerService
         // Always write ExigibilidadeSuspensa (required by schema)
         writer.WriteElementString("ExigibilidadeSuspensa", rps.ExigibilidadeSuspensa.ToString());
 
-        // Onerosidade (schema v2): deve vir após ExigibilidadeSuspensa
-        writer.WriteElementString("Onerosidade", rps.Onerosidade.ToString());
-        
         // Always write PagamentoParceladoAntecipado (required by schema)
         writer.WriteElementString("PagamentoParceladoAntecipado", rps.PagamentoParceladoAntecipado.ToString());
         
@@ -836,15 +825,6 @@ public class XmlSerializerService : IXmlSerializerService
     private static string NormalizeInscricaoMunicipal12(long inscricaoPrestador)
         => inscricaoPrestador.ToString().PadLeft(12, '0');
 
-    private static void WriteServIBSCBS(XmlWriter writer, tpServIBSCBS serv)
-    {
-        writer.WriteStartElement("serv");
-        writer.WriteElementString("modoPrestServ", serv.modoPrestServ.ToString());
-        writer.WriteElementString("clocalPrestServ", serv.clocalPrestServ.ToString());
-        writer.WriteElementString("indCompGov", serv.indCompGov.ToString());
-        writer.WriteEndElement();
-    }
-    
     private static void WriteEndereco(XmlWriter writer, string elementName, tpEndereco endereco)
     {
         writer.WriteStartElement(elementName);
@@ -925,11 +905,6 @@ public class XmlSerializerService : IXmlSerializerService
             WriteInformacoesPessoa(writer, "dest", ibscbs.dest);
         }
 
-        if (ibscbs.serv == null)
-            throw new InvalidOperationException("IBSCBS.serv é obrigatório no layout v2.");
-
-        WriteServIBSCBS(writer, ibscbs.serv);
-        
         // Write valores (obrigatório)
         WriteValores(writer, ibscbs.valores);
         

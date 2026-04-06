@@ -131,27 +131,24 @@ public class tpRPS
     public int ExigibilidadeSuspensa { get; set; } // 0 ou 1
 
     [XmlElement(Order = 40)]
-    public int Onerosidade { get; set; } // 1 = serviço oneroso
-
-    [XmlElement(Order = 41)]
     public int PagamentoParceladoAntecipado { get; set; } // 0 ou 1
 
-    [XmlElement(Order = 42, IsNullable = true)]
+    [XmlElement(Order = 41, IsNullable = true)]
     public string? NCM { get; set; }
 
-    [XmlElement(Order = 43)]
+    [XmlElement(Order = 42)]
     public string NBS { get; set; } = null!;
 
-    [XmlElement("atvEvento", Order = 44, IsNullable = true)]
+    [XmlElement("atvEvento", Order = 43, IsNullable = true)]
     public tpAtividadeEvento? atvEvento { get; set; }
 
-    [XmlElement("cLocPrestacao", Order = 45, IsNullable = true)]
+    [XmlElement("cLocPrestacao", Order = 44, IsNullable = true)]
     public int? cLocPrestacao { get; set; }
 
-    [XmlElement("cPaisPrestacao", Order = 46, IsNullable = true)]
+    [XmlElement("cPaisPrestacao", Order = 45, IsNullable = true)]
     public string? cPaisPrestacao { get; set; }
 
-    [XmlElement(Order = 47)]
+    [XmlElement(Order = 46)]
     public tpIBSCBS IBSCBS { get; set; } = null!;
 }
 

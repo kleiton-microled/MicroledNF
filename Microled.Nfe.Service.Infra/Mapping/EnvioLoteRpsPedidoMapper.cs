@@ -221,7 +221,6 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             ValorIR = tributos?.ValorIR?.Value ?? 0.00m,
             ValorCSLL = tributos?.ValorCSLL?.Value ?? 0.00m,
             CodigoServico = rps.Item.CodigoServico,
-            Onerosidade = 1,
             AliquotaServicos = aliquotaToSend,
             ISSRetido = rps.Item.IssRetido == IssRetido.Sim,
             Discriminacao = rps.Item.Discriminacao,
@@ -237,7 +236,7 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             NBS = ibsCbsInfo?.Nbs ?? "123456789",
             cLocPrestacao = cLocPrestacao,
             cPaisPrestacao = null,
-            IBSCBS = BuildIbsCbs(rps, cClassTrib, cIndOp, cLocPrestacao)
+            IBSCBS = BuildIbsCbs(rps, cClassTrib, cIndOp)
         };
 
         tpRps.ValorCargaTributaria = tributos?.ValorCargaTributaria?.Value;
@@ -334,12 +333,12 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
         };
     }
 
-    private tpIBSCBS BuildIbsCbs(DomainEntities.Rps rps, string cClassTrib, string cIndOp, int cLocPrestacao)
+    private tpIBSCBS BuildIbsCbs(DomainEntities.Rps rps, string cClassTrib, string cIndOp)
     {
         var ibsCbs = rps.IbsCbs;
         if (ibsCbs == null)
         {
-            return CreateDefaultIBSCBS(cClassTrib, cIndOp, cLocPrestacao);
+            return CreateDefaultIBSCBS(cClassTrib, cIndOp);
         }
 
         var tpEnteGov = NormalizeTpEnteGov(ibsCbs.TpEnteGov);
@@ -354,7 +353,6 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             tpEnteGov = tpEnteGov,
             indDest = ibsCbs.IndDest ?? 0,
             dest = MapIbsCbsPessoa(ibsCbs.Dest),
-            serv = BuildIbsCbsServ(cLocPrestacao),
             valores = new tpValores
             {
                 trib = new tpTrib
@@ -377,7 +375,7 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
         };
     }
 
-    private static tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp, int cLocPrestacao)
+    private static tpIBSCBS CreateDefaultIBSCBS(string cClassTrib, string cIndOp)
     {
         return new tpIBSCBS
         {
@@ -385,7 +383,6 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
             indFinal = 0,
             cIndOp = cIndOp,
             indDest = 0,
-            serv = BuildIbsCbsServ(cLocPrestacao),
             valores = new tpValores
             {
                 trib = new tpTrib
@@ -402,16 +399,6 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
     private static int? NormalizeTpEnteGov(int? tpEnteGov)
     {
         return tpEnteGov.HasValue && tpEnteGov.Value > 0 ? tpEnteGov : null;
-    }
-
-    private static tpServIBSCBS BuildIbsCbsServ(int cLocPrestacao)
-    {
-        return new tpServIBSCBS
-        {
-            modoPrestServ = 1,
-            clocalPrestServ = cLocPrestacao,
-            indCompGov = 0
-        };
     }
 
     private static tpInformacoesPessoa? MapIbsCbsPessoa(DomainEntities.RpsIbsCbsPersonInfo? pessoa)
