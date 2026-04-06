@@ -141,8 +141,8 @@ public class NfeSoapClient_IBSCBSTests
         capturedRps.ValorCargaTributaria.Should().Be(55m);
         capturedRps.PercentualCargaTributaria.Should().Be(0.1645m);
         capturedRps.FonteCargaTributaria.Should().Be("IBPT");
-        capturedRps.ValorInicialCobrado.Should().Be(100m);
-        capturedRps.ValorFinalCobrado.Should().BeNull();
+        capturedRps.ValorInicialCobrado.Should().BeNull();
+        capturedRps.ValorFinalCobrado.Should().Be(100m);
         capturedRps.NBS.Should().Be("998877665");
         capturedRps.IBSCBS.cIndOp.Should().Be("100201");
         capturedRps.IBSCBS.indFinal.Should().Be(1);

@@ -58,8 +58,8 @@ public class XmlSerializerService_TributacaoTests
                     FonteCargaTributaria = "0",
                     MunicipioPrestacao = 3550308,
                     ValorTotalRecebido = 10m,
-                    ValorInicialCobrado = 10m,
-                    ValorFinalCobrado = null,
+                    ValorInicialCobrado = null,
+                    ValorFinalCobrado = 10m,
                     ValorMulta = 0m,
                     ValorJuros = 0m,
                     ValorIPI = 0m,
@@ -94,8 +94,8 @@ public class XmlSerializerService_TributacaoTests
 
         Assert.DoesNotContain("<MunicipioPrestacao>", xml);
         Assert.DoesNotContain("cPaisPrestacao", xml); // must not exist anywhere
-        Assert.Contains("<ValorInicialCobrado>10.00</ValorInicialCobrado>", xml);
-        Assert.DoesNotContain("<ValorFinalCobrado>", xml);
+        Assert.DoesNotContain("<ValorInicialCobrado>", xml);
+        Assert.Contains("<ValorFinalCobrado>10.00</ValorFinalCobrado>", xml);
         Assert.Contains("<cLocPrestacao>", xml);
         Assert.Contains("<IBSCBS>", xml);
         var nbsIdx = xml.IndexOf("<NBS>", StringComparison.Ordinal);
@@ -158,8 +158,8 @@ public class XmlSerializerService_TributacaoTests
                     PercentualCargaTributaria = 0m,
                     FonteCargaTributaria = "0",
                     ValorTotalRecebido = 10m,
-                    ValorInicialCobrado = 10m,
-                    ValorFinalCobrado = null,
+                    ValorInicialCobrado = null,
+                    ValorFinalCobrado = 10m,
                     ValorMulta = 0m,
                     ValorJuros = 0m,
                     ValorIPI = 0m,

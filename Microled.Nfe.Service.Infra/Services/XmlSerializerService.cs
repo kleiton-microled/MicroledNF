@@ -510,8 +510,8 @@ public class XmlSerializerService : IXmlSerializerService
     /// </summary>
     private static void ValidateRPS(tpRPS rps, bool isSchemaV2)
     {
-        if (rps.ValorInicialCobrado is null || rps.ValorInicialCobrado <= 0)
-            throw new InvalidOperationException("ValorInicialCobrado deve ser informado e maior que zero (layout v2).");
+        if (isSchemaV2 && (rps.ValorFinalCobrado is null || rps.ValorFinalCobrado <= 0))
+            throw new InvalidOperationException("ValorFinalCobrado deve ser informado e maior que zero (layout v2).");
 
         // Validação 1: Se atvEvento existir, deve conter TODOS os campos obrigatórios
         if (rps.atvEvento != null)
@@ -544,8 +544,8 @@ public class XmlSerializerService : IXmlSerializerService
 
         if (isSchemaV2)
         {
-            if (rps.ValorInicialCobrado.HasValue && rps.ValorFinalCobrado.HasValue)
-                throw new InvalidOperationException("No layout v2, não preencher ValorFinalCobrado quando ValorInicialCobrado estiver informado.");
+            if (rps.ValorInicialCobrado.HasValue)
+                throw new InvalidOperationException("No layout v2, ValorInicialCobrado não deve ser preenchido.");
 
         }
     }
@@ -693,7 +693,7 @@ public class XmlSerializerService : IXmlSerializerService
             writer.WriteElementString("ValorTotalRecebido", FormatDecimal(rps.ValorTotalRecebido.Value));
         }
         
-        if (rps.ValorInicialCobrado.HasValue)
+        if (rps.ValorInicialCobrado.HasValue && !isSchemaV2)
         {
             writer.WriteElementString("ValorInicialCobrado", FormatDecimal(rps.ValorInicialCobrado.Value));
         }
