@@ -73,6 +73,36 @@ public class RpsBatchPreparationServiceTests
         texto.Should().Contain("Valor liquido: R$3.754,00");
     }
 
+    [Fact]
+    public void PrepareSignedBatch_ShouldCalculateLiquidoWhenValorTotalRecebidoIsZeroAndBrutoIsPositive()
+    {
+        var signatureMock = new Mock<IRpsSignatureService>();
+        signatureMock
+            .Setup(x => x.SignRps(It.IsAny<Microled.Nfe.Service.Domain.Entities.Rps>(), It.IsAny<X509Certificate2>()))
+            .Returns("ASSINATURA_TESTE");
+
+        var certProviderMock = new Mock<ICertificateProvider>();
+        certProviderMock.Setup(x => x.GetCertificate()).Returns(TestCertificateHelper.CreateTestCertificateWithPrivateKey());
+
+        var sut = new RpsBatchPreparationService(signatureMock.Object, certProviderMock.Object);
+        var request = BuildRequest(
+            dataEmissao: new DateOnly(2026, 4, 6),
+            discriminacao: "teste",
+            valorServico: 4000.00m,
+            valorPis: 47.66m,
+            valorCofins: 120.00m,
+            valorCsll: 40.00m,
+            valorIr: 60.00m,
+            valorInss: 0.00m,
+            valorTotalRecebido: 0.00m);
+
+        var batch = sut.PrepareSignedBatch(request);
+        var texto = batch.RpsList.Single().Item.Discriminacao;
+
+        texto.Should().Contain("PIS/COFINS/CSLL: R$207,66");
+        texto.Should().Contain("Valor liquido: R$3.732,34");
+    }
+
     private static SendRpsRequestDto BuildRequest(
         DateOnly dataEmissao,
         string discriminacao,
