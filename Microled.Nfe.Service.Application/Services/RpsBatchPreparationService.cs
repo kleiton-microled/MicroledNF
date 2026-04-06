@@ -81,7 +81,7 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         ) : null;
 
         var rps = new Rps(chaveRps, tipoRps, dto.DataEmissao, statusRps, tributacaoRps, item, prestador, tomador);
-        rps.SetTributos(MapToTributos(dto.Tributos));
+        rps.SetTributos(MapToTributos(dto));
 
         var ibsCbs = MapToIbsCbs(dto.IbsCbs);
         rps.SetIbsCbs(ibsCbs);
@@ -103,28 +103,71 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         );
     }
 
-    private static RpsTaxInfo? MapToTributos(RpsTributosDto? dto)
+    private static RpsTaxInfo? MapToTributos(RpsDto dto)
     {
-        if (dto == null)
+        var tributos = dto.Tributos ?? BuildLegacyTributos(dto);
+        if (tributos == null)
         {
             return null;
         }
 
         return new RpsTaxInfo(
-            MapMoney(dto.ValorPIS),
-            MapMoney(dto.ValorCOFINS),
-            MapMoney(dto.ValorINSS),
-            MapMoney(dto.ValorIR),
-            MapMoney(dto.ValorCSLL),
-            MapMoney(dto.ValorIPI),
-            MapMoney(dto.ValorCargaTributaria),
-            dto.PercentualCargaTributaria,
-            dto.FonteCargaTributaria,
-            MapMoney(dto.ValorTotalRecebido),
-            MapMoney(dto.ValorFinalCobrado),
-            MapMoney(dto.ValorMulta),
-            MapMoney(dto.ValorJuros),
-            dto.NCM);
+            MapMoney(tributos.ValorPIS),
+            MapMoney(tributos.ValorCOFINS),
+            MapMoney(tributos.ValorINSS),
+            MapMoney(tributos.ValorIR),
+            MapMoney(tributos.ValorCSLL),
+            MapMoney(tributos.ValorIPI),
+            MapMoney(tributos.ValorCargaTributaria),
+            tributos.PercentualCargaTributaria,
+            tributos.FonteCargaTributaria,
+            MapMoney(tributos.ValorTotalRecebido),
+            MapMoney(tributos.ValorFinalCobrado),
+            MapMoney(tributos.ValorMulta),
+            MapMoney(tributos.ValorJuros),
+            tributos.NCM);
+    }
+
+    private static RpsTributosDto? BuildLegacyTributos(RpsDto dto)
+    {
+        var hasLegacyValues =
+            dto.ValorPIS.HasValue ||
+            dto.ValorCOFINS.HasValue ||
+            dto.ValorINSS.HasValue ||
+            dto.ValorIR.HasValue ||
+            dto.ValorCSLL.HasValue ||
+            dto.ValorIPI.HasValue ||
+            dto.ValorCargaTributaria.HasValue ||
+            dto.PercentualCargaTributaria.HasValue ||
+            !string.IsNullOrWhiteSpace(dto.FonteCargaTributaria) ||
+            dto.ValorTotalRecebido.HasValue ||
+            dto.ValorFinalCobrado.HasValue ||
+            dto.ValorMulta.HasValue ||
+            dto.ValorJuros.HasValue ||
+            !string.IsNullOrWhiteSpace(dto.NCM);
+
+        if (!hasLegacyValues)
+        {
+            return null;
+        }
+
+        return new RpsTributosDto
+        {
+            ValorPIS = dto.ValorPIS,
+            ValorCOFINS = dto.ValorCOFINS,
+            ValorINSS = dto.ValorINSS,
+            ValorIR = dto.ValorIR,
+            ValorCSLL = dto.ValorCSLL,
+            ValorIPI = dto.ValorIPI,
+            ValorCargaTributaria = dto.ValorCargaTributaria,
+            PercentualCargaTributaria = dto.PercentualCargaTributaria,
+            FonteCargaTributaria = dto.FonteCargaTributaria,
+            ValorTotalRecebido = dto.ValorTotalRecebido,
+            ValorFinalCobrado = dto.ValorFinalCobrado,
+            ValorMulta = dto.ValorMulta,
+            ValorJuros = dto.ValorJuros,
+            NCM = dto.NCM
+        };
     }
 
     private static RpsIbsCbsInfo? MapToIbsCbs(RpsIbsCbsDto? dto)

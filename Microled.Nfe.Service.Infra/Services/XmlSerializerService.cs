@@ -119,7 +119,7 @@ public class XmlSerializerService : IXmlSerializerService
             // Write each RPS with xmlns="" (empty namespace)
             // Determine if we're using schema v2 based on Versao
             // When VersaoSchema=2, IBSCBS is mandatory
-            var versao = int.Parse(_options.Versao.Replace(".", ""));
+            var versao = _options.GetVersaoSchemaNumber();
             var isSchemaV2 = versao >= 2;
             // Always use schema v2 fields when VersaoSchema=2, regardless of UseSchemaV2Fields setting
             var useSchemaV2Fields = _options.UseSchemaV2Fields || isSchemaV2;
@@ -539,8 +539,7 @@ public class XmlSerializerService : IXmlSerializerService
     
     private static void WriteCabecalho(XmlWriter writer, PedidoEnvioLoteRPSCabecalho cabecalho)
     {
-        // Use version 1 for schema compatibility
-        var versao = "1";
+        var versao = cabecalho.Versao.ToString();
         
         // Start Cabecalho with xmlns="" (empty namespace) using WriteRaw to bypass XmlWriter's namespace restrictions
         writer.WriteRaw($"<Cabecalho Versao=\"{versao}\" xmlns=\"\">");

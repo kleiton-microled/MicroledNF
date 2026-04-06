@@ -164,6 +164,55 @@ public class NfeServiceOptions
     {
         return UseProduction ? AsyncProductionEndpoint : AsyncTestEndpoint;
     }
+
+    public int GetVersaoSchemaNumber()
+    {
+        var parsed = TryParseVersionNumber(Versao);
+        if (parsed.HasValue && parsed.Value > 0)
+        {
+            return Math.Max(2, parsed.Value);
+        }
+
+        parsed = TryParseVersionNumber(SchemaVersion);
+        if (parsed.HasValue && parsed.Value > 0)
+        {
+            return Math.Max(2, parsed.Value);
+        }
+
+        return 2;
+    }
+
+    public long GetCabecalhoVersaoNumber()
+    {
+        return GetVersaoSchemaNumber();
+    }
+
+    private static int? TryParseVersionNumber(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        var trimmed = value.Trim();
+        if (int.TryParse(trimmed, out var direct))
+        {
+            return direct;
+        }
+
+        var firstToken = trimmed.Split('.', StringSplitOptions.RemoveEmptyEntries)[0];
+        if (int.TryParse(firstToken, out var major))
+        {
+            return major;
+        }
+
+        if (decimal.TryParse(trimmed, System.Globalization.NumberStyles.Number, System.Globalization.CultureInfo.InvariantCulture, out var numeric))
+        {
+            return (int)numeric;
+        }
+
+        return null;
+    }
 }
 
 public class CertificateOptions
