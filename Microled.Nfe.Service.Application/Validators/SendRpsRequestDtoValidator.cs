@@ -53,6 +53,10 @@ public class RpsDtoValidator : AbstractValidator<RpsDto>
         {
             RuleFor(x => x.Tributos!).SetValidator(new RpsTributosDtoValidator());
         });
+        When(x => x.Tributos == null, () =>
+        {
+            RuleFor(x => x).SetValidator(new RpsLegacyTributosValidator());
+        });
         When(x => x.IbsCbs != null, () =>
         {
             RuleFor(x => x.IbsCbs!).SetValidator(new RpsIbsCbsDtoValidator());
@@ -136,5 +140,24 @@ public class RpsIbsCbsPessoaDtoValidator : AbstractValidator<RpsIbsCbsPessoaDto>
 
 public class RpsIbsCbsImovelObraDtoValidator : AbstractValidator<RpsIbsCbsImovelObraDto>
 {
+}
+
+public class RpsLegacyTributosValidator : AbstractValidator<RpsDto>
+{
+    public RpsLegacyTributosValidator()
+    {
+        RuleFor(x => x.ValorPIS).GreaterThanOrEqualTo(0).When(x => x.ValorPIS.HasValue);
+        RuleFor(x => x.ValorCOFINS).GreaterThanOrEqualTo(0).When(x => x.ValorCOFINS.HasValue);
+        RuleFor(x => x.ValorINSS).GreaterThanOrEqualTo(0).When(x => x.ValorINSS.HasValue);
+        RuleFor(x => x.ValorIR).GreaterThanOrEqualTo(0).When(x => x.ValorIR.HasValue);
+        RuleFor(x => x.ValorCSLL).GreaterThanOrEqualTo(0).When(x => x.ValorCSLL.HasValue);
+        RuleFor(x => x.ValorIPI).GreaterThanOrEqualTo(0).When(x => x.ValorIPI.HasValue);
+        RuleFor(x => x.ValorCargaTributaria).GreaterThanOrEqualTo(0).When(x => x.ValorCargaTributaria.HasValue);
+        RuleFor(x => x.PercentualCargaTributaria).GreaterThanOrEqualTo(0).When(x => x.PercentualCargaTributaria.HasValue);
+        RuleFor(x => x.ValorTotalRecebido).GreaterThanOrEqualTo(0).When(x => x.ValorTotalRecebido.HasValue);
+        RuleFor(x => x.ValorFinalCobrado).GreaterThanOrEqualTo(0).When(x => x.ValorFinalCobrado.HasValue);
+        RuleFor(x => x.ValorMulta).GreaterThanOrEqualTo(0).When(x => x.ValorMulta.HasValue);
+        RuleFor(x => x.ValorJuros).GreaterThanOrEqualTo(0).When(x => x.ValorJuros.HasValue);
+    }
 }
 

@@ -56,6 +56,22 @@ public class RpsDto
     public ServiceCustomerDto? Tomador { get; set; }
     public RpsTributosDto? Tributos { get; set; }
     public RpsIbsCbsDto? IbsCbs { get; set; }
+
+    // Compatibilidade com payload legado: alguns clientes enviam tributos no nível do RPS.
+    public decimal? ValorPIS { get; set; }
+    public decimal? ValorCOFINS { get; set; }
+    public decimal? ValorINSS { get; set; }
+    public decimal? ValorIR { get; set; }
+    public decimal? ValorCSLL { get; set; }
+    public decimal? ValorIPI { get; set; }
+    public decimal? ValorCargaTributaria { get; set; }
+    public decimal? PercentualCargaTributaria { get; set; }
+    public string? FonteCargaTributaria { get; set; }
+    public decimal? ValorTotalRecebido { get; set; }
+    public decimal? ValorFinalCobrado { get; set; }
+    public decimal? ValorMulta { get; set; }
+    public decimal? ValorJuros { get; set; }
+    public string? NCM { get; set; }
 }
 
 public class RpsItemDto
