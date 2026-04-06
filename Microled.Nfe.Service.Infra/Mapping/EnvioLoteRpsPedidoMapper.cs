@@ -91,7 +91,7 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
         {
             Cabecalho = new PedidoEnvioLoteRPSCabecalho
             {
-                Versao = long.Parse(_options.Versao.Replace(".", "")),
+                Versao = _options.GetCabecalhoVersaoNumber(),
                 CPFCNPJRemetente = cpfCnpjRemetente,
                 transacao = batch.Transacao,
                 dtInicio = batch.DataInicio.ToDateTime(TimeOnly.MinValue),
@@ -111,7 +111,7 @@ public sealed class EnvioLoteRpsPedidoMapper : IEnvioLoteRpsPedidoMapper
 
         var assinaturaBytes = Convert.FromBase64String(rps.Assinatura);
 
-        var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+        var versaoSchema = _options.GetVersaoSchemaNumber();
         var tributos = rps.Tributos;
         var ibsCbsInfo = rps.IbsCbs;
         string cClassTrib;

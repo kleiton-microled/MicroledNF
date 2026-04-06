@@ -88,7 +88,7 @@ public class RpsXmlValidationExportService : IRpsXmlValidationExportService
         await File.WriteAllTextAsync(rpsFilePath, xmlContent, cancellationToken);
         _logger.LogInformation("Saved RPS XML file: {FilePath}", rpsFilePath);
 
-        var versaoSchema = int.Parse(_nfeOptions.Versao.Replace(".", ""));
+        var versaoSchema = _nfeOptions.GetVersaoSchemaNumber();
         var soapEnvelope = _soapEnvelopeBuilder.BuildEnvioLoteRPS(xmlContent, versaoSchema);
         if (_nfeOptions.UseAsyncSendContract())
         {

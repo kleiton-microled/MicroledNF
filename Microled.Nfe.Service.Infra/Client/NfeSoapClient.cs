@@ -84,7 +84,7 @@ public class NfeSoapClient : INfeGateway
             var useAsyncSendContract = _options.UseAsyncSendContract();
 
             // 3. Build SOAP envelope (using specialized method for EnvioLoteRPS)
-            var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+            var versaoSchema = _options.GetVersaoSchemaNumber();
             var soapEnvelope = _soapEnvelopeBuilder.BuildEnvioLoteRPS(xmlContent, versaoSchema);
             if (useAsyncSendContract)
             {
@@ -190,7 +190,7 @@ public class NfeSoapClient : INfeGateway
             _logger.LogDebug("Serialized PedidoConsultaNFe XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope
-            var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+            var versaoSchema = _options.GetVersaoSchemaNumber();
             var soapEnvelope = _soapEnvelopeBuilder.BuildConsultaNFe(xmlContent, versaoSchema);
             LogXmlIfEnabled("Request SOAP (ConsultaNFe)", soapEnvelope);
 
@@ -259,7 +259,7 @@ public class NfeSoapClient : INfeGateway
             var xmlContent = BuildConsultaSituacaoLoteXml(numeroProtocolo, cnpjRemetente);
             LogXmlIfEnabled("Request XML (PedidoConsultaSituacaoLote)", xmlContent);
 
-            var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+            var versaoSchema = _options.GetVersaoSchemaNumber();
             var soapEnvelope = _soapEnvelopeBuilder.BuildConsultaSituacaoLote(xmlContent, versaoSchema);
             LogXmlIfEnabled("Request SOAP (ConsultaSituacaoLote)", soapEnvelope);
 
@@ -327,7 +327,7 @@ public class NfeSoapClient : INfeGateway
             _logger.LogDebug("Serialized PedidoCancelamentoNFe XML (length: {Length})", xmlContent.Length);
 
             // 3. Build SOAP envelope
-            var versaoSchema = int.Parse(_options.Versao.Replace(".", ""));
+            var versaoSchema = _options.GetVersaoSchemaNumber();
             var soapEnvelope = _soapEnvelopeBuilder.BuildCancelamentoNFe(xmlContent, versaoSchema);
 
             // 4. Send HTTP request
@@ -758,7 +758,7 @@ public class NfeSoapClient : INfeGateway
         {
             Cabecalho = new PedidoConsultaNFeCabecalho
             {
-                Versao = long.Parse(_options.Versao.Replace(".", "")),
+                Versao = _options.GetCabecalhoVersaoNumber(),
                 CPFCNPJRemetente = new tpCPFCNPJ { CNPJ = cnpjRemetente }
             },
             Detalhe = new List<PedidoConsultaNFeDetalhe>()
@@ -806,7 +806,7 @@ public class NfeSoapClient : INfeGateway
         {
             Cabecalho = new PedidoCancelamentoNFeCabecalho
             {
-                Versao = long.Parse(_options.Versao.Replace(".", "")),
+                Versao = _options.GetCabecalhoVersaoNumber(),
                 CPFCNPJRemetente = new tpCPFCNPJ { CNPJ = cnpjRemetente },
                 transacao = true
             },
