@@ -616,7 +616,6 @@ public class XmlSerializerService : IXmlSerializerService
         writer.WriteElementString("ValorIR", FormatDecimal(rps.ValorIR));
         writer.WriteElementString("ValorCSLL", FormatDecimal(rps.ValorCSLL));
         writer.WriteElementString("CodigoServico", rps.CodigoServico.ToString());
-        writer.WriteElementString("Onerosidade", rps.Onerosidade.ToString());
         writer.WriteElementString("AliquotaServicos", FormatAliquota(rps.AliquotaServicos));
         // ISSRetido é xs:boolean no XSD (aceita true/false ou 1/0)
         writer.WriteElementString("ISSRetido", rps.ISSRetido ? "true" : "false");
@@ -722,6 +721,9 @@ public class XmlSerializerService : IXmlSerializerService
         
         // Always write ExigibilidadeSuspensa (required by schema)
         writer.WriteElementString("ExigibilidadeSuspensa", rps.ExigibilidadeSuspensa.ToString());
+
+        // Onerosidade (schema v2): deve vir após ExigibilidadeSuspensa
+        writer.WriteElementString("Onerosidade", rps.Onerosidade.ToString());
         
         // Always write PagamentoParceladoAntecipado (required by schema)
         writer.WriteElementString("PagamentoParceladoAntecipado", rps.PagamentoParceladoAntecipado.ToString());
