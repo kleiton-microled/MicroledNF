@@ -35,10 +35,26 @@ public class tpIBSCBS
     public tpInformacoesPessoa? dest { get; set; }
 
     [XmlElement(Order = 8)]
+    public tpServIBSCBS serv { get; set; } = null!;
+
+    [XmlElement(Order = 9)]
     public tpValores valores { get; set; } = null!;
 
-    [XmlElement(Order = 9, IsNullable = true)]
+    [XmlElement(Order = 10, IsNullable = true)]
     public tpImovelObra? imovelobra { get; set; }
+}
+
+[XmlType(Namespace = "http://www.prefeitura.sp.gov.br/nfe/tipos")]
+public class tpServIBSCBS
+{
+    [XmlElement(Order = 0)]
+    public int modoPrestServ { get; set; } // 1 = prestação padrão
+
+    [XmlElement(Order = 1)]
+    public int clocalPrestServ { get; set; } // Deve ser igual ao cLocPrestacao do RPS
+
+    [XmlElement(Order = 2)]
+    public int indCompGov { get; set; } // 0 = não governamental
 }
 
 /// <summary>

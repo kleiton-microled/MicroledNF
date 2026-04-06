@@ -50,105 +50,108 @@ public class tpRPS
     public int CodigoServico { get; set; }
 
     [XmlElement(Order = 13)]
-    public decimal AliquotaServicos { get; set; }
+    public int Onerosidade { get; set; } // 1 = serviço oneroso
 
     [XmlElement(Order = 14)]
+    public decimal AliquotaServicos { get; set; }
+
+    [XmlElement(Order = 15)]
     public bool ISSRetido { get; set; }
 
-    [XmlElement(Order = 15, IsNullable = true)]
+    [XmlElement(Order = 16, IsNullable = true)]
     public tpCPFCNPJNIF? CPFCNPJTomador { get; set; }
 
-    [XmlElement(Order = 16, IsNullable = true)]
+    [XmlElement(Order = 17, IsNullable = true)]
     public long? InscricaoMunicipalTomador { get; set; }
 
-    [XmlElement(Order = 17, IsNullable = true)]
+    [XmlElement(Order = 18, IsNullable = true)]
     public long? InscricaoEstadualTomador { get; set; }
 
-    [XmlElement(Order = 18, IsNullable = true)]
+    [XmlElement(Order = 19, IsNullable = true)]
     public string? RazaoSocialTomador { get; set; }
 
-    [XmlElement(Order = 19, IsNullable = true)]
+    [XmlElement(Order = 20, IsNullable = true)]
     public tpEndereco? EnderecoTomador { get; set; }
 
-    [XmlElement(Order = 20, IsNullable = true)]
+    [XmlElement(Order = 21, IsNullable = true)]
     public string? EmailTomador { get; set; }
 
-    [XmlElement(Order = 21, IsNullable = true)]
+    [XmlElement(Order = 22, IsNullable = true)]
     public tpCPFCNPJ? CPFCNPJIntermediario { get; set; }
 
-    [XmlElement(Order = 22, IsNullable = true)]
+    [XmlElement(Order = 23, IsNullable = true)]
     public long? InscricaoMunicipalIntermediario { get; set; }
 
-    [XmlElement(Order = 23, IsNullable = true)]
+    [XmlElement(Order = 24, IsNullable = true)]
     public string? ISSRetidoIntermediario { get; set; }
 
-    [XmlElement(Order = 24, IsNullable = true)]
+    [XmlElement(Order = 25, IsNullable = true)]
     public string? EmailIntermediario { get; set; }
 
-    [XmlElement(Order = 25)]
+    [XmlElement(Order = 26)]
     public string Discriminacao { get; set; } = null!;
 
-    [XmlElement(Order = 26, IsNullable = true)]
+    [XmlElement(Order = 27, IsNullable = true)]
     public decimal? ValorCargaTributaria { get; set; }
 
-    [XmlElement(Order = 27, IsNullable = true)]
+    [XmlElement(Order = 28, IsNullable = true)]
     public decimal? PercentualCargaTributaria { get; set; }
 
-    [XmlElement(Order = 28, IsNullable = true)]
+    [XmlElement(Order = 29, IsNullable = true)]
     public string? FonteCargaTributaria { get; set; }
 
-    [XmlElement(Order = 29, IsNullable = true)]
+    [XmlElement(Order = 30, IsNullable = true)]
     public long? CodigoCEI { get; set; }
 
-    [XmlElement(Order = 30, IsNullable = true)]
+    [XmlElement(Order = 31, IsNullable = true)]
     public long? MatriculaObra { get; set; }
 
-    [XmlElement(Order = 31, IsNullable = true)]
+    [XmlElement(Order = 32, IsNullable = true)]
     public int? MunicipioPrestacao { get; set; }
 
-    [XmlElement(Order = 32, IsNullable = true)]
+    [XmlElement(Order = 33, IsNullable = true)]
     public long? NumeroEncapsulamento { get; set; }
 
-    [XmlElement(Order = 33, IsNullable = true)]
+    [XmlElement(Order = 34, IsNullable = true)]
     public decimal? ValorTotalRecebido { get; set; }
 
-    [XmlElement("ValorInicialCobrado", Order = 34, IsNullable = true)]
+    [XmlElement("ValorInicialCobrado", Order = 35, IsNullable = true)]
     public decimal? ValorInicialCobrado { get; set; }
 
-    [XmlElement("ValorFinalCobrado", Order = 35, IsNullable = true)]
+    [XmlElement("ValorFinalCobrado", Order = 36, IsNullable = true)]
     public decimal? ValorFinalCobrado { get; set; }
 
-    [XmlElement(Order = 36, IsNullable = true)]
+    [XmlElement(Order = 37, IsNullable = true)]
     public decimal? ValorMulta { get; set; }
 
-    [XmlElement(Order = 37, IsNullable = true)]
+    [XmlElement(Order = 38, IsNullable = true)]
     public decimal? ValorJuros { get; set; }
 
-    [XmlElement(Order = 38)]
+    [XmlElement(Order = 39)]
     public decimal ValorIPI { get; set; }
 
-    [XmlElement(Order = 39)]
+    [XmlElement(Order = 40)]
     public int ExigibilidadeSuspensa { get; set; } // 0 ou 1
 
-    [XmlElement(Order = 40)]
+    [XmlElement(Order = 41)]
     public int PagamentoParceladoAntecipado { get; set; } // 0 ou 1
 
-    [XmlElement(Order = 41, IsNullable = true)]
+    [XmlElement(Order = 42, IsNullable = true)]
     public string? NCM { get; set; }
 
-    [XmlElement(Order = 42)]
+    [XmlElement(Order = 43)]
     public string NBS { get; set; } = null!;
 
-    [XmlElement("atvEvento", Order = 43, IsNullable = true)]
+    [XmlElement("atvEvento", Order = 44, IsNullable = true)]
     public tpAtividadeEvento? atvEvento { get; set; }
 
-    [XmlElement("cLocPrestacao", Order = 44, IsNullable = true)]
+    [XmlElement("cLocPrestacao", Order = 45, IsNullable = true)]
     public int? cLocPrestacao { get; set; }
 
-    [XmlElement("cPaisPrestacao", Order = 45, IsNullable = true)]
+    [XmlElement("cPaisPrestacao", Order = 46, IsNullable = true)]
     public string? cPaisPrestacao { get; set; }
 
-    [XmlElement(Order = 46)]
+    [XmlElement(Order = 47)]
     public tpIBSCBS IBSCBS { get; set; } = null!;
 }
 

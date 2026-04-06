@@ -49,6 +49,7 @@ public class XmlSerializerService_AliquotaTests
                     ValorIR = 0m,
                     ValorCSLL = 0m,
                     CodigoServico = 2919,
+                    Onerosidade = 1,
                     AliquotaServicos = 0.029m,
                     ISSRetido = false,
                     Discriminacao = "Teste",
@@ -71,6 +72,7 @@ public class XmlSerializerService_AliquotaTests
                         indFinal = 0,
                         cIndOp = "100301",
                         indDest = 0,
+                        serv = new tpServIBSCBS { modoPrestServ = 1, clocalPrestServ = 3550308, indCompGov = 0 },
                         valores = new tpValores { trib = new tpTrib { gIBSCBS = new tpGIBSCBS { cClassTrib = "000001" } } }
                     }
                 }
