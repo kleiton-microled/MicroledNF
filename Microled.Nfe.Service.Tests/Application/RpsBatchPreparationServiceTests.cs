@@ -11,6 +11,23 @@ namespace Microled.Nfe.Service.Tests.Application;
 
 public class RpsBatchPreparationServiceTests
 {
+    /// <summary>
+    /// Data local fixa para vencimento = data + 19 dias corridos (ex.: 23/03/2026 + 19 = 11/04/2026).
+    /// </summary>
+    private sealed class FixedLocalDateTimeProvider : TimeProvider
+    {
+        private readonly DateTimeOffset _instant;
+
+        public FixedLocalDateTimeProvider(DateOnly localDate)
+        {
+            _instant = new DateTimeOffset(localDate.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        }
+
+        public override DateTimeOffset GetUtcNow() => _instant;
+
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
+
     [Fact]
     public void PrepareSignedBatch_ShouldAppendTaxSummaryAndDueDateToDiscriminacao()
     {
@@ -22,7 +39,11 @@ public class RpsBatchPreparationServiceTests
         var certProviderMock = new Mock<ICertificateProvider>();
         certProviderMock.Setup(x => x.GetCertificate()).Returns(TestCertificateHelper.CreateTestCertificateWithPrivateKey());
 
-        var sut = new RpsBatchPreparationService(signatureMock.Object, certProviderMock.Object);
+        var hojeFixo = new DateOnly(2026, 3, 23);
+        var sut = new RpsBatchPreparationService(
+            signatureMock.Object,
+            certProviderMock.Object,
+            new FixedLocalDateTimeProvider(hojeFixo));
         var request = BuildRequest(
             dataEmissao: new DateOnly(2026, 4, 1),
             discriminacao: "Servico mensal",
@@ -30,7 +51,7 @@ public class RpsBatchPreparationServiceTests
             valorPis: 26.00m,
             valorCofins: 120.00m,
             valorCsll: 40.00m,
-            valorIr: 60.00m,
+            valorIr: 342.66m,
             valorInss: 0.00m,
             valorTotalRecebido: 21439.61m);
 
@@ -38,9 +59,10 @@ public class RpsBatchPreparationServiceTests
         var texto = batch.RpsList.Single().Item.Discriminacao;
 
         texto.Should().Contain("Servico mensal");
+        texto.Should().Contain("IRRF: R$342,66");
         texto.Should().Contain("PIS/COFINS/CSLL: R$186,00");
         texto.Should().Contain("Valor liquido: R$21.439,61");
-        texto.Should().Contain("Vencimento: 30/04/2026");
+        texto.Should().Contain("Vencimento: 11/04/2026");
     }
 
     [Fact]
@@ -54,7 +76,10 @@ public class RpsBatchPreparationServiceTests
         var certProviderMock = new Mock<ICertificateProvider>();
         certProviderMock.Setup(x => x.GetCertificate()).Returns(TestCertificateHelper.CreateTestCertificateWithPrivateKey());
 
-        var sut = new RpsBatchPreparationService(signatureMock.Object, certProviderMock.Object);
+        var sut = new RpsBatchPreparationService(
+            signatureMock.Object,
+            certProviderMock.Object,
+            new FixedLocalDateTimeProvider(new DateOnly(2026, 4, 1)));
         var request = BuildRequest(
             dataEmissao: new DateOnly(2026, 4, 1),
             discriminacao: "Servico mensal",
@@ -69,8 +94,10 @@ public class RpsBatchPreparationServiceTests
         var batch = sut.PrepareSignedBatch(request);
         var texto = batch.RpsList.Single().Item.Discriminacao;
 
+        texto.Should().Contain("IRRF: R$60,00");
         texto.Should().Contain("PIS/COFINS/CSLL: R$186,00");
         texto.Should().Contain("Valor liquido: R$3.754,00");
+        texto.Should().Contain("Vencimento: 20/04/2026");
     }
 
     [Fact]
@@ -84,7 +111,10 @@ public class RpsBatchPreparationServiceTests
         var certProviderMock = new Mock<ICertificateProvider>();
         certProviderMock.Setup(x => x.GetCertificate()).Returns(TestCertificateHelper.CreateTestCertificateWithPrivateKey());
 
-        var sut = new RpsBatchPreparationService(signatureMock.Object, certProviderMock.Object);
+        var sut = new RpsBatchPreparationService(
+            signatureMock.Object,
+            certProviderMock.Object,
+            new FixedLocalDateTimeProvider(new DateOnly(2026, 4, 6)));
         var request = BuildRequest(
             dataEmissao: new DateOnly(2026, 4, 6),
             discriminacao: "teste",
@@ -99,8 +129,10 @@ public class RpsBatchPreparationServiceTests
         var batch = sut.PrepareSignedBatch(request);
         var texto = batch.RpsList.Single().Item.Discriminacao;
 
+        texto.Should().Contain("IRRF: R$60,00");
         texto.Should().Contain("PIS/COFINS/CSLL: R$207,66");
         texto.Should().Contain("Valor liquido: R$3.732,34");
+        texto.Should().Contain("Vencimento: 25/04/2026");
     }
 
     private static SendRpsRequestDto BuildRequest(
