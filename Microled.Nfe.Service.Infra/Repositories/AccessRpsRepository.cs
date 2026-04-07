@@ -2,6 +2,7 @@ using System.Data;
 using System.Data.OleDb;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microled.Nfe.Service.Application.NfseSpTax;
 using Microled.Nfe.Service.Domain.Entities;
 using Microled.Nfe.Service.Domain.Enums;
 using Microled.Nfe.Service.Domain.ValueObjects;
@@ -944,6 +945,12 @@ public class AccessRpsRepository : IAccessRpsRepository
                 ? valorServicos
                 : valorFinalCobrado.Value;
 
+        var (valorCt, fracaoCt) = CargaTributariaNormalization.RepairFromFonteComposta(
+            valorCargaTributaria,
+            percentualCargaTributaria,
+            fonteCargaTributaria);
+        var fonteCtXml = CargaTributariaNormalization.CanonicalFonteCargaTributariaXml(fonteCargaTributaria);
+
         return new RpsTaxInfo(
             MapMoney(valorPis),
             MapMoney(valorCofins),
@@ -951,9 +958,9 @@ public class AccessRpsRepository : IAccessRpsRepository
             MapMoney(valorIr),
             MapMoney(valorCsll),
             MapMoney(valorIpi),
-            MapMoney(valorCargaTributaria),
-            percentualCargaTributaria,
-            fonteCargaTributaria,
+            MapMoney(valorCt ?? valorCargaTributaria),
+            fracaoCt ?? CargaTributariaNormalization.NormalizePercentualToFraction(percentualCargaTributaria),
+            fonteCtXml,
             MapMoney(valorTotalRecebido),
             MapMoney(valorFinalCobradoEfetivo),
             MapMoney(valorMulta),

@@ -1,8 +1,10 @@
 using FluentAssertions;
+using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Services;
 using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Tests.Helpers;
+using Microsoft.Extensions.Options;
 using Moq;
 using System.Security.Cryptography.X509Certificates;
 using Xunit;
@@ -43,6 +45,7 @@ public class RpsBatchPreparationServiceTests
         var sut = new RpsBatchPreparationService(
             signatureMock.Object,
             certProviderMock.Object,
+            Options.Create(new IbptCargaTributariaOptions { PreencherQuandoAusente = false }),
             new FixedLocalDateTimeProvider(hojeFixo));
         var request = BuildRequest(
             dataEmissao: new DateOnly(2026, 4, 1),
@@ -79,6 +82,7 @@ public class RpsBatchPreparationServiceTests
         var sut = new RpsBatchPreparationService(
             signatureMock.Object,
             certProviderMock.Object,
+            Options.Create(new IbptCargaTributariaOptions { PreencherQuandoAusente = false }),
             new FixedLocalDateTimeProvider(new DateOnly(2026, 4, 1)));
         var request = BuildRequest(
             dataEmissao: new DateOnly(2026, 4, 1),
@@ -114,6 +118,7 @@ public class RpsBatchPreparationServiceTests
         var sut = new RpsBatchPreparationService(
             signatureMock.Object,
             certProviderMock.Object,
+            Options.Create(new IbptCargaTributariaOptions { PreencherQuandoAusente = false }),
             new FixedLocalDateTimeProvider(new DateOnly(2026, 4, 6)));
         var request = BuildRequest(
             dataEmissao: new DateOnly(2026, 4, 6),
@@ -133,6 +138,53 @@ public class RpsBatchPreparationServiceTests
         texto.Should().Contain("PIS/COFINS/CSLL: R$207,66");
         texto.Should().Contain("Valor liquido: R$3.732,34");
         texto.Should().Contain("Vencimento: 25/04/2026");
+    }
+
+    [Fact]
+    public void PrepareSignedBatch_ShouldComputeIbptCargaWhenClientOmitsCargaFields()
+    {
+        var signatureMock = new Mock<IRpsSignatureService>();
+        signatureMock
+            .Setup(x => x.SignRps(It.IsAny<Microled.Nfe.Service.Domain.Entities.Rps>(), It.IsAny<X509Certificate2>()))
+            .Returns("ASSINATURA_TESTE");
+
+        var certProviderMock = new Mock<ICertificateProvider>();
+        certProviderMock.Setup(x => x.GetCertificate()).Returns(TestCertificateHelper.CreateTestCertificateWithPrivateKey());
+
+        var sut = new RpsBatchPreparationService(
+            signatureMock.Object,
+            certProviderMock.Object,
+            Options.Create(new IbptCargaTributariaOptions
+            {
+                PreencherQuandoAusente = true,
+                PercentualFracaoPadrao = 0.1645m,
+                FontePadrao = "IBPT"
+            }),
+            new FixedLocalDateTimeProvider(new DateOnly(2026, 1, 1)));
+
+        var request = BuildRequest(
+            dataEmissao: new DateOnly(2026, 1, 1),
+            discriminacao: "Servico",
+            valorServico: 10_000.00m,
+            valorPis: 0m,
+            valorCofins: 0m,
+            valorCsll: 0m,
+            valorIr: 0m,
+            valorInss: 0m,
+            valorTotalRecebido: 10_000.00m);
+        request.RpsList[0].Tributos!.ValorCargaTributaria = null;
+        request.RpsList[0].Tributos!.PercentualCargaTributaria = null;
+        request.RpsList[0].Tributos!.FonteCargaTributaria = null;
+
+        var batch = sut.PrepareSignedBatch(request);
+        var rps = batch.RpsList.Single();
+
+        rps.Tributos!.ValorCargaTributaria!.Value.Should().Be(1645.00m);
+        rps.Tributos.PercentualCargaTributaria.Should().Be(0.1645m);
+        rps.Tributos.FonteCargaTributaria.Should().Be("IBPT");
+
+        var texto = rps.Item.Discriminacao;
+        texto.Should().Contain("R$ 1.645,00 (16,45%) / IBPT");
     }
 
     private static SendRpsRequestDto BuildRequest(

@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.LocalAgent.Api.Endpoints;
 using Microled.Nfe.LocalAgent.Api.Services;
+using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Application.NfseSpTax;
 using Microled.Nfe.Service.Application.Services;
@@ -67,6 +68,8 @@ builder.Services.AddOptions<NfeServiceOptions>()
         configuration.GetSection("NfeServiceOptions").Bind(options);
         configuration.GetSection("Certificate").Bind(options.Certificate);
     });
+builder.Services.Configure<IbptCargaTributariaOptions>(
+    builder.Configuration.GetSection(IbptCargaTributariaOptions.SectionName));
 
 var allowedOrigins = localAgentOptions.AllowedOrigins.Count > 0
     ? localAgentOptions.AllowedOrigins.ToArray()

@@ -1,3 +1,4 @@
+using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Application.Services;
 using Microled.Nfe.Service.Application.UseCases;
@@ -36,6 +37,8 @@ public class Program
                 // Configure options
                 services.Configure<NfeServiceOptions>(
                     context.Configuration.GetSection(NfeServiceOptions.SectionName));
+                services.Configure<IbptCargaTributariaOptions>(
+                    context.Configuration.GetSection(IbptCargaTributariaOptions.SectionName));
                 services.Configure<LocalCertificateProfileStorageOptions>(options =>
                 {
                     options.DataDirectory = Path.Combine(context.HostingEnvironment.ContentRootPath, "App_Data", "certificates");
