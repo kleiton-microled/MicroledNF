@@ -13,6 +13,11 @@ public sealed class IbptCargaTributariaOptions
     public bool PreencherQuandoAusente { get; set; } = true;
 
     /// <summary>
+    /// Quando true, ignora os campos enviados pelo cliente e aplica o padrão configurado.
+    /// </summary>
+    public bool SobrescreverQuandoInformado { get; set; } = true;
+
+    /// <summary>
     /// Fração entre 0 e 1 (ex.: 0,1645 = 16,45%). Usada como PercentualCargaTributaria no XML e no cálculo do valor.
     /// </summary>
     public decimal PercentualFracaoPadrao { get; set; } = 0.1645m;
