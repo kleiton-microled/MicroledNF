@@ -111,7 +111,12 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         decimal valorServicos,
         decimal valorDeducoes)
     {
-        if (!_ibptCargaOptions.PreencherQuandoAusente || !DevePreencherCargaTributariaIbpt(tributos))
+        if (!_ibptCargaOptions.PreencherQuandoAusente)
+        {
+            return tributos;
+        }
+
+        if (!_ibptCargaOptions.SobrescreverQuandoInformado && !DevePreencherCargaTributariaIbpt(tributos))
         {
             return tributos;
         }
