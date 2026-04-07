@@ -1,9 +1,12 @@
+using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.Interfaces;
+using Microled.Nfe.Service.Application.NfseSpTax;
 using Microled.Nfe.Service.Domain.Entities;
 using Microled.Nfe.Service.Domain.Enums;
 using Microled.Nfe.Service.Domain.Interfaces;
 using Microled.Nfe.Service.Domain.ValueObjects;
+using Microsoft.Extensions.Options;
 using System.Globalization;
 
 namespace Microled.Nfe.Service.Application.Services;
@@ -16,15 +19,18 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
     private readonly IRpsSignatureService _signatureService;
     private readonly ICertificateProvider _certificateProvider;
     private readonly TimeProvider _timeProvider;
+    private readonly IbptCargaTributariaOptions _ibptCargaOptions;
 
     public RpsBatchPreparationService(
         IRpsSignatureService signatureService,
         ICertificateProvider certificateProvider,
+        IOptions<IbptCargaTributariaOptions>? ibptCargaOptions = null,
         TimeProvider? timeProvider = null)
     {
         _signatureService = signatureService ?? throw new ArgumentNullException(nameof(signatureService));
         _certificateProvider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
         _timeProvider = timeProvider ?? TimeProvider.System;
+        _ibptCargaOptions = ibptCargaOptions?.Value ?? new IbptCargaTributariaOptions();
     }
 
     public RpsBatch PrepareSignedBatch(SendRpsRequestDto request)
@@ -44,9 +50,10 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         return new RpsBatch(rpsList, request.DataInicio, request.DataFim, request.Transacao);
     }
 
-    private static Rps MapToRps(RpsDto dto, ServiceProviderDto prestadorDto, DateOnly dataAtualParaVencimento)
+    private Rps MapToRps(RpsDto dto, ServiceProviderDto prestadorDto, DateOnly dataAtualParaVencimento)
     {
         var tributosDto = dto.Tributos ?? BuildLegacyTributos(dto);
+        tributosDto = ApplyIbptCargaTributariaPadrao(tributosDto, dto.Item.ValorServicos, dto.Item.ValorDeducoes);
 
         var prestador = new ServiceProvider(
             prestadorDto.CpfCnpj.Length == 11
@@ -96,6 +103,55 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         return rps;
     }
 
+    /// <summary>
+    /// Preenche carga tributária IBPT no servidor quando o cliente não envia valor, percentual nem fonte.
+    /// </summary>
+    private RpsTributosDto? ApplyIbptCargaTributariaPadrao(
+        RpsTributosDto? tributos,
+        decimal valorServicos,
+        decimal valorDeducoes)
+    {
+        if (!_ibptCargaOptions.PreencherQuandoAusente || !DevePreencherCargaTributariaIbpt(tributos))
+        {
+            return tributos;
+        }
+
+        var fracao = _ibptCargaOptions.PercentualFracaoPadrao;
+        if (fracao < 0m || fracao > 1m)
+        {
+            return tributos;
+        }
+
+        var baseCalculo = _ibptCargaOptions.UsarBaseServicoMenosDeducoes
+            ? Math.Max(0m, valorServicos - valorDeducoes)
+            : Math.Max(0m, valorServicos);
+
+        var valorCarga = Math.Round(baseCalculo * fracao, 2, MidpointRounding.AwayFromZero);
+        var fonte = string.IsNullOrWhiteSpace(_ibptCargaOptions.FontePadrao)
+            ? "IBPT"
+            : _ibptCargaOptions.FontePadrao.Trim();
+
+        var merged = tributos ?? new RpsTributosDto();
+        merged.ValorCargaTributaria = valorCarga;
+        merged.PercentualCargaTributaria = fracao;
+        merged.FonteCargaTributaria = fonte;
+        return merged;
+    }
+
+    private static bool DevePreencherCargaTributariaIbpt(RpsTributosDto? t)
+    {
+        if (t == null)
+        {
+            return true;
+        }
+
+        var semValor = !t.ValorCargaTributaria.HasValue;
+        var semPct = !t.PercentualCargaTributaria.HasValue;
+        var f = t.FonteCargaTributaria?.Trim();
+        var semFonte = string.IsNullOrWhiteSpace(f) || string.Equals(f, "0", StringComparison.Ordinal);
+        return semValor && semPct && semFonte;
+    }
+
     private static Address MapToAddress(AddressDto dto)
     {
         return new Address(
@@ -117,6 +173,12 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
             return null;
         }
 
+        var (valorCt, fracaoCt) = CargaTributariaNormalization.RepairFromFonteComposta(
+            tributos.ValorCargaTributaria,
+            tributos.PercentualCargaTributaria,
+            tributos.FonteCargaTributaria);
+        var fonteCtXml = CargaTributariaNormalization.CanonicalFonteCargaTributariaXml(tributos.FonteCargaTributaria);
+
         return new RpsTaxInfo(
             MapMoney(tributos.ValorPIS),
             MapMoney(tributos.ValorCOFINS),
@@ -124,9 +186,9 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
             MapMoney(tributos.ValorIR),
             MapMoney(tributos.ValorCSLL),
             MapMoney(tributos.ValorIPI),
-            MapMoney(tributos.ValorCargaTributaria),
-            tributos.PercentualCargaTributaria,
-            tributos.FonteCargaTributaria,
+            MapMoney(valorCt ?? tributos.ValorCargaTributaria),
+            fracaoCt ?? CargaTributariaNormalization.NormalizePercentualToFraction(tributos.PercentualCargaTributaria),
+            fonteCtXml,
             MapMoney(tributos.ValorTotalRecebido),
             MapMoney(tributos.ValorFinalCobrado),
             MapMoney(tributos.ValorMulta),
@@ -155,13 +217,27 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
         var vencimento = dataAtualParaVencimento.AddDays(19);
         var descricaoBase = StripAutoSummaryLines(descricaoOriginal);
 
-        return string.Join(
-            "\n",
-            descricaoBase,
-            $"IRRF: {FormatCurrency(valorIr)}",
-            $"PIS/COFINS/CSLL: {FormatCurrency(totalPisCofinsCsll)}",
-            $"Valor liquido: {FormatCurrency(valorLiquidoCalculado)}",
-            $"Vencimento: {vencimento:dd/MM/yyyy}");
+        var (valorCt, fracaoCt) = CargaTributariaNormalization.RepairFromFonteComposta(
+            tributos?.ValorCargaTributaria,
+            tributos?.PercentualCargaTributaria,
+            tributos?.FonteCargaTributaria);
+        var fonteCt = CargaTributariaNormalization.CanonicalFonteCargaTributariaXml(tributos?.FonteCargaTributaria) ?? "IBPT";
+        var linhaIbpt = valorCt.HasValue && fracaoCt.HasValue && fonteCt.Equals("IBPT", StringComparison.OrdinalIgnoreCase)
+            ? CargaTributariaNormalization.FormatIbptDiscriminacaoLine(valorCt.Value, fracaoCt.Value, fonteCt)
+            : null;
+
+        var blocos = new List<string> { descricaoBase };
+        blocos.Add($"IRRF: {FormatCurrency(valorIr)}");
+        blocos.Add($"PIS/COFINS/CSLL: {FormatCurrency(totalPisCofinsCsll)}");
+        blocos.Add($"Valor liquido: {FormatCurrency(valorLiquidoCalculado)}");
+        if (linhaIbpt != null)
+        {
+            blocos.Add(linhaIbpt);
+        }
+
+        blocos.Add($"Vencimento: {vencimento:dd/MM/yyyy}");
+
+        return string.Join("\n", blocos);
     }
 
     private static string StripAutoSummaryLines(string descricao)
@@ -174,10 +250,33 @@ public class RpsBatchPreparationService : IRpsBatchPreparationService
                 !l.StartsWith("PIS/COFINS/CSLL:", StringComparison.OrdinalIgnoreCase) &&
                 !l.StartsWith("Valor liquido:", StringComparison.OrdinalIgnoreCase) &&
                 !l.StartsWith("Valor líquido:", StringComparison.OrdinalIgnoreCase) &&
-                !l.StartsWith("Vencimento:", StringComparison.OrdinalIgnoreCase))
+                !l.StartsWith("Vencimento:", StringComparison.OrdinalIgnoreCase) &&
+                !IsIbptDiscriminacaoLine(l) &&
+                !IsLegacyIbptPercentFonteLine(l))
             .ToArray();
 
         return string.Join("\n", lines).TrimEnd();
+    }
+
+    private static bool IsIbptDiscriminacaoLine(string line)
+    {
+        var t = line.TrimStart();
+        if (!t.StartsWith("R$", StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        return t.Contains("/ IBPT", StringComparison.OrdinalIgnoreCase)
+            || t.Contains("/IBPT", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Ex.: "1645,00% / IBPT" (formato legado incorreto).</summary>
+    private static bool IsLegacyIbptPercentFonteLine(string line)
+    {
+        var t = line.Trim();
+        return t.Contains('%')
+            && t.Contains("/ IBPT", StringComparison.OrdinalIgnoreCase)
+            && !t.StartsWith("R$", StringComparison.Ordinal);
     }
 
     private static string FormatCurrency(decimal value)

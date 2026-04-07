@@ -3,6 +3,7 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Microled.Nfe.Service.Api.HealthChecks;
 using Microled.Nfe.Service.Api.Middleware;
+using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Application.Services;
 using Microled.Nfe.Service.Application.UseCases;
@@ -25,6 +26,8 @@ var builder = WebApplication.CreateBuilder(args);
 // Configure options
 builder.Services.Configure<NfeServiceOptions>(
     builder.Configuration.GetSection(NfeServiceOptions.SectionName));
+builder.Services.Configure<IbptCargaTributariaOptions>(
+    builder.Configuration.GetSection(IbptCargaTributariaOptions.SectionName));
 builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
 {
     options.DataDirectory = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "certificates");
