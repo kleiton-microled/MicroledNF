@@ -14,15 +14,18 @@ public class SendRpsUseCase : ISendRpsUseCase
     private readonly INfeGateway _nfeGateway;
     private readonly IRpsBatchPreparationService _rpsBatchPreparationService;
     private readonly INotaFiscalFlowPersistenceService _notaFiscalPersistence;
+    private readonly IAsyncRpsProtocolPersistenceOrchestrator _asyncProtocolOrchestrator;
 
     public SendRpsUseCase(
         INfeGateway nfeGateway,
         IRpsBatchPreparationService rpsBatchPreparationService,
-        INotaFiscalFlowPersistenceService notaFiscalPersistence)
+        INotaFiscalFlowPersistenceService notaFiscalPersistence,
+        IAsyncRpsProtocolPersistenceOrchestrator asyncProtocolOrchestrator)
     {
         _nfeGateway = nfeGateway ?? throw new ArgumentNullException(nameof(nfeGateway));
         _rpsBatchPreparationService = rpsBatchPreparationService ?? throw new ArgumentNullException(nameof(rpsBatchPreparationService));
         _notaFiscalPersistence = notaFiscalPersistence ?? throw new ArgumentNullException(nameof(notaFiscalPersistence));
+        _asyncProtocolOrchestrator = asyncProtocolOrchestrator ?? throw new ArgumentNullException(nameof(asyncProtocolOrchestrator));
     }
 
     public async Task<SendRpsResponseDto> ExecuteAsync(SendRpsRequestDto request, CancellationToken cancellationToken)
@@ -31,6 +34,15 @@ public class SendRpsUseCase : ISendRpsUseCase
         await _notaFiscalPersistence.PersistRpsBatchBeforeSendAsync(batch, PersistenceActor, cancellationToken);
         var result = await _nfeGateway.SendRpsBatchAsync(batch, cancellationToken);
         await _notaFiscalPersistence.PersistRpsBatchAfterSendAsync(batch, result, PersistenceActor, cancellationToken);
+
+        if (!string.IsNullOrWhiteSpace(result.Protocolo) && result.ChavesNFeRPS.Count == 0)
+        {
+            await _asyncProtocolOrchestrator.ResolveAndPersistAsync(
+                result.Protocolo,
+                request.Prestador.CpfCnpj,
+                PersistenceActor,
+                cancellationToken);
+        }
 
         return new SendRpsResponseDto
         {

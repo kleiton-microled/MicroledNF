@@ -13,11 +13,16 @@ namespace Microled.Nfe.Service.Api.Controllers;
 public class RpsController : ControllerBase
 {
     private readonly ISendRpsUseCase _sendRpsUseCase;
+    private readonly IConsultBatchStatusUseCase _consultBatchStatusUseCase;
     private readonly ILogger<RpsController> _logger;
 
-    public RpsController(ISendRpsUseCase sendRpsUseCase, ILogger<RpsController> logger)
+    public RpsController(
+        ISendRpsUseCase sendRpsUseCase,
+        IConsultBatchStatusUseCase consultBatchStatusUseCase,
+        ILogger<RpsController> logger)
     {
         _sendRpsUseCase = sendRpsUseCase ?? throw new ArgumentNullException(nameof(sendRpsUseCase));
+        _consultBatchStatusUseCase = consultBatchStatusUseCase ?? throw new ArgumentNullException(nameof(consultBatchStatusUseCase));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -102,6 +107,42 @@ public class RpsController : ControllerBase
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error sending RPS batch");
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Consults async batch status by protocol and persists note authorization when processed.
+    /// </summary>
+    /// <remarks>
+    /// Sample request:
+    ///
+    ///     POST /api/v1/rps/status
+    ///     {
+    ///       "numeroProtocolo": "b9cb09c99fa84be08598a182668c93c6",
+    ///       "cnpjRemetente": "12345678000190"
+    ///     }
+    /// </remarks>
+    [HttpPost("status")]
+    [ProducesResponseType(typeof(ConsultBatchStatusResponseDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ValidationProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<ActionResult<ConsultBatchStatusResponseDto>> ConsultBatchStatus(
+        [FromBody] ConsultBatchStatusRequestDto request,
+        CancellationToken cancellationToken)
+    {
+        _logger.LogInformation(
+            "Received request to consult batch status for protocol {Protocolo}",
+            request.NumeroProtocolo);
+
+        try
+        {
+            var response = await _consultBatchStatusUseCase.ExecuteAsync(request, cancellationToken);
+            return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error consulting batch status for protocol {Protocolo}", request.NumeroProtocolo);
             throw;
         }
     }

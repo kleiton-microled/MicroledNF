@@ -182,6 +182,8 @@ builder.Services.AddScoped<INfeGateway>(serviceProvider =>
 });
 
 builder.Services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
+builder.Services.AddScoped<INotaFiscalFlowPersistenceService, NullNotaFiscalFlowPersistenceService>();
+builder.Services.AddScoped<IAsyncRpsProtocolPersistenceOrchestrator, NullAsyncRpsProtocolPersistenceOrchestrator>();
 builder.Services.AddScoped<IConsultBatchStatusUseCase, ConsultBatchStatusUseCase>();
 builder.Services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
 builder.Services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
