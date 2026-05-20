@@ -86,6 +86,11 @@ public class NfeServiceOptions
     public bool LogRawXml { get; set; } = false;
 
     /// <summary>
+    /// Log parsed prefeitura response objects as JSON at Information level (visible in console).
+    /// </summary>
+    public bool LogPrefeituraResponse { get; set; } = false;
+
+    /// <summary>
     /// Enable logging of sensitive data (CNPJ, CPF, values, keys)
     /// Only effective if LogRawXml is true
     /// </summary>
