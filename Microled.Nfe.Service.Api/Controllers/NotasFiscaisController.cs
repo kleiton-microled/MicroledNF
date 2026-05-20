@@ -18,6 +18,10 @@ public class NotasFiscaisController : ControllerBase
     private readonly IAttachNotaFiscalPdfUseCase _attachPdfUseCase;
     private readonly IGetNotaFiscalXmlUseCase _getXmlUseCase;
     private readonly IGetNotaFiscalPdfUseCase _getPdfUseCase;
+    private readonly IPersistRpsSendResultUseCase _persistSendResultUseCase;
+    private readonly IPersistBatchStatusDataUseCase _persistBatchStatusUseCase;
+    private readonly IPersistConsultNfeResultUseCase _persistConsultResultUseCase;
+    private readonly IPersistCancelNfeResultUseCase _persistCancelResultUseCase;
     private readonly ILogger<NotasFiscaisController> _logger;
 
     public NotasFiscaisController(
@@ -29,6 +33,10 @@ public class NotasFiscaisController : ControllerBase
         IAttachNotaFiscalPdfUseCase attachPdfUseCase,
         IGetNotaFiscalXmlUseCase getXmlUseCase,
         IGetNotaFiscalPdfUseCase getPdfUseCase,
+        IPersistRpsSendResultUseCase persistSendResultUseCase,
+        IPersistBatchStatusDataUseCase persistBatchStatusUseCase,
+        IPersistConsultNfeResultUseCase persistConsultResultUseCase,
+        IPersistCancelNfeResultUseCase persistCancelResultUseCase,
         ILogger<NotasFiscaisController> logger)
     {
         _createUseCase = createUseCase;
@@ -39,6 +47,10 @@ public class NotasFiscaisController : ControllerBase
         _attachPdfUseCase = attachPdfUseCase;
         _getXmlUseCase = getXmlUseCase;
         _getPdfUseCase = getPdfUseCase;
+        _persistSendResultUseCase = persistSendResultUseCase;
+        _persistBatchStatusUseCase = persistBatchStatusUseCase;
+        _persistConsultResultUseCase = persistConsultResultUseCase;
+        _persistCancelResultUseCase = persistCancelResultUseCase;
         _logger = logger;
     }
 
@@ -166,6 +178,51 @@ public class NotasFiscaisController : ControllerBase
         }
 
         return Content(response.Data.Xml, "application/xml; charset=utf-8");
+    }
+
+    [HttpPost("persist/send-result")]
+    [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<PersistNotaFiscalBatchResponse>>> PersistSendResult(
+        [FromBody] PersistRpsSendResultRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _persistSendResultUseCase.ExecuteAsync(request, cancellationToken);
+        return ToActionResult(response);
+    }
+
+    [HttpPost("persist/batch-status")]
+    [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<PersistNotaFiscalBatchResponse>>> PersistBatchStatus(
+        [FromBody] PersistBatchStatusDataRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _persistBatchStatusUseCase.ExecuteAsync(request, cancellationToken);
+        return ToActionResult(response);
+    }
+
+    [HttpPost("persist/consult-result")]
+    [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ApiResponse<PersistNotaFiscalBatchResponse>>> PersistConsultResult(
+        [FromBody] PersistConsultNfeResultRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _persistConsultResultUseCase.ExecuteAsync(request, cancellationToken);
+        return ToActionResult(response);
+    }
+
+    [HttpPost("persist/cancel-result")]
+    [ProducesResponseType(typeof(ApiResponse<NotaFiscalResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<NotaFiscalResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<NotaFiscalResponse>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<NotaFiscalResponse>>> PersistCancelResult(
+        [FromBody] PersistCancelNfeResultRequest request,
+        CancellationToken cancellationToken)
+    {
+        var response = await _persistCancelResultUseCase.ExecuteAsync(request, cancellationToken);
+        return ToActionResult(response, StatusCodes.Status404NotFound);
     }
 
     private ActionResult<ApiResponse<T>> ToActionResult<T>(

@@ -120,6 +120,8 @@ builder.Services.AddScoped<ConsultaNfeXsdValidator>();
 builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 builder.Services.AddScoped<CertificateUnlockService>();
 builder.Services.AddScoped<LocalRpsProcessingService>();
+builder.Services.AddScoped<LocalAgentNotaFiscalSyncService>();
+builder.Services.AddHttpClient<IMainApiNotaFiscalClient, MainApiNotaFiscalClient>();
 builder.Services.AddSingleton<INfseSpFederalTaxRuleProvider, NfseSpFederalTaxRuleProvider>();
 builder.Services.AddScoped<INfseSpTaxCalculationService, NfseSpTaxCalculationService>();
 
@@ -253,6 +255,11 @@ app.Lifetime.ApplicationStarted.Register(() =>
     startupLogger.LogInformation(
         "RPS Output Directory: {RpsOutputDirectory}",
         integrationOptions.RpsOutputDirectory ?? "(not configured)");
+    startupLogger.LogInformation(
+        "Main API persistence: {MainApiBaseUrl}",
+        integrationOptions.SyncPersistenceToMainApi
+            ? integrationOptions.MainApiBaseUrl
+            : "(disabled — set NfeIntegration:MainApiBaseUrl)");
     startupLogger.LogInformation(
         "Validation Output Directory: {ValidationOutputDirectory}",
         validationOptions.OutputDirectory);

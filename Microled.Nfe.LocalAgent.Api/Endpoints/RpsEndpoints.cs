@@ -51,7 +51,8 @@ public static class RpsEndpoints
             ConsultBatchStatusRequestDto request,
             IValidator<ConsultBatchStatusRequestDto> validator,
             CertificateUnlockService unlockService,
-            IConsultBatchStatusUseCase useCase,
+            INfeGateway nfeGateway,
+            LocalAgentNotaFiscalSyncService notaFiscalSyncService,
             CancellationToken cancellationToken) =>
         {
             var validationProblem = await EndpointValidation.ValidateAsync(request, validator, cancellationToken);
@@ -61,7 +62,31 @@ public static class RpsEndpoints
             }
 
             await unlockService.UnlockAsync(cancellationToken);
-            var response = await useCase.ExecuteAsync(request, cancellationToken);
+            var gatewayResult = await nfeGateway.ConsultBatchStatusAsync(
+                request.NumeroProtocolo,
+                request.CnpjRemetente,
+                cancellationToken);
+
+            await notaFiscalSyncService.SyncBatchStatusAsync(request, gatewayResult, cancellationToken);
+
+            var response = new ConsultBatchStatusResponseDto
+            {
+                Sucesso = gatewayResult.Sucesso,
+                SituacaoCodigo = gatewayResult.SituacaoCodigo,
+                SituacaoNome = gatewayResult.SituacaoNome,
+                NumeroLote = gatewayResult.NumeroLote,
+                DataRecebimento = gatewayResult.DataRecebimento,
+                DataProcessamento = gatewayResult.DataProcessamento,
+                ResultadoOperacao = gatewayResult.ResultadoOperacao,
+                Erros = gatewayResult.Erros
+                    .Select(erro => new EventoDto
+                    {
+                        Codigo = erro.Codigo,
+                        Descricao = erro.Descricao
+                    })
+                    .ToList()
+            };
+
             return TypedResults.Ok(response);
         });
 

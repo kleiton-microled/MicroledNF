@@ -19,6 +19,7 @@ public static class NfeEndpoints
             IValidator<ConsultNfeRequestDto> validator,
             CertificateUnlockService unlockService,
             IConsultNfeUseCase useCase,
+            LocalAgentNotaFiscalSyncService notaFiscalSyncService,
             CancellationToken cancellationToken) =>
         {
             var validationProblem = await EndpointValidation.ValidateAsync(request, validator, cancellationToken);
@@ -29,6 +30,7 @@ public static class NfeEndpoints
 
             await unlockService.UnlockAsync(cancellationToken);
             var response = await useCase.ExecuteAsync(request, cancellationToken);
+            await notaFiscalSyncService.SyncConsultResultAsync(response, cancellationToken);
             return TypedResults.Ok(response);
         });
 
@@ -37,6 +39,7 @@ public static class NfeEndpoints
             IValidator<CancelNfeRequestDto> validator,
             CertificateUnlockService unlockService,
             ICancelNfeUseCase useCase,
+            LocalAgentNotaFiscalSyncService notaFiscalSyncService,
             CancellationToken cancellationToken) =>
         {
             var validationProblem = await EndpointValidation.ValidateAsync(request, validator, cancellationToken);
@@ -47,6 +50,7 @@ public static class NfeEndpoints
 
             await unlockService.UnlockAsync(cancellationToken);
             var response = await useCase.ExecuteAsync(request, cancellationToken);
+            await notaFiscalSyncService.SyncCancelResultAsync(request, response, cancellationToken);
             return TypedResults.Ok(response);
         });
 

@@ -14,6 +14,7 @@ public class LocalRpsProcessingService
     private readonly IRpsBatchPreparationService _rpsBatchPreparationService;
     private readonly IRpsXmlValidationExportService _validationExportService;
     private readonly ISendRpsUseCase _sendRpsUseCase;
+    private readonly LocalAgentNotaFiscalSyncService _notaFiscalSyncService;
     private readonly NfeIntegrationOptions _integrationOptions;
     private readonly NfeValidationOptions _validationOptions;
 
@@ -22,6 +23,7 @@ public class LocalRpsProcessingService
         IRpsBatchPreparationService rpsBatchPreparationService,
         IRpsXmlValidationExportService validationExportService,
         ISendRpsUseCase sendRpsUseCase,
+        LocalAgentNotaFiscalSyncService notaFiscalSyncService,
         IOptions<NfeIntegrationOptions> integrationOptions,
         IOptions<NfeValidationOptions> validationOptions)
     {
@@ -29,6 +31,7 @@ public class LocalRpsProcessingService
         _rpsBatchPreparationService = rpsBatchPreparationService ?? throw new ArgumentNullException(nameof(rpsBatchPreparationService));
         _validationExportService = validationExportService ?? throw new ArgumentNullException(nameof(validationExportService));
         _sendRpsUseCase = sendRpsUseCase ?? throw new ArgumentNullException(nameof(sendRpsUseCase));
+        _notaFiscalSyncService = notaFiscalSyncService ?? throw new ArgumentNullException(nameof(notaFiscalSyncService));
         _integrationOptions = integrationOptions.Value;
         _validationOptions = validationOptions.Value;
     }
@@ -52,6 +55,7 @@ public class LocalRpsProcessingService
         }
 
         var response = await _sendRpsUseCase.ExecuteAsync(request, cancellationToken);
+        await _notaFiscalSyncService.SyncSendResultAsync(request, response, cancellationToken);
         return MapSendResponse(response);
     }
 
