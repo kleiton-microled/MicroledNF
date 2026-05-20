@@ -38,7 +38,7 @@ pipeline {
                     dotnet publish ${PROJECT_PATH} -c Release -o ${PUBLISH_DIR}
 
                     echo "== BUILD MIGRATIONS BUNDLE =="
-                    dotnet tool install --global dotnet-ef || true
+                    dotnet tool install --global dotnet-ef --version 8.0.* || dotnet tool update --global dotnet-ef --version 8.0.*
                     dotnet restore --runtime linux-x64
                     dotnet ef migrations bundle \
                         --project ${INFRA_PROJECT_PATH} \
