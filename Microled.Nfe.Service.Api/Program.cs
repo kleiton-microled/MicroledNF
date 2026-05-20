@@ -14,9 +14,14 @@ using Microled.Nfe.Service.Infra.Client;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.Mapping;
+using Microled.Nfe.Service.Application.Interfaces.NotasFiscais;
+using Microled.Nfe.Service.Application.UseCases.NotasFiscais;
+using Microled.Nfe.Service.Infra.Persistence;
 using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
@@ -32,6 +37,16 @@ builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
 {
     options.DataDirectory = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "certificates");
 });
+
+var nfeDatabaseConnection = builder.Configuration.GetConnectionString("NfeDatabase");
+if (string.IsNullOrWhiteSpace(nfeDatabaseConnection))
+{
+    throw new InvalidOperationException(
+        "Connection string 'NfeDatabase' is not configured. Set ConnectionStrings:NfeDatabase in appsettings.");
+}
+
+builder.Services.AddDbContext<NfeDbContext>(options =>
+    options.UseNpgsql(nfeDatabaseConnection));
 
 // Add services to the container
 builder.Services.AddControllers();
@@ -80,6 +95,8 @@ builder.Services.AddScoped<INfeCancellationSignatureService, NfeCancellationSign
 // Register Infrastructure services
 builder.Services.AddScoped<ICertificateDiscoveryService, WindowsCertificateDiscoveryService>();
 builder.Services.AddScoped<ICompanyCertificateProfileRepository, JsonCompanyCertificateProfileRepository>();
+builder.Services.AddScoped<INotaFiscalRepository, NotaFiscalRepository>();
+builder.Services.AddScoped<INotaFiscalFlowPersistenceService, NotaFiscalFlowPersistenceService>();
 builder.Services.AddScoped<ICertificateProvider, CertificateProvider>();
 builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
 {
@@ -95,7 +112,11 @@ builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 
 // Register Health Checks
 builder.Services.AddHealthChecks()
-    .AddCheck<NfeHealthCheck>("nfe", tags: new[] { "nfe", "certificate", "configuration" });
+    .AddCheck<NfeHealthCheck>("nfe", tags: new[] { "nfe", "certificate", "configuration" })
+    .AddDbContextCheck<NfeDbContext>(
+        name: "nfe_database",
+        failureStatus: HealthStatus.Unhealthy,
+        tags: new[] { "database", "postgresql", "ready" });
 
 // Register INfeGateway based on configuration
 var useFakeGateway = builder.Configuration.GetValue<bool>("Features:UseFakeGateway", false);
@@ -187,6 +208,14 @@ builder.Services.AddScoped<IListCertificatesUseCase, ListCertificatesUseCase>();
 builder.Services.AddScoped<ISelectCertificateUseCase, SelectCertificateUseCase>();
 builder.Services.AddScoped<IUpsertCompanyCertificateProfileUseCase, UpsertCompanyCertificateProfileUseCase>();
 builder.Services.AddScoped<IGetActiveCertificateProfileUseCase, GetActiveCertificateProfileUseCase>();
+builder.Services.AddScoped<ICreateNotaFiscalUseCase, CreateNotaFiscalUseCase>();
+builder.Services.AddScoped<IUpdateNotaFiscalAuthorizationUseCase, UpdateNotaFiscalAuthorizationUseCase>();
+builder.Services.AddScoped<IUpdateNotaFiscalStatusUseCase, UpdateNotaFiscalStatusUseCase>();
+builder.Services.AddScoped<IAttachNotaFiscalPdfUseCase, AttachNotaFiscalPdfUseCase>();
+builder.Services.AddScoped<IGetNotaFiscalByIdUseCase, GetNotaFiscalByIdUseCase>();
+builder.Services.AddScoped<ISearchNotasFiscaisUseCase, SearchNotasFiscaisUseCase>();
+builder.Services.AddScoped<IGetNotaFiscalXmlUseCase, GetNotaFiscalXmlUseCase>();
+builder.Services.AddScoped<IGetNotaFiscalPdfUseCase, GetNotaFiscalPdfUseCase>();
 
 // Add logging
 builder.Services.AddLogging();
@@ -226,26 +255,24 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// Map health check endpoint
-app.MapHealthChecks("/health/nfe", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+var healthCheckOptions = new HealthCheckOptions
 {
-    ResponseWriter = async (context, report) =>
-    {
-        context.Response.ContentType = "application/json";
-        var result = System.Text.Json.JsonSerializer.Serialize(new
-        {
-            status = report.Status.ToString(),
-            checks = report.Entries.Select(e => new
-            {
-                name = e.Key,
-                status = e.Value.Status.ToString(),
-                description = e.Value.Description,
-                data = e.Value.Data
-            })
-        });
-        await context.Response.WriteAsync(result);
-    }
+    ResponseWriter = HealthCheckResponseWriter.WriteJsonResponse
+};
+
+app.MapHealthChecks("/health/nfe", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("nfe"),
+    ResponseWriter = HealthCheckResponseWriter.WriteJsonResponse
 });
+
+app.MapHealthChecks("/health/database", new HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("database"),
+    ResponseWriter = HealthCheckResponseWriter.WriteJsonResponse
+});
+
+app.MapHealthChecks("/health", healthCheckOptions);
 
 app.Run();
 
