@@ -219,6 +219,10 @@ builder.Services.AddScoped<IGetNotaFiscalByIdUseCase, GetNotaFiscalByIdUseCase>(
 builder.Services.AddScoped<ISearchNotasFiscaisUseCase, SearchNotasFiscaisUseCase>();
 builder.Services.AddScoped<IGetNotaFiscalXmlUseCase, GetNotaFiscalXmlUseCase>();
 builder.Services.AddScoped<IGetNotaFiscalPdfUseCase, GetNotaFiscalPdfUseCase>();
+builder.Services.AddScoped<IPersistRpsSendResultUseCase, PersistRpsSendResultUseCase>();
+builder.Services.AddScoped<IPersistBatchStatusDataUseCase, PersistBatchStatusDataUseCase>();
+builder.Services.AddScoped<IPersistConsultNfeResultUseCase, PersistConsultNfeResultUseCase>();
+builder.Services.AddScoped<IPersistCancelNfeResultUseCase, PersistCancelNfeResultUseCase>();
 
 // Add logging
 builder.Services.AddLogging();
