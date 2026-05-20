@@ -10,11 +10,17 @@ namespace Microled.Nfe.Service.Application.UseCases;
 /// </summary>
 public class ConsultNfeUseCase : IConsultNfeUseCase
 {
-    private readonly INfeGateway _nfeGateway;
+    private const string PersistenceActor = "api:nfe/consult";
 
-    public ConsultNfeUseCase(INfeGateway nfeGateway)
+    private readonly INfeGateway _nfeGateway;
+    private readonly INotaFiscalFlowPersistenceService _notaFiscalPersistence;
+
+    public ConsultNfeUseCase(
+        INfeGateway nfeGateway,
+        INotaFiscalFlowPersistenceService notaFiscalPersistence)
     {
         _nfeGateway = nfeGateway ?? throw new ArgumentNullException(nameof(nfeGateway));
+        _notaFiscalPersistence = notaFiscalPersistence ?? throw new ArgumentNullException(nameof(notaFiscalPersistence));
     }
 
     public async Task<ConsultNfeResponseDto> ExecuteAsync(ConsultNfeRequestDto request, CancellationToken cancellationToken)
@@ -30,6 +36,7 @@ public class ConsultNfeUseCase : IConsultNfeUseCase
         };
 
         var result = await _nfeGateway.ConsultNfeAsync(criteria, cancellationToken);
+        await _notaFiscalPersistence.PersistConsultResultAsync(result, PersistenceActor, cancellationToken);
 
         return new ConsultNfeResponseDto
         {
