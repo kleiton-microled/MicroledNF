@@ -39,6 +39,7 @@ pipeline {
 
                     echo "== BUILD MIGRATIONS BUNDLE =="
                     dotnet tool install --global dotnet-ef || true
+                    dotnet restore --runtime linux-x64
                     dotnet ef migrations bundle \
                         --project ${INFRA_PROJECT_PATH} \
                         --startup-project ${PROJECT_PATH} \
