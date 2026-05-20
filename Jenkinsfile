@@ -48,6 +48,12 @@ pipeline {
                         echo "== COPY FILES =="
                         scp -o StrictHostKeyChecking=no -r ${PUBLISH_DIR}/* ${VPS_USER}@${VPS_HOST}:${VPS_APP_DIR}/
 
+                        echo "== COPY DOCKER COMPOSE =="
+                        scp -o StrictHostKeyChecking=no docker-compose.yml ${VPS_USER}@${VPS_HOST}:${VPS_APP_DIR}/
+
+                        echo "== START DATABASE =="
+                        ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "cd ${VPS_APP_DIR} && docker compose up -d"
+
                         echo "== RESTART SERVICE =="
                         ssh -o StrictHostKeyChecking=no ${VPS_USER}@${VPS_HOST} "sudo /usr/bin/systemctl restart ${SERVICE_NAME} && sudo /usr/bin/systemctl status ${SERVICE_NAME} --no-pager"
                     '''
