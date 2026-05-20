@@ -231,7 +231,13 @@ builder.Services.AddLogging();
 
 var app = builder.Build();
 
-//app.UseForwardedHeaders();
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<NfeDbContext>();
+    await db.Database.MigrateAsync();
+}
+
+app.UseForwardedHeaders();
 
 
 // Configure the HTTP request pipeline
