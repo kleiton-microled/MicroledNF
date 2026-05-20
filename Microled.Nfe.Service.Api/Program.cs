@@ -33,6 +33,8 @@ builder.Services.Configure<NfeServiceOptions>(
     builder.Configuration.GetSection(NfeServiceOptions.SectionName));
 builder.Services.Configure<IbptCargaTributariaOptions>(
     builder.Configuration.GetSection(IbptCargaTributariaOptions.SectionName));
+builder.Services.Configure<AsyncBatchPollingOptions>(
+    builder.Configuration.GetSection(AsyncBatchPollingOptions.SectionName));
 builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
 {
     options.DataDirectory = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "certificates");
@@ -97,6 +99,7 @@ builder.Services.AddScoped<ICertificateDiscoveryService, WindowsCertificateDisco
 builder.Services.AddScoped<ICompanyCertificateProfileRepository, JsonCompanyCertificateProfileRepository>();
 builder.Services.AddScoped<INotaFiscalRepository, NotaFiscalRepository>();
 builder.Services.AddScoped<INotaFiscalFlowPersistenceService, NotaFiscalFlowPersistenceService>();
+builder.Services.AddScoped<IAsyncRpsProtocolPersistenceOrchestrator, AsyncRpsProtocolPersistenceOrchestrator>();
 builder.Services.AddScoped<ICertificateProvider, CertificateProvider>();
 builder.Services.AddScoped<IXmlSerializerService>(serviceProvider =>
 {

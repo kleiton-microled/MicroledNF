@@ -1,3 +1,4 @@
+using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Domain.Entities;
 using Microsoft.Extensions.Logging;
@@ -196,12 +197,21 @@ public sealed class NotaFiscalFlowPersistenceService : INotaFiscalFlowPersistenc
             return;
         }
 
-        var isProcessed = result.Sucesso && result.SituacaoCodigo is 1 or 2;
-        var isInvalid = !result.Sucesso || result.SituacaoCodigo is 3 or 4;
+        var isProcessed = result.Sucesso && LoteSituacaoAsync.IsProcessed(result.SituacaoCodigo);
+        var isInvalid = !result.Sucesso || LoteSituacaoAsync.IsInvalid(result.SituacaoCodigo);
+        var isPending = LoteSituacaoAsync.IsPending(result.SituacaoCodigo);
 
         foreach (var nota in notas)
         {
-            if (isProcessed && !string.IsNullOrWhiteSpace(nota.NumeroNota))
+            if (isInvalid)
+            {
+                nota.SetRejected(actor);
+            }
+            else if (isPending)
+            {
+                nota.SetStatus(NotaFiscalStatus.Processing, actor);
+            }
+            else if (isProcessed && !string.IsNullOrWhiteSpace(nota.NumeroNota))
             {
                 nota.SetAuthorized(
                     nota.NumeroNota,
@@ -213,12 +223,7 @@ public sealed class NotaFiscalFlowPersistenceService : INotaFiscalFlowPersistenc
             }
             else if (isProcessed)
             {
-                // TODO: map NumeroNFe from batch consult response when gateway exposes per-note keys.
                 nota.SetStatus(NotaFiscalStatus.Processing, actor);
-            }
-            else if (isInvalid)
-            {
-                nota.SetRejected(actor);
             }
             else
             {

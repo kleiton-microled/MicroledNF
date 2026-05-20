@@ -8,17 +8,17 @@ namespace Microled.Nfe.Service.Application.UseCases;
 /// </summary>
 public class ConsultBatchStatusUseCase : IConsultBatchStatusUseCase
 {
-    private const string PersistenceActor = "api:nfe/batch-status";
+    private const string PersistenceActor = "api:rps/status";
 
     private readonly INfeGateway _nfeGateway;
-    private readonly INotaFiscalFlowPersistenceService _notaFiscalPersistence;
+    private readonly IAsyncRpsProtocolPersistenceOrchestrator _asyncProtocolOrchestrator;
 
     public ConsultBatchStatusUseCase(
         INfeGateway nfeGateway,
-        INotaFiscalFlowPersistenceService notaFiscalPersistence)
+        IAsyncRpsProtocolPersistenceOrchestrator asyncProtocolOrchestrator)
     {
         _nfeGateway = nfeGateway ?? throw new ArgumentNullException(nameof(nfeGateway));
-        _notaFiscalPersistence = notaFiscalPersistence ?? throw new ArgumentNullException(nameof(notaFiscalPersistence));
+        _asyncProtocolOrchestrator = asyncProtocolOrchestrator ?? throw new ArgumentNullException(nameof(asyncProtocolOrchestrator));
     }
 
     public async Task<ConsultBatchStatusResponseDto> ExecuteAsync(
@@ -30,9 +30,10 @@ public class ConsultBatchStatusUseCase : IConsultBatchStatusUseCase
             request.CnpjRemetente,
             cancellationToken);
 
-        await _notaFiscalPersistence.PersistBatchStatusResultAsync(
+        await _asyncProtocolOrchestrator.PersistFromBatchStatusResultAsync(
             request.NumeroProtocolo,
             result,
+            request.CnpjRemetente,
             PersistenceActor,
             cancellationToken);
 

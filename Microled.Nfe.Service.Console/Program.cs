@@ -137,6 +137,8 @@ public class Program
 
                 // Register Application use cases
                 services.AddScoped<ISendRpsUseCase, SendRpsUseCase>();
+                services.AddScoped<INotaFiscalFlowPersistenceService, NullNotaFiscalFlowPersistenceService>();
+                services.AddScoped<IAsyncRpsProtocolPersistenceOrchestrator, NullAsyncRpsProtocolPersistenceOrchestrator>();
                 services.AddScoped<IRpsBatchPreparationService, RpsBatchPreparationService>();
                 services.AddScoped<IConsultNfeUseCase, ConsultNfeUseCase>();
                 services.AddScoped<ICancelNfeUseCase, CancelNfeUseCase>();
