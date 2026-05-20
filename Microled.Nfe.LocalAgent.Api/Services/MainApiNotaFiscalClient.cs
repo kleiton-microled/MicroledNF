@@ -1,4 +1,6 @@
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.Service.Application.DTOs.NotasFiscais;
@@ -7,6 +9,14 @@ namespace Microled.Nfe.LocalAgent.Api.Services;
 
 public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
 {
+    internal static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+    };
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<MainApiNotaFiscalClient> _logger;
 
@@ -65,19 +75,19 @@ public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
             $"api/v1/notas-fiscais?protocolo={Uri.EscapeDataString(protocolo)}&pageSize=100";
 
         var response = await _httpClient.GetAsync(url, cancellationToken);
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
 
         if (!response.IsSuccessStatusCode)
         {
             _logger.LogWarning(
-                "Main API search by protocolo failed: {StatusCode} {Protocolo}",
-                response.StatusCode,
-                protocolo);
+                "Main API search by protocolo failed: {StatusCode} {Url} Body={BodyPreview}",
+                (int)response.StatusCode,
+                BuildAbsoluteUrl(url),
+                Truncate(body));
             return [];
         }
 
-        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<PagedNotaFiscalResponse>>(
-            cancellationToken);
-
+        var payload = DeserializeOrNull<ApiResponse<PagedNotaFiscalResponse>>(body, url);
         return payload?.Data?.Items ?? [];
     }
 
@@ -86,15 +96,124 @@ public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
         TRequest request,
         CancellationToken cancellationToken)
     {
-        var response = await _httpClient.PostAsJsonAsync(relativeUrl, request, cancellationToken);
-        var payload = await response.Content.ReadFromJsonAsync<ApiResponse<TResponse>>(cancellationToken);
+        if (_httpClient.BaseAddress is null)
+        {
+            return ApiResponse<TResponse>.Fail(
+                "NfeIntegration:MainApiBaseUrl is not configured.");
+        }
+
+        var absoluteUrl = BuildAbsoluteUrl(relativeUrl);
+
+        HttpResponseMessage response;
+        try
+        {
+            response = await _httpClient.PostAsJsonAsync(
+                relativeUrl,
+                request,
+                JsonOptions,
+                cancellationToken);
+        }
+        catch (HttpRequestException ex)
+        {
+            _logger.LogError(ex, "Main API request failed: POST {Url}", absoluteUrl);
+            return ApiResponse<TResponse>.Fail($"Could not reach Main API at {absoluteUrl}: {ex.Message}");
+        }
+
+        var body = await response.Content.ReadAsStringAsync(cancellationToken);
+        var contentType = response.Content.Headers.ContentType?.MediaType ?? "(none)";
+
+        if (!LooksLikeJson(body))
+        {
+            _logger.LogError(
+                "Main API returned non-JSON response: POST {Url} Status={StatusCode} ContentType={ContentType} Body={BodyPreview}",
+                absoluteUrl,
+                (int)response.StatusCode,
+                contentType,
+                Truncate(body));
+
+            return ApiResponse<TResponse>.Fail(
+                $"Main API at {absoluteUrl} returned {(int)response.StatusCode} with non-JSON body " +
+                $"(Content-Type: {contentType}). Verify NfeIntegration:MainApiBaseUrl points to Microled.Nfe.Service.Api, " +
+                "not the frontend, and that the API is deployed with the persist endpoints.");
+        }
+
+        ApiResponse<TResponse>? payload;
+        try
+        {
+            payload = DeserializeOrNull<ApiResponse<TResponse>>(body, relativeUrl);
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogError(
+                ex,
+                "Main API JSON parse failed: POST {Url} Status={StatusCode} Body={BodyPreview}",
+                absoluteUrl,
+                (int)response.StatusCode,
+                Truncate(body));
+
+            return ApiResponse<TResponse>.Fail(
+                $"Main API returned invalid JSON from {absoluteUrl}: {ex.Message}");
+        }
 
         if (payload is not null)
         {
+            if (!response.IsSuccessStatusCode && !payload.Success)
+            {
+                _logger.LogWarning(
+                    "Main API POST {Url} returned HTTP {StatusCode}: {Message}",
+                    absoluteUrl,
+                    (int)response.StatusCode,
+                    payload.Message);
+            }
+
             return payload;
         }
 
         return ApiResponse<TResponse>.Fail(
-            $"Main API returned {(int)response.StatusCode} without a valid payload.");
+            $"Main API returned {(int)response.StatusCode} without a valid payload from {absoluteUrl}.");
+    }
+
+    private string BuildAbsoluteUrl(string relativeUrl)
+    {
+        if (_httpClient.BaseAddress is null)
+        {
+            return relativeUrl;
+        }
+
+        return new Uri(_httpClient.BaseAddress, relativeUrl).ToString();
+    }
+
+    private T? DeserializeOrNull<T>(string body, string contextUrl)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return default;
+        }
+
+        return JsonSerializer.Deserialize<T>(body, JsonOptions);
+    }
+
+    private static bool LooksLikeJson(string body)
+    {
+        if (string.IsNullOrWhiteSpace(body))
+        {
+            return false;
+        }
+
+        var first = body.AsSpan().TrimStart();
+        return first.Length > 0 && (first[0] is '{' or '[');
+    }
+
+    private static string Truncate(string value, int maxLength = 300)
+    {
+        if (string.IsNullOrEmpty(value))
+        {
+            return "(empty)";
+        }
+
+        var trimmed = value.Trim();
+        return trimmed.Length <= maxLength
+            ? trimmed
+            : trimmed[..maxLength] + "...";
     }
 }

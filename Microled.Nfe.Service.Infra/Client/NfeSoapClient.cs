@@ -160,6 +160,10 @@ public class NfeSoapClient : INfeGateway
             _logger.LogInformation("SendRpsBatchAsync completed. Success: {Sucesso}, Protocolo: {Protocolo}",
                 result.Sucesso, result.Protocolo);
 
+            LogPrefeituraObjectIfEnabled(
+                "EnvioLoteRPS",
+                PrefeituraGatewayResponseLogger.ToSendSnapshot(result));
+
             return result;
         }
         catch (NfeSoapException)
@@ -232,6 +236,10 @@ public class NfeSoapClient : INfeGateway
             _logger.LogInformation("ConsultNfeAsync completed. Success: {Sucesso}, NFe count: {Count}",
                 result.Sucesso, result.NFeList.Count);
 
+            LogPrefeituraObjectIfEnabled(
+                "ConsultaNFe",
+                PrefeituraGatewayResponseLogger.ToConsultSnapshot(result, _options.LogSensitiveData));
+
             return result;
         }
         catch (NfeSoapException)
@@ -296,6 +304,10 @@ public class NfeSoapClient : INfeGateway
                 result.Sucesso,
                 result.SituacaoCodigo,
                 result.SituacaoNome);
+
+            LogPrefeituraObjectIfEnabled(
+                "ConsultaSituacaoLote",
+                PrefeituraGatewayResponseLogger.ToBatchStatusSnapshot(result));
 
             return result;
         }
@@ -366,6 +378,10 @@ public class NfeSoapClient : INfeGateway
 
             _logger.LogInformation("CancelNfeAsync completed. Success: {Sucesso}",
                 result.Sucesso);
+
+            LogPrefeituraObjectIfEnabled(
+                "CancelamentoNFe",
+                PrefeituraGatewayResponseLogger.ToCancelSnapshot(result));
 
             return result;
         }
@@ -685,15 +701,30 @@ public class NfeSoapClient : INfeGateway
         if (!_options.LogRawXml)
             return;
 
+        var logLevel = _options.LogPrefeituraResponse ? LogLevel.Information : LogLevel.Trace;
+
         if (_options.LogSensitiveData)
         {
-            _logger.LogTrace("{Label}: {Xml}", label, xml);
+            _logger.Log(logLevel, "{Label}: {Xml}", label, xml);
         }
         else
         {
             var maskedXml = MaskSensitiveData(xml);
-            _logger.LogTrace("{Label}: {Xml}", label, maskedXml);
+            _logger.Log(logLevel, "{Label}: {Xml}", label, maskedXml);
         }
+    }
+
+    private void LogPrefeituraObjectIfEnabled(string operation, object snapshot)
+    {
+        if (!_options.LogPrefeituraResponse)
+        {
+            return;
+        }
+
+        _logger.LogInformation(
+            "Retorno Prefeitura ({Operation}):\n{RetornoJson}",
+            operation,
+            PrefeituraGatewayResponseLogger.Format(snapshot));
     }
 
     /// <summary>

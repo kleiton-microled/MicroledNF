@@ -121,7 +121,11 @@ builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 builder.Services.AddScoped<CertificateUnlockService>();
 builder.Services.AddScoped<LocalRpsProcessingService>();
 builder.Services.AddScoped<LocalAgentNotaFiscalSyncService>();
-builder.Services.AddHttpClient<IMainApiNotaFiscalClient, MainApiNotaFiscalClient>();
+builder.Services.AddHttpClient<IMainApiNotaFiscalClient, MainApiNotaFiscalClient>(client =>
+{
+    client.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
 builder.Services.AddSingleton<INfseSpFederalTaxRuleProvider, NfseSpFederalTaxRuleProvider>();
 builder.Services.AddScoped<INfseSpTaxCalculationService, NfseSpTaxCalculationService>();
 
@@ -244,6 +248,8 @@ app.Lifetime.ApplicationStarted.Register(() =>
         nfeOptions.UseAsyncSendContract() ? "async" : "sync");
     startupLogger.LogInformation("UseProduction: {UseProduction}", nfeOptions.UseProduction);
     startupLogger.LogInformation("TimeoutSeconds: {TimeoutSeconds}", nfeOptions.TimeoutSeconds);
+    startupLogger.LogInformation("LogPrefeituraResponse: {LogPrefeituraResponse}", nfeOptions.LogPrefeituraResponse);
+    startupLogger.LogInformation("LogRawXml: {LogRawXml}", nfeOptions.LogRawXml);
     startupLogger.LogInformation("Certificate Mode: {CertificateMode}", nfeOptions.Certificate.Mode);
     startupLogger.LogInformation(
         "Certificate Store: {StoreLocation}/{StoreName}",

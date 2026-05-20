@@ -69,3 +69,34 @@ Teste rápido do grupo de rotas: `curl http://localhost:5278/api/local/nfse-sp/p
 - The selected certificate profile is stored under `%ProgramData%\Microled\Nfe\localagent\profiles.json`
 - If the certificate changes, restart the LocalAgent if the token middleware keeps stale state
 - If the token requires a PIN dialog, approve it on the Windows desktop when prompted
+
+## Persistência na API principal (PostgreSQL)
+
+O LocalAgent executa SOAP com certificado local e envia os resultados para a **Microled.Nfe.Service.Api** persistir no banco.
+
+Configure em `appsettings.json`:
+
+```json
+"NfeIntegration": {
+  "SendToWebService": true,
+  "MainApiBaseUrl": "https://SUA-API-AQUI"
+}
+```
+
+**Importante:** `MainApiBaseUrl` deve apontar para a **API** (`Microled.Nfe.Service.Api`), **não** para o frontend Angular. Se apontar para o site (`app.amktechsistemas.com.br`), a resposta será HTML e a persistência falhará.
+
+Teste se a API responde JSON antes de enviar RPS:
+
+```bat
+curl.exe -s -X POST "https://SUA-API-AQUI/api/v1/notas-fiscais/persist/send-result" ^
+  -H "Content-Type: application/json" ^
+  -d "{\"criadoPor\":\"test\",\"sucesso\":true,\"itens\":[]}"
+```
+
+Resposta esperada: JSON com `"success": true` ou `"success": false` — **nunca** HTML (`<!DOCTYPE` ou `<html`).
+
+Em desenvolvimento local, com a API em `http://localhost:5249`:
+
+```json
+"MainApiBaseUrl": "http://localhost:5249"
+```
