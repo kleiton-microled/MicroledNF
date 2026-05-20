@@ -11,18 +11,23 @@ namespace Microled.Nfe.Service.Application.UseCases;
 /// </summary>
 public class CancelNfeUseCase : ICancelNfeUseCase
 {
+    private const string PersistenceActor = "api:nfe/cancel";
+
     private readonly INfeGateway _nfeGateway;
     private readonly INfeCancellationSignatureService _signatureService;
     private readonly ICertificateProvider _certificateProvider;
+    private readonly INotaFiscalFlowPersistenceService _notaFiscalPersistence;
 
     public CancelNfeUseCase(
         INfeGateway nfeGateway,
         INfeCancellationSignatureService signatureService,
-        ICertificateProvider certificateProvider)
+        ICertificateProvider certificateProvider,
+        INotaFiscalFlowPersistenceService notaFiscalPersistence)
     {
         _nfeGateway = nfeGateway ?? throw new ArgumentNullException(nameof(nfeGateway));
         _signatureService = signatureService ?? throw new ArgumentNullException(nameof(signatureService));
         _certificateProvider = certificateProvider ?? throw new ArgumentNullException(nameof(certificateProvider));
+        _notaFiscalPersistence = notaFiscalPersistence ?? throw new ArgumentNullException(nameof(notaFiscalPersistence));
     }
 
     public async Task<CancelNfeResponseDto> ExecuteAsync(CancelNfeRequestDto request, CancellationToken cancellationToken)
@@ -43,6 +48,7 @@ public class CancelNfeUseCase : ICancelNfeUseCase
         var cancellation = new NfeCancellation(chaveNFe, assinaturaCancelamento);
 
         var result = await _nfeGateway.CancelNfeAsync(cancellation, cancellationToken);
+        await _notaFiscalPersistence.PersistCancelResultAsync(chaveNFe, result, cancelXml: null, PersistenceActor, cancellationToken);
 
         return new CancelNfeResponseDto
         {

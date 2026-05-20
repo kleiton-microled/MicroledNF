@@ -9,21 +9,28 @@ namespace Microled.Nfe.Service.Application.UseCases;
 /// </summary>
 public class SendRpsUseCase : ISendRpsUseCase
 {
+    private const string PersistenceActor = "api:rps/send";
+
     private readonly INfeGateway _nfeGateway;
     private readonly IRpsBatchPreparationService _rpsBatchPreparationService;
+    private readonly INotaFiscalFlowPersistenceService _notaFiscalPersistence;
 
     public SendRpsUseCase(
         INfeGateway nfeGateway,
-        IRpsBatchPreparationService rpsBatchPreparationService)
+        IRpsBatchPreparationService rpsBatchPreparationService,
+        INotaFiscalFlowPersistenceService notaFiscalPersistence)
     {
         _nfeGateway = nfeGateway ?? throw new ArgumentNullException(nameof(nfeGateway));
         _rpsBatchPreparationService = rpsBatchPreparationService ?? throw new ArgumentNullException(nameof(rpsBatchPreparationService));
+        _notaFiscalPersistence = notaFiscalPersistence ?? throw new ArgumentNullException(nameof(notaFiscalPersistence));
     }
 
     public async Task<SendRpsResponseDto> ExecuteAsync(SendRpsRequestDto request, CancellationToken cancellationToken)
     {
         var batch = _rpsBatchPreparationService.PrepareSignedBatch(request);
+        await _notaFiscalPersistence.PersistRpsBatchBeforeSendAsync(batch, PersistenceActor, cancellationToken);
         var result = await _nfeGateway.SendRpsBatchAsync(batch, cancellationToken);
+        await _notaFiscalPersistence.PersistRpsBatchAfterSendAsync(batch, result, PersistenceActor, cancellationToken);
 
         return new SendRpsResponseDto
         {
