@@ -25,6 +25,12 @@ using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
+LocalAgentDataPaths.EnsureDirectoriesExist();
+
+builder.Configuration
+    .AddJsonFile("appsettings.Client.json", optional: true, reloadOnChange: true)
+    .AddJsonFile(LocalAgentDataPaths.UserSettingsFile, optional: true, reloadOnChange: true);
+
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
     var json = options.SerializerOptions;
@@ -47,8 +53,24 @@ builder.Services.Configure<LocalAgentOptions>(
     builder.Configuration.GetSection(LocalAgentOptions.SectionName));
 builder.Services.Configure<NfeIntegrationOptions>(
     builder.Configuration.GetSection(NfeIntegrationOptions.SectionName));
+builder.Services.PostConfigure<NfeIntegrationOptions>(options =>
+{
+    if (string.IsNullOrWhiteSpace(options.RpsOutputDirectory)
+        || options.RpsOutputDirectory.StartsWith(@"C:\Microled", StringComparison.OrdinalIgnoreCase))
+    {
+        options.RpsOutputDirectory = LocalAgentDataPaths.RpsOutputDirectory;
+    }
+});
 builder.Services.Configure<NfeValidationOptions>(
     builder.Configuration.GetSection(NfeValidationOptions.SectionName));
+builder.Services.PostConfigure<NfeValidationOptions>(options =>
+{
+    if (string.IsNullOrWhiteSpace(options.OutputDirectory)
+        || options.OutputDirectory.StartsWith(@"C:\Microled", StringComparison.OrdinalIgnoreCase))
+    {
+        options.OutputDirectory = LocalAgentDataPaths.ValidationOutputDirectory;
+    }
+});
 builder.Services.Configure<WebServiceProbeOptions>(
     builder.Configuration.GetSection(WebServiceProbeOptions.SectionName));
 builder.Services.Configure<AccessDatabaseOptions>(
@@ -255,6 +277,8 @@ app.Lifetime.ApplicationStarted.Register(() =>
         "Certificate Store: {StoreLocation}/{StoreName}",
         nfeOptions.Certificate.StoreLocation ?? "CurrentUser",
         nfeOptions.Certificate.StoreName ?? "My");
+    startupLogger.LogInformation("Data directory: {DataDirectory}", LocalAgentDataPaths.BaseDirectory);
+    startupLogger.LogInformation("Logs directory: {LogsDirectory}", LocalAgentDataPaths.LogsDirectory);
     startupLogger.LogInformation(
         "Selected certificate profile file: {ProfileFilePath}",
         Path.Combine(certificateStorageOptions.DataDirectory, certificateStorageOptions.FileName));

@@ -12,7 +12,23 @@ Do not run it as:
 
 This is the most reliable mode because the token middleware can open the PIN dialog when the private key is used.
 
-## Recommended flow
+## Instalação plug-and-play (recomendado para clientes)
+
+Use o instalador Windows gerado pela Microled (Inno Setup). O IT **não** edita JSON manualmente.
+
+1. Execute `Microled-NFe-LocalAgent-{cliente}-1.0.0.exe` como Administrador
+2. Marque iniciar no logon do Windows
+3. Use o atalho **Microled NFe Local Agent** (sem console) ou aguarde o Startup
+
+Guia completo: [docs/LOCALAGENT-INSTALACAO-IT.md](../docs/LOCALAGENT-INSTALACAO-IT.md)
+
+Build do instalador (equipe Microled, Windows + Inno Setup 6):
+
+```bat
+scripts\build-localagent-installer.cmd deploy\clients\seu-cliente.json
+```
+
+## Desenvolvimento local (manual)
 
 1. Log in to Windows with the same user that has access to the certificate/token.
 2. Ensure the token middleware/driver is installed and the token is connected.
@@ -28,14 +44,14 @@ publish-win-x64.cmd
 bin\Release\net8.0\publish\win-x64\
 ```
 
-5. Adjust `appsettings.json` in that publish folder if needed.
-6. Start the LocalAgent in the same user session:
+5. Adjust `appsettings.json` or add `appsettings.Client.json` if needed.
+6. Start without console:
 
 ```bat
-run-localagent.cmd
+StartLocalAgent.vbs
 ```
 
-7. Keep the console window open while using the frontend.
+Or with console: `run-localagent.cmd` or `StartLocalAgent.cmd`
 
 ## Why this mode is preferred
 

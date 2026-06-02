@@ -1,8 +1,10 @@
 using System.Reflection;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microled.Nfe.Service.Api.Configuration;
 using Microled.Nfe.Service.Api.HealthChecks;
 using Microled.Nfe.Service.Api.Middleware;
+using Microled.Nfe.Service.Api.Services;
 using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Application.Services;
@@ -35,6 +37,9 @@ builder.Services.Configure<IbptCargaTributariaOptions>(
     builder.Configuration.GetSection(IbptCargaTributariaOptions.SectionName));
 builder.Services.Configure<AsyncBatchPollingOptions>(
     builder.Configuration.GetSection(AsyncBatchPollingOptions.SectionName));
+builder.Services.Configure<LocalAgentInstallerOptions>(
+    builder.Configuration.GetSection(LocalAgentInstallerOptions.SectionName));
+builder.Services.AddSingleton<ILocalAgentInstallerService, LocalAgentInstallerService>();
 builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
 {
     options.DataDirectory = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "certificates");

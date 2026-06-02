@@ -1,11 +1,17 @@
 pipeline {
     agent any
 
+    parameters {
+        booleanParam(name: 'BUILD_LOCAL_AGENT_PACKAGE', defaultValue: false, description: 'Publicar pacote win-x64 do LocalAgent com appsettings.Client.json')
+        string(name: 'LOCAL_AGENT_CLIENT_CONFIG', defaultValue: 'deploy/clients/microled.example.json', description: 'Caminho do JSON do cliente (deploy/clients/*.json)')
+    }
+
     environment {
         DOTNET_ROOT = "/usr/local/share/dotnet"
         PATH = "/usr/local/share/dotnet:/Users/macbook/.dotnet/tools:/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
         PROJECT_PATH = "Microled.Nfe.Service.Api/Microled.Nfe.Service.Api.csproj"
         PUBLISH_DIR = "publish"
+        LOCAL_AGENT_PROJECT = "Microled.Nfe.LocalAgent.Api/Microled.Nfe.LocalAgent.Api.csproj"
         VPS_HOST = "147.93.15.250"
         VPS_USER = "amktech"
         VPS_APP_DIR = "/var/www/amktechsistemas/notafiscal-api"
@@ -35,6 +41,24 @@ pipeline {
                     echo "== PUBLISH =="
                     dotnet publish ${PROJECT_PATH} -c Release -o ${PUBLISH_DIR}
                 '''
+            }
+        }
+
+        stage('Build LocalAgent Client Package') {
+            when {
+                expression { return params.BUILD_LOCAL_AGENT_PACKAGE }
+            }
+            steps {
+                sh '''
+                    echo "== LOCAL AGENT CLIENT PACKAGE =="
+                    if command -v pwsh >/dev/null 2>&1; then
+                      pwsh -File scripts/Prepare-ClientPackage.ps1 -ClientConfigPath "${LOCAL_AGENT_CLIENT_CONFIG}"
+                    else
+                      echo "pwsh not found; publishing win-x64 only (no appsettings.Client.json injection)"
+                      dotnet publish "${LOCAL_AGENT_PROJECT}" -c Release -r win-x64 --self-contained true -o dist/localagent-publish/manual
+                    fi
+                '''
+                archiveArtifacts artifacts: 'dist/localagent-publish/**/*', fingerprint: true, allowEmptyArchive: true
             }
         }
 
