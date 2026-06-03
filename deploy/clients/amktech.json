@@ -1,7 +1,7 @@
 {
   "clientId": "amktech",
   "displayName": "AMK Tech Sistemas",
-  "mainApiUrl": "https://api.amktechsistemas.com.br",
+  "mainApiUrl": "https://amktechsistemas.com.br",
   "cnpj": "02126914000129",
   "inscricaoMunicipal": "37684280",
   "useProduction": true,

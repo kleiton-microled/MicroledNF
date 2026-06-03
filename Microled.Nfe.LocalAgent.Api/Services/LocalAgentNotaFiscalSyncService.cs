@@ -143,7 +143,7 @@ public sealed class LocalAgentNotaFiscalSyncService
                 : NotaFiscalStatus.Processing;
 
         return events
-            .Where(e => e.IsErro || status == NotaFiscalStatus.Rejected)
+            .Where(e => e.IsErro)
             .Select(e => new PersistNfeAuthorizationItemRequest
             {
                 Protocolo = protocolo,
