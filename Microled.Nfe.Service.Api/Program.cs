@@ -145,6 +145,7 @@ if (useFakeGateway)
 }
 else
 {
+    
     // Register HTTP client factory for SOAP calls
     builder.Services.AddHttpClient(nameof(NfeSoapClient), (serviceProvider, client) =>
     {
