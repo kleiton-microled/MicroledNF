@@ -255,8 +255,40 @@ var app = builder.Build();
 
 using (var scope = app.Services.CreateScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<NfeDbContext>();
-    await db.Database.MigrateAsync();
+    var migrationLogger = scope.ServiceProvider
+        .GetRequiredService<ILoggerFactory>()
+        .CreateLogger("Microled.Nfe.Migrations");
+
+    try
+    {
+        var db = scope.ServiceProvider.GetRequiredService<NfeDbContext>();
+
+        var pending = (await db.Database.GetPendingMigrationsAsync()).ToList();
+        var applied = (await db.Database.GetAppliedMigrationsAsync()).ToList();
+
+        migrationLogger.LogInformation("Migrations aplicadas: {Count} | Pendentes: {Pending}",
+            applied.Count, pending.Count);
+
+        if (pending.Count > 0)
+        {
+            migrationLogger.LogInformation("Aplicando migrations pendentes: {Migrations}",
+                string.Join(", ", pending));
+
+            await db.Database.MigrateAsync();
+
+            migrationLogger.LogInformation("Migrations aplicadas com sucesso.");
+        }
+        else
+        {
+            migrationLogger.LogInformation("Banco de dados já está atualizado.");
+        }
+    }
+    catch (Exception ex)
+    {
+        migrationLogger.LogCritical(ex,
+            "Falha ao aplicar migrations. A API será encerrada. Verifique a connection string e o banco de dados.");
+        throw;
+    }
 }
 
 app.UseForwardedHeaders();
