@@ -21,7 +21,9 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
+                cleanWs()
                 checkout scm
+                sh 'echo "== COMMIT BUILDADO ==" && git log --oneline -3'
             }
         }
 
@@ -40,6 +42,10 @@ pipeline {
 
                     echo "== PUBLISH =="
                     dotnet publish ${PROJECT_PATH} -c Release -o ${PUBLISH_DIR}
+
+                    echo "== ARQUIVOS PUBLICADOS =="
+                    ls -lh ${PUBLISH_DIR}/*.dll | head -5
+                    echo "Build timestamp: $(date)"
                 '''
             }
         }
