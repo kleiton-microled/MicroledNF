@@ -63,10 +63,12 @@ if (-not $SkipPublish) {
     }
 }
 
-$allowedOriginsJson = ($client.allowedOrigins | ConvertTo-Json -Compress)
-if ([string]::IsNullOrWhiteSpace($allowedOriginsJson)) {
-    $allowedOriginsJson = '["https://app.amktechsistemas.com.br"]'
+$origins = @($client.allowedOrigins | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+if ($origins.Count -eq 0) {
+    $origins = @('https://app.amktechsistemas.com.br')
 }
+# ConvertTo-Json on a single string returns a JSON string, not an array — force array form.
+$allowedOriginsJson = ConvertTo-Json -InputObject $origins -Compress
 
 $thumbprint = if ($null -ne $client.certificateThumbprint) { [string]$client.certificateThumbprint } else { "" }
 $useProduction = if ($null -ne $client.useProduction) { [string]$client.useProduction.ToString().ToLower() } else { "true" }

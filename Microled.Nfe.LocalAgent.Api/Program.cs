@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.LocalAgent.Api.Endpoints;
 using Microled.Nfe.LocalAgent.Api.Services;
@@ -23,9 +24,10 @@ using Microsoft.OpenApi.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-var builder = WebApplication.CreateBuilder(args);
+LocalAgentLoggingConfiguration.ConfigureSerilog();
 
-LocalAgentDataPaths.EnsureDirectoriesExist();
+var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
 
 builder.Configuration
     .AddJsonFile("appsettings.Client.json", optional: true, reloadOnChange: true)
@@ -44,10 +46,6 @@ var localAgentOptions = builder.Configuration
     .Get<LocalAgentOptions>() ?? new LocalAgentOptions();
 
 builder.WebHost.UseUrls($"http://localhost:{localAgentOptions.Port}");
-
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
 
 builder.Services.Configure<LocalAgentOptions>(
     builder.Configuration.GetSection(LocalAgentOptions.SectionName));
@@ -234,6 +232,19 @@ var localUrl = $"http://localhost:{localAgentOptions.Port}";
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+// Chrome Private Network Access: HTTPS public site -> http://localhost
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsOptions(context.Request.Method)
+        && context.Request.Headers.ContainsKey("Access-Control-Request-Private-Network"))
+    {
+        context.Response.Headers.Append("Access-Control-Allow-Private-Network", "true");
+    }
+
+    await next();
+});
+
 app.UseCors("LocalAgentCors");
 
 app.Use(async (context, next) =>
@@ -299,4 +310,11 @@ app.Lifetime.ApplicationStarted.Register(() =>
     startupLogger.LogInformation("========================================");
 });
 
-app.Run();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}

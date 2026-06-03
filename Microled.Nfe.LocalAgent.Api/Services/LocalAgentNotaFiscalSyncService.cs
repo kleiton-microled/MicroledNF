@@ -40,6 +40,8 @@ public sealed class LocalAgentNotaFiscalSyncService
     {
         if (!IsEnabled())
         {
+            _logger.LogWarning(
+                "Main API persist/send-result skipped: NfeIntegration:MainApiBaseUrl is not configured.");
             return;
         }
 
@@ -58,6 +60,14 @@ public sealed class LocalAgentNotaFiscalSyncService
             }).ToList(),
             Autorizacoes = MapAutorizacoes(response.ChavesNFeRPS, response.Protocolo)
         };
+
+        _logger.LogInformation(
+            "Forwarding SOAP send-result to Main API for DB persist: Protocolo={Protocolo} Sucesso={Sucesso} Itens={Itens} Autorizacoes={Autorizacoes} BaseUrl={BaseUrl}",
+            persistRequest.Protocolo ?? "(null)",
+            persistRequest.Sucesso,
+            persistRequest.Itens.Count,
+            persistRequest.Autorizacoes.Count,
+            _integrationOptions.MainApiBaseUrl);
 
         await PersistAndLogAsync(
             "send-result",
@@ -235,7 +245,25 @@ public sealed class LocalAgentNotaFiscalSyncService
             var result = await persistAction();
             if (result.Success)
             {
-                _logger.LogInformation("Main API persist/{Operation} succeeded.", operation);
+                if (result.Data is PersistNotaFiscalBatchResponse batch)
+                {
+                    _logger.LogInformation(
+                        "Main API persist/{Operation} succeeded: ProcessedCount={ProcessedCount} NotasRetornadas={Notas}",
+                        operation,
+                        batch.ProcessedCount,
+                        batch.Notas.Count);
+                }
+                else if (result.Data is NotaFiscalResponse nota)
+                {
+                    _logger.LogInformation(
+                        "Main API persist/{Operation} succeeded: NotaId={NotaId}",
+                        operation,
+                        nota.Id);
+                }
+                else
+                {
+                    _logger.LogInformation("Main API persist/{Operation} succeeded.", operation);
+                }
             }
             else
             {

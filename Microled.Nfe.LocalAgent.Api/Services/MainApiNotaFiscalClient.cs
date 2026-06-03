@@ -103,6 +103,7 @@ public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
         }
 
         var absoluteUrl = BuildAbsoluteUrl(relativeUrl);
+        LogPersistRequestSummary(relativeUrl, request);
 
         HttpResponseMessage response;
         try
@@ -157,10 +158,14 @@ public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
 
         if (payload is not null)
         {
-            if (!response.IsSuccessStatusCode && !payload.Success)
+            if (payload.Success)
+            {
+                LogPersistResponseSummary(relativeUrl, absoluteUrl, (int)response.StatusCode, payload);
+            }
+            else
             {
                 _logger.LogWarning(
-                    "Main API POST {Url} returned HTTP {StatusCode}: {Message}",
+                    "Main API POST {Url} persist failed: HTTP {StatusCode} Message={Message}",
                     absoluteUrl,
                     (int)response.StatusCode,
                     payload.Message);
@@ -202,6 +207,84 @@ public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
 
         var first = body.AsSpan().TrimStart();
         return first.Length > 0 && (first[0] is '{' or '[');
+    }
+
+    private void LogPersistRequestSummary<TRequest>(string relativeUrl, TRequest request)
+    {
+        switch (request)
+        {
+            case PersistRpsSendResultRequest send:
+                _logger.LogInformation(
+                    "Main API persist request POST {Endpoint}: Protocolo={Protocolo} Sucesso={Sucesso} CnpjPrestador={Cnpj} Itens={Itens} Autorizacoes={Autorizacoes}",
+                    relativeUrl,
+                    send.Protocolo ?? "(null)",
+                    send.Sucesso,
+                    send.CnpjPrestador ?? "(null)",
+                    send.Itens.Count,
+                    send.Autorizacoes.Count);
+                break;
+            case PersistBatchStatusDataRequest batch:
+                _logger.LogInformation(
+                    "Main API persist request POST {Endpoint}: Protocolo={Protocolo} Sucesso={Sucesso} Situacao={Situacao} Lote={Lote} Autorizacoes={Autorizacoes}",
+                    relativeUrl,
+                    batch.NumeroProtocolo,
+                    batch.Sucesso,
+                    batch.SituacaoCodigo,
+                    batch.NumeroLote,
+                    batch.Autorizacoes.Count);
+                break;
+            case PersistConsultNfeResultRequest consult:
+                _logger.LogInformation(
+                    "Main API persist request POST {Endpoint}: Autorizacoes={Autorizacoes}",
+                    relativeUrl,
+                    consult.Autorizacoes.Count);
+                break;
+            case PersistCancelNfeResultRequest cancel:
+                _logger.LogInformation(
+                    "Main API persist request POST {Endpoint}: NumeroNota={NumeroNota}",
+                    relativeUrl,
+                    cancel.NumeroNota);
+                break;
+            default:
+                _logger.LogInformation("Main API persist request POST {Endpoint}", relativeUrl);
+                break;
+        }
+    }
+
+    private void LogPersistResponseSummary<TResponse>(
+        string relativeUrl,
+        string absoluteUrl,
+        int statusCode,
+        ApiResponse<TResponse> payload)
+    {
+        if (payload.Data is PersistNotaFiscalBatchResponse batch)
+        {
+            _logger.LogInformation(
+                "Main API persist response POST {Endpoint}: HTTP {StatusCode} Success=true ProcessedCount={ProcessedCount} Notas={Notas} Url={Url}",
+                relativeUrl,
+                statusCode,
+                batch.ProcessedCount,
+                batch.Notas.Count,
+                absoluteUrl);
+            return;
+        }
+
+        if (payload.Data is NotaFiscalResponse nota)
+        {
+            _logger.LogInformation(
+                "Main API persist response POST {Endpoint}: HTTP {StatusCode} Success=true NotaId={NotaId} Url={Url}",
+                relativeUrl,
+                statusCode,
+                nota.Id,
+                absoluteUrl);
+            return;
+        }
+
+        _logger.LogInformation(
+            "Main API persist response POST {Endpoint}: HTTP {StatusCode} Success=true Url={Url}",
+            relativeUrl,
+            statusCode,
+            absoluteUrl);
     }
 
     private static string Truncate(string value, int maxLength = 300)

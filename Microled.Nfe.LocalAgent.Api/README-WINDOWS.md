@@ -60,6 +60,20 @@ Or with console: `run-localagent.cmd` or `StartLocalAgent.cmd`
 - Avoids service-account access issues with `CurrentUser\My`
 - Avoids requiring the .NET runtime on the client machine because the publish profile is self-contained
 
+## Logs
+
+Application logs are written to:
+
+```text
+%ProgramData%\Microled\Nfe\localagent\logs\localagent-YYYYMMDD.log
+```
+
+Example: `C:\ProgramData\Microled\Nfe\localagent\logs\localagent-20260602.log`
+
+Includes HTTP requests, SOAP/prefeitura activity, and **Main API persist** calls (`api/v1/notas-fiscais/persist/*`) with protocol, item counts, and persistence results.
+
+When running without console (`StartLocalAgent.vbs`), use these files — not the hidden process window.
+
 ## Quick health check
 
 After starting the LocalAgent, test:
