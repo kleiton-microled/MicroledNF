@@ -41,3 +41,8 @@ public interface IGetNotaFiscalPdfUseCase
 {
     Task<(bool Found, byte[]? Pdf)> ExecuteAsync(Guid id, CancellationToken cancellationToken);
 }
+
+public interface IUpdateNotaFiscalPagamentoUseCase
+{
+    Task<ApiResponse<NotaFiscalResponse>> ExecuteAsync(UpdateNotaFiscalPagamentoRequest request, CancellationToken cancellationToken);
+}

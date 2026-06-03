@@ -15,6 +15,7 @@ public class NotasFiscaisController : ControllerBase
     private readonly ISearchNotasFiscaisUseCase _searchUseCase;
     private readonly IUpdateNotaFiscalAuthorizationUseCase _authorizationUseCase;
     private readonly IUpdateNotaFiscalStatusUseCase _statusUseCase;
+    private readonly IUpdateNotaFiscalPagamentoUseCase _pagamentoUseCase;
     private readonly IAttachNotaFiscalPdfUseCase _attachPdfUseCase;
     private readonly IGetNotaFiscalXmlUseCase _getXmlUseCase;
     private readonly IGetNotaFiscalPdfUseCase _getPdfUseCase;
@@ -30,6 +31,7 @@ public class NotasFiscaisController : ControllerBase
         ISearchNotasFiscaisUseCase searchUseCase,
         IUpdateNotaFiscalAuthorizationUseCase authorizationUseCase,
         IUpdateNotaFiscalStatusUseCase statusUseCase,
+        IUpdateNotaFiscalPagamentoUseCase pagamentoUseCase,
         IAttachNotaFiscalPdfUseCase attachPdfUseCase,
         IGetNotaFiscalXmlUseCase getXmlUseCase,
         IGetNotaFiscalPdfUseCase getPdfUseCase,
@@ -44,6 +46,7 @@ public class NotasFiscaisController : ControllerBase
         _searchUseCase = searchUseCase;
         _authorizationUseCase = authorizationUseCase;
         _statusUseCase = statusUseCase;
+        _pagamentoUseCase = pagamentoUseCase;
         _attachPdfUseCase = attachPdfUseCase;
         _getXmlUseCase = getXmlUseCase;
         _getPdfUseCase = getPdfUseCase;
@@ -180,6 +183,27 @@ public class NotasFiscaisController : ControllerBase
         return Content(response.Data.Xml, "application/xml; charset=utf-8");
     }
 
+    [HttpPatch("{id:guid}/pagamento")]
+    [ProducesResponseType(typeof(ApiResponse<NotaFiscalResponse>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<NotaFiscalResponse>), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ApiResponse<NotaFiscalResponse>), StatusCodes.Status404NotFound)]
+    public async Task<ActionResult<ApiResponse<NotaFiscalResponse>>> UpdatePagamento(
+        Guid id,
+        [FromBody] UpdateNotaFiscalPagamentoBody body,
+        CancellationToken cancellationToken)
+    {
+        var response = await _pagamentoUseCase.ExecuteAsync(new UpdateNotaFiscalPagamentoRequest
+        {
+            Id = id,
+            Pago = body.Pago,
+            DataPagamento = body.DataPagamento,
+            ValorDepositado = body.ValorDepositado,
+            AlteradoPor = body.AlteradoPor
+        }, cancellationToken);
+
+        return ToActionResult(response, StatusCodes.Status404NotFound);
+    }
+
     [HttpPost("persist/send-result")]
     [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<PersistNotaFiscalBatchResponse>), StatusCodes.Status400BadRequest)]
@@ -247,5 +271,13 @@ public class NotasFiscaisController : ControllerBase
         public NotaFiscalStatus Status { get; init; }
         public string AlteradoPor { get; init; } = string.Empty;
         public string? Reason { get; init; }
+    }
+
+    public sealed class UpdateNotaFiscalPagamentoBody
+    {
+        public bool Pago { get; init; }
+        public DateTimeOffset? DataPagamento { get; init; }
+        public decimal? ValorDepositado { get; init; }
+        public string AlteradoPor { get; init; } = "frontend";
     }
 }

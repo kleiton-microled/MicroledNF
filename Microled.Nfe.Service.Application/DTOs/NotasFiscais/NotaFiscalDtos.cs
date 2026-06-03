@@ -34,6 +34,15 @@ public sealed class UpdateNotaFiscalStatusRequest
     public string? Reason { get; init; }
 }
 
+public sealed class UpdateNotaFiscalPagamentoRequest
+{
+    public Guid Id { get; init; }
+    public bool Pago { get; init; }
+    public DateTimeOffset? DataPagamento { get; init; }
+    public decimal? ValorDepositado { get; init; }
+    public string AlteradoPor { get; init; } = "frontend";
+}
+
 public sealed class AttachNotaFiscalPdfRequest
 {
     public Guid Id { get; init; }
@@ -76,6 +85,9 @@ public sealed class NotaFiscalResponse
     public string? CnpjPrestador { get; init; }
     public string? CpfCnpjTomador { get; init; }
     public string Status { get; init; } = string.Empty;
+    public bool Pago { get; init; }
+    public DateTimeOffset? DataPagamento { get; init; }
+    public decimal? ValorDepositado { get; init; }
     public DateTimeOffset? DataEmissao { get; init; }
     public DateTimeOffset? DataCancelamento { get; init; }
     public string CriadoPor { get; init; } = string.Empty;

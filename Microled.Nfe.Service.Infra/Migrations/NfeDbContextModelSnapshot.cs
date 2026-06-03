@@ -71,6 +71,20 @@ namespace Microled.Nfe.Service.Infra.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("data_emissao");
 
+                    b.Property<DateTimeOffset?>("DataPagamento")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("data_pagamento");
+
+                    b.Property<bool>("Pago")
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(false)
+                        .HasColumnName("pago");
+
+                    b.Property<decimal?>("ValorDepositado")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("valor_depositado");
+
                     b.Property<string>("InscricaoPrestador")
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")

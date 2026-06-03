@@ -22,6 +22,9 @@ public sealed class NotaFiscal
     public byte[]? Pdf { get; private set; }
     public DateTimeOffset? DataEmissao { get; private set; }
     public DateTimeOffset? DataCancelamento { get; private set; }
+    public bool Pago { get; private set; }
+    public DateTimeOffset? DataPagamento { get; private set; }
+    public decimal? ValorDepositado { get; private set; }
     public string CriadoPor { get; private set; } = string.Empty;
     public string? AlteradoPor { get; private set; }
     public DateTimeOffset CriadoEm { get; private set; }
@@ -202,6 +205,14 @@ public sealed class NotaFiscal
     public void SetStatus(NotaFiscalStatus status, string alteradoPor)
     {
         Status = status;
+        Touch(alteradoPor);
+    }
+
+    public void SetPagamento(bool pago, DateTimeOffset? dataPagamento, decimal? valorDepositado, string alteradoPor)
+    {
+        Pago = pago;
+        DataPagamento = pago ? dataPagamento : null;
+        ValorDepositado = pago ? valorDepositado : null;
         Touch(alteradoPor);
     }
 
