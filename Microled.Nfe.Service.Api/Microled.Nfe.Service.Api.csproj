@@ -24,4 +24,11 @@
     <ProjectReference Include="..\Microled.Nfe.Service.Infra\Microled.Nfe.Service.Infra.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="App_Data\installers\README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>Always</CopyToPublishDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

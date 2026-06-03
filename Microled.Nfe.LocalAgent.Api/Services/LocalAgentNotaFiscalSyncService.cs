@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.Service.Application.Configuration;
+using Microled.Nfe.Service.Application.Services;
 using Microled.Nfe.Service.Application.DTOs;
 using Microled.Nfe.Service.Application.DTOs.NotasFiscais;
 using Microled.Nfe.Service.Application.Interfaces;
@@ -40,6 +41,8 @@ public sealed class LocalAgentNotaFiscalSyncService
     {
         if (!IsEnabled())
         {
+            _logger.LogWarning(
+                "Main API persist/send-result skipped: NfeIntegration:MainApiBaseUrl is not configured.");
             return;
         }
 
@@ -59,6 +62,14 @@ public sealed class LocalAgentNotaFiscalSyncService
             Autorizacoes = MapAutorizacoes(response.ChavesNFeRPS, response.Protocolo)
         };
 
+        _logger.LogInformation(
+            "Forwarding SOAP send-result to Main API for DB persist: Protocolo={Protocolo} Sucesso={Sucesso} Itens={Itens} Autorizacoes={Autorizacoes} BaseUrl={BaseUrl}",
+            persistRequest.Protocolo ?? "(null)",
+            persistRequest.Sucesso,
+            persistRequest.Itens.Count,
+            persistRequest.Autorizacoes.Count,
+            _integrationOptions.MainApiBaseUrl);
+
         await PersistAndLogAsync(
             "send-result",
             () => _mainApiClient.PersistSendResultAsync(persistRequest, cancellationToken));
@@ -71,12 +82,16 @@ public sealed class LocalAgentNotaFiscalSyncService
     {
         if (!IsEnabled())
         {
+            _logger.LogWarning(
+                "Main API persist/batch-status skipped: NfeIntegration:MainApiBaseUrl is not configured.");
             return;
         }
 
-        var autorizacoes = new List<PersistNfeAuthorizationItemRequest>();
+        var autorizacoes = BuildAutorizacoesFromResultado(gatewayResult, request.NumeroProtocolo);
 
-        if (gatewayResult.Sucesso && LoteSituacaoAsync.IsProcessed(gatewayResult.SituacaoCodigo))
+        if (autorizacoes.Count == 0
+            && gatewayResult.Sucesso
+            && LoteSituacaoAsync.IsProcessed(gatewayResult.SituacaoCodigo))
         {
             autorizacoes = await ResolveAuthorizationsForProtocolAsync(
                 request.NumeroProtocolo,
@@ -94,12 +109,52 @@ public sealed class LocalAgentNotaFiscalSyncService
                 ? new DateTimeOffset(gatewayResult.DataProcessamento.Value)
                 : null,
             AlteradoPor = Actor,
+            ResultadoOperacao = gatewayResult.ResultadoOperacao,
             Autorizacoes = autorizacoes
         };
+
+        _logger.LogInformation(
+            "Forwarding batch status to Main API for DB persist: Protocolo={Protocolo} Situacao={SituacaoCodigo}/{SituacaoNome} Autorizacoes={Autorizacoes} HasResultadoOperacao={HasResultado}",
+            request.NumeroProtocolo,
+            gatewayResult.SituacaoCodigo,
+            gatewayResult.SituacaoNome,
+            autorizacoes.Count,
+            !string.IsNullOrWhiteSpace(gatewayResult.ResultadoOperacao));
 
         await PersistAndLogAsync(
             "batch-status",
             () => _mainApiClient.PersistBatchStatusAsync(persistRequest, cancellationToken));
+    }
+
+    private static List<PersistNfeAuthorizationItemRequest> BuildAutorizacoesFromResultado(
+        ConsultaSituacaoLoteResult gatewayResult,
+        string protocolo)
+    {
+        var events = RetornoEnvioLoteRpsResultadoParser.ParseRpsEvents(gatewayResult.ResultadoOperacao);
+        if (events.Count == 0)
+        {
+            return [];
+        }
+
+        var status = LoteSituacaoAsync.IsInvalid(gatewayResult.SituacaoCodigo)
+            ? NotaFiscalStatus.Rejected
+            : LoteSituacaoAsync.IsProcessed(gatewayResult.SituacaoCodigo)
+                ? NotaFiscalStatus.Authorized
+                : NotaFiscalStatus.Processing;
+
+        return events
+            .Where(e => e.IsErro)
+            .Select(e => new PersistNfeAuthorizationItemRequest
+            {
+                Protocolo = protocolo,
+                InscricaoPrestador = e.InscricaoPrestador,
+                SerieRps = e.SerieRps,
+                NumeroRps = e.NumeroRps,
+                NumeroLote = gatewayResult.NumeroLote?.ToString(),
+                Xml = gatewayResult.ResultadoOperacao,
+                Status = e.IsErro ? NotaFiscalStatus.Rejected : status
+            })
+            .ToList();
     }
 
     public async Task SyncConsultResultAsync(
@@ -235,7 +290,25 @@ public sealed class LocalAgentNotaFiscalSyncService
             var result = await persistAction();
             if (result.Success)
             {
-                _logger.LogInformation("Main API persist/{Operation} succeeded.", operation);
+                if (result.Data is PersistNotaFiscalBatchResponse batch)
+                {
+                    _logger.LogInformation(
+                        "Main API persist/{Operation} succeeded: ProcessedCount={ProcessedCount} NotasRetornadas={Notas}",
+                        operation,
+                        batch.ProcessedCount,
+                        batch.Notas.Count);
+                }
+                else if (result.Data is NotaFiscalResponse nota)
+                {
+                    _logger.LogInformation(
+                        "Main API persist/{Operation} succeeded: NotaId={NotaId}",
+                        operation,
+                        nota.Id);
+                }
+                else
+                {
+                    _logger.LogInformation("Main API persist/{Operation} succeeded.", operation);
+                }
             }
             else
             {

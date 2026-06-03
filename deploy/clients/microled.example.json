@@ -1,0 +1,14 @@
+{
+  "clientId": "microled",
+  "displayName": "Microled (exemplo)",
+  "mainApiUrl": "https://api.exemplo.com.br",
+  "cnpj": "02126914000129",
+  "inscricaoMunicipal": "37684280",
+  "useProduction": true,
+  "environment": "Production",
+  "localAgentPort": 5278,
+  "allowedOrigins": [
+    "https://app.amktechsistemas.com.br"
+  ],
+  "certificateThumbprint": ""
+}

@@ -1,5 +1,6 @@
 using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
+using Serilog;
 using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.LocalAgent.Api.Endpoints;
 using Microled.Nfe.LocalAgent.Api.Services;
@@ -23,7 +24,14 @@ using Microsoft.OpenApi.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
+LocalAgentLoggingConfiguration.ConfigureSerilog();
+
 var builder = WebApplication.CreateBuilder(args);
+builder.Host.UseSerilog();
+
+builder.Configuration
+    .AddJsonFile("appsettings.Client.json", optional: true, reloadOnChange: true)
+    .AddJsonFile(LocalAgentDataPaths.UserSettingsFile, optional: true, reloadOnChange: true);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -39,16 +47,28 @@ var localAgentOptions = builder.Configuration
 
 builder.WebHost.UseUrls($"http://localhost:{localAgentOptions.Port}");
 
-builder.Logging.ClearProviders();
-builder.Logging.AddConsole();
-builder.Logging.SetMinimumLevel(LogLevel.Information);
-
 builder.Services.Configure<LocalAgentOptions>(
     builder.Configuration.GetSection(LocalAgentOptions.SectionName));
 builder.Services.Configure<NfeIntegrationOptions>(
     builder.Configuration.GetSection(NfeIntegrationOptions.SectionName));
+builder.Services.PostConfigure<NfeIntegrationOptions>(options =>
+{
+    if (string.IsNullOrWhiteSpace(options.RpsOutputDirectory)
+        || options.RpsOutputDirectory.StartsWith(@"C:\Microled", StringComparison.OrdinalIgnoreCase))
+    {
+        options.RpsOutputDirectory = LocalAgentDataPaths.RpsOutputDirectory;
+    }
+});
 builder.Services.Configure<NfeValidationOptions>(
     builder.Configuration.GetSection(NfeValidationOptions.SectionName));
+builder.Services.PostConfigure<NfeValidationOptions>(options =>
+{
+    if (string.IsNullOrWhiteSpace(options.OutputDirectory)
+        || options.OutputDirectory.StartsWith(@"C:\Microled", StringComparison.OrdinalIgnoreCase))
+    {
+        options.OutputDirectory = LocalAgentDataPaths.ValidationOutputDirectory;
+    }
+});
 builder.Services.Configure<WebServiceProbeOptions>(
     builder.Configuration.GetSection(WebServiceProbeOptions.SectionName));
 builder.Services.Configure<AccessDatabaseOptions>(
@@ -212,6 +232,19 @@ var localUrl = $"http://localhost:{localAgentOptions.Port}";
 
 app.UseSwagger();
 app.UseSwaggerUI();
+
+// Chrome Private Network Access: HTTPS public site -> http://localhost
+app.Use(async (context, next) =>
+{
+    if (HttpMethods.IsOptions(context.Request.Method)
+        && context.Request.Headers.ContainsKey("Access-Control-Request-Private-Network"))
+    {
+        context.Response.Headers.Append("Access-Control-Allow-Private-Network", "true");
+    }
+
+    await next();
+});
+
 app.UseCors("LocalAgentCors");
 
 app.Use(async (context, next) =>
@@ -255,6 +288,8 @@ app.Lifetime.ApplicationStarted.Register(() =>
         "Certificate Store: {StoreLocation}/{StoreName}",
         nfeOptions.Certificate.StoreLocation ?? "CurrentUser",
         nfeOptions.Certificate.StoreName ?? "My");
+    startupLogger.LogInformation("Data directory: {DataDirectory}", LocalAgentDataPaths.BaseDirectory);
+    startupLogger.LogInformation("Logs directory: {LogsDirectory}", LocalAgentDataPaths.LogsDirectory);
     startupLogger.LogInformation(
         "Selected certificate profile file: {ProfileFilePath}",
         Path.Combine(certificateStorageOptions.DataDirectory, certificateStorageOptions.FileName));
@@ -275,4 +310,11 @@ app.Lifetime.ApplicationStarted.Register(() =>
     startupLogger.LogInformation("========================================");
 });
 
-app.Run();
+try
+{
+    app.Run();
+}
+finally
+{
+    Log.CloseAndFlush();
+}

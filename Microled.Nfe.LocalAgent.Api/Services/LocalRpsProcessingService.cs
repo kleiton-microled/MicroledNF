@@ -49,14 +49,27 @@ public class LocalRpsProcessingService
     {
         await _certificateUnlockService.UnlockAsync(cancellationToken);
 
-        if (_validationOptions.ValidateXmlAndRps || !_integrationOptions.SendToWebService)
+        if (!_integrationOptions.SendToWebService)
         {
             return await GenerateFilesInternalAsync(request, ensureUnlocked: false, cancellationToken);
         }
 
         var response = await _sendRpsUseCase.ExecuteAsync(request, cancellationToken);
         await _notaFiscalSyncService.SyncSendResultAsync(request, response, cancellationToken);
-        return MapSendResponse(response);
+        var mapped = MapSendResponse(response);
+
+        if (_validationOptions.ValidateXmlAndRps)
+        {
+            var batch = _rpsBatchPreparationService.PrepareSignedBatch(request);
+            var export = await _validationExportService.ExportAsync(
+                batch,
+                ResolveOutputDirectory(),
+                cancellationToken);
+            mapped.LocalFilePath = export.RpsFilePath;
+            mapped.SoapFilePath = export.SoapFilePath;
+        }
+
+        return mapped;
     }
 
     private async Task<LocalRpsProcessResponse> GenerateFilesInternalAsync(

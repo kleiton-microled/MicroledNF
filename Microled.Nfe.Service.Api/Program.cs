@@ -1,8 +1,10 @@
 using System.Reflection;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using Microled.Nfe.Service.Api.Configuration;
 using Microled.Nfe.Service.Api.HealthChecks;
 using Microled.Nfe.Service.Api.Middleware;
+using Microled.Nfe.Service.Api.Services;
 using Microled.Nfe.Service.Application.Configuration;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Application.Services;
@@ -25,6 +27,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -35,6 +39,9 @@ builder.Services.Configure<IbptCargaTributariaOptions>(
     builder.Configuration.GetSection(IbptCargaTributariaOptions.SectionName));
 builder.Services.Configure<AsyncBatchPollingOptions>(
     builder.Configuration.GetSection(AsyncBatchPollingOptions.SectionName));
+builder.Services.Configure<LocalAgentInstallerOptions>(
+    builder.Configuration.GetSection(LocalAgentInstallerOptions.SectionName));
+builder.Services.AddSingleton<ILocalAgentInstallerService, LocalAgentInstallerService>();
 builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
 {
     options.DataDirectory = Path.Combine(builder.Environment.ContentRootPath, "App_Data", "certificates");
@@ -50,8 +57,14 @@ if (string.IsNullOrWhiteSpace(nfeDatabaseConnection))
 builder.Services.AddDbContext<NfeDbContext>(options =>
     options.UseNpgsql(nfeDatabaseConnection));
 
-// Add services to the container
-builder.Services.AddControllers();
+// Add services to the container (camelCase + string enums — same contract as LocalAgent MainApiNotaFiscalClient)
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    });
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDevCors", policy =>
@@ -132,6 +145,7 @@ if (useFakeGateway)
 }
 else
 {
+    
     // Register HTTP client factory for SOAP calls
     builder.Services.AddHttpClient(nameof(NfeSoapClient), (serviceProvider, client) =>
     {
