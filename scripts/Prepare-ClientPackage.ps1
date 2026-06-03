@@ -49,13 +49,17 @@ $publishDirResolved = $ExecutionContext.SessionState.Path.GetUnresolvedProviderP
 New-Item -ItemType Directory -Force -Path $publishDirResolved | Out-Null
 
 if (-not $SkipPublish) {
-    Write-Host "Publishing LocalAgent win-x64 to $publishDirResolved ..."
+    Write-Host "Publishing LocalAgent win-x64 (self-contained) to $publishDirResolved ..."
     dotnet publish $projectPath `
         -c Release `
         -p:PublishProfile=LocalAgent-win-x64 `
         -o $publishDirResolved
     if ($LASTEXITCODE -ne 0) {
         throw "dotnet publish failed with exit code $LASTEXITCODE"
+    }
+
+    if (-not (Test-Path (Join-Path $publishDirResolved "hostfxr.dll"))) {
+        throw "Publish output is not self-contained (hostfxr.dll missing). Check Properties/PublishProfiles/LocalAgent-win-x64.pubxml."
     }
 }
 

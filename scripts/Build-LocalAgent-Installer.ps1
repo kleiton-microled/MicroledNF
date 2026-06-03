@@ -44,7 +44,9 @@ $iscc = $InnoSetupCompiler
 if ([string]::IsNullOrWhiteSpace($iscc)) {
     $candidates = @(
         "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
-        "${env:ProgramFiles}\Inno Setup 6\ISCC.exe"
+        "${env:ProgramFiles}\Inno Setup 6\ISCC.exe",
+        "${env:ProgramFiles}\Inno Setup 7\ISCC.exe",
+        "${env:ProgramFiles(x86)}\Inno Setup 7\ISCC.exe"
     )
     foreach ($candidate in $candidates) {
         if (Test-Path $candidate) {

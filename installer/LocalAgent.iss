@@ -63,11 +63,11 @@ Name: "{group}\Desinstalar {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\StartLocalAgent.vbs"; WorkingDir: "{app}"; Tasks: desktopicon; IconFilename: "{app}\{#MyAppExeName}"
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MicroledNfeLocalAgent"; ValueData: """{app}\StartLocalAgent.vbs"""; Flags: uninsdeletevalue; Tasks: startup
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "MicroledNfeLocalAgent"; ValueData: "wscript.exe ""{app}\StartLocalAgent.vbs"""; Flags: uninsdeletevalue; Tasks: startup
 
 [Run]
 Filename: "powershell.exe"; Parameters: "-NoProfile -ExecutionPolicy Bypass -File ""{app}\health-check.ps1"" -Port 5278"; Description: "Verificar se o agente responde em http://localhost:5278"; Flags: postinstall nowait skipifsilent
-Filename: "{app}\StartLocalAgent.vbs"; Description: "Iniciar {#MyAppName} agora"; Flags: postinstall nowait skipifsilent
+Filename: "{sys}\wscript.exe"; Parameters: """{app}\StartLocalAgent.vbs"""; Description: "Iniciar {#MyAppName} agora"; Flags: postinstall nowait skipifsilent
 
 [UninstallRun]
 Filename: "netsh.exe"; Parameters: "advfirewall firewall delete rule name=""{#MyFirewallRule}"""; Flags: runhidden; RunOnceId: "RemoveFirewall"
