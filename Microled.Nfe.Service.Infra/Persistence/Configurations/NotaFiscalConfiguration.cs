@@ -66,6 +66,19 @@ public sealed class NotaFiscalConfiguration : IEntityTypeConfiguration<NotaFisca
             .HasColumnName("pdf")
             .HasColumnType("bytea");
 
+        builder.Property(x => x.Pago)
+            .HasColumnName("pago")
+            .IsRequired()
+            .HasDefaultValue(false);
+
+        builder.Property(x => x.DataPagamento)
+            .HasColumnName("data_pagamento")
+            .HasColumnType("timestamp with time zone");
+
+        builder.Property(x => x.ValorDepositado)
+            .HasColumnName("valor_depositado")
+            .HasPrecision(18, 2);
+
         builder.Property(x => x.DataEmissao)
             .HasColumnName("data_emissao");
 

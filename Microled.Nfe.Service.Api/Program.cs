@@ -228,6 +228,7 @@ builder.Services.AddScoped<IGetActiveCertificateProfileUseCase, GetActiveCertifi
 builder.Services.AddScoped<ICreateNotaFiscalUseCase, CreateNotaFiscalUseCase>();
 builder.Services.AddScoped<IUpdateNotaFiscalAuthorizationUseCase, UpdateNotaFiscalAuthorizationUseCase>();
 builder.Services.AddScoped<IUpdateNotaFiscalStatusUseCase, UpdateNotaFiscalStatusUseCase>();
+builder.Services.AddScoped<IUpdateNotaFiscalPagamentoUseCase, UpdateNotaFiscalPagamentoUseCase>();
 builder.Services.AddScoped<IAttachNotaFiscalPdfUseCase, AttachNotaFiscalPdfUseCase>();
 builder.Services.AddScoped<IGetNotaFiscalByIdUseCase, GetNotaFiscalByIdUseCase>();
 builder.Services.AddScoped<ISearchNotasFiscaisUseCase, SearchNotasFiscaisUseCase>();
