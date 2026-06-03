@@ -9,12 +9,15 @@ namespace Microled.Nfe.LocalAgent.Api.Services;
 
 public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
 {
+    /// <summary>
+    /// Enums as numeric values — matches default ASP.NET Core JSON on the main API
+    /// (production may not yet have JsonStringEnumConverter).
+    /// </summary>
     internal static readonly JsonSerializerOptions JsonOptions = new()
     {
         PropertyNameCaseInsensitive = true,
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        Converters = { new JsonStringEnumConverter(JsonNamingPolicy.CamelCase) }
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
     };
 
     private readonly HttpClient _httpClient;
