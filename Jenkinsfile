@@ -23,7 +23,11 @@ pipeline {
             steps {
                 cleanWs()
                 checkout scm
-                sh 'echo "== COMMIT BUILDADO ==" && git log --oneline -3'
+                sh '''
+                    echo "== BRANCH / COMMIT BUILDADO =="
+                    git branch -a | grep "^*"
+                    git log --oneline -3
+                '''
             }
         }
 
