@@ -124,7 +124,7 @@ public sealed class PersistBatchStatusDataUseCase : IPersistBatchStatusDataUseCa
         var status = ResolveStatus(request);
 
         return events
-            .Where(e => e.IsErro || status == NotaFiscalStatus.Rejected)
+            .Where(e => e.IsErro)
             .Select(e => new PersistNfeAuthorizationItemRequest
             {
                 Protocolo = request.NumeroProtocolo,

@@ -113,7 +113,7 @@ Configure em `appsettings.json`:
 }
 ```
 
-**Importante:** `MainApiBaseUrl` deve apontar para a **API** (`Microled.Nfe.Service.Api`), **não** para o frontend Angular. Se apontar para o site (`app.amktechsistemas.com.br`), a resposta será HTML e a persistência falhará.
+**Importante:** `MainApiBaseUrl` deve apontar para o host da **API** (`Microled.Nfe.Service.Api`), **não** para o frontend Angular (`app.amktechsistemas.com.br`). Ex.: AMK Tech usa `https://amktechsistemas.com.br` (rotas `/api/v1/...`).
 
 Teste se a API responde JSON antes de enviar RPS:
 

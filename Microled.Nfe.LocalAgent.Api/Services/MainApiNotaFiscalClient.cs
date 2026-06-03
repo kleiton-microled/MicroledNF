@@ -165,13 +165,25 @@ public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
             else
             {
                 _logger.LogWarning(
-                    "Main API POST {Url} persist failed: HTTP {StatusCode} Message={Message}",
+                    "Main API POST {Url} persist failed: HTTP {StatusCode} Message={Message} Body={BodyPreview}",
                     absoluteUrl,
                     (int)response.StatusCode,
-                    payload.Message);
+                    payload.Message ?? "(null)",
+                    Truncate(body));
             }
 
             return payload;
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError(
+                "Main API POST {Url} returned HTTP {StatusCode} without ApiResponse JSON. ContentType={ContentType} Body={BodyPreview}. " +
+                "Often model-binding validation (e.g. enum status) or API not deployed with persist endpoints.",
+                absoluteUrl,
+                (int)response.StatusCode,
+                contentType,
+                Truncate(body));
         }
 
         return ApiResponse<TResponse>.Fail(

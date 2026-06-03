@@ -27,6 +27,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -55,8 +57,14 @@ if (string.IsNullOrWhiteSpace(nfeDatabaseConnection))
 builder.Services.AddDbContext<NfeDbContext>(options =>
     options.UseNpgsql(nfeDatabaseConnection));
 
-// Add services to the container
-builder.Services.AddControllers();
+// Add services to the container (camelCase + string enums — same contract as LocalAgent MainApiNotaFiscalClient)
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+        options.JsonSerializerOptions.Converters.Add(
+            new JsonStringEnumConverter(JsonNamingPolicy.CamelCase));
+    });
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FrontendDevCors", policy =>
