@@ -57,6 +57,12 @@ public sealed class SearchNotasFiscaisRequest
     public int PageSize { get; init; } = 20;
 }
 
+public sealed class NotaFiscalEventoDto
+{
+    public string Codigo { get; init; } = string.Empty;
+    public string Descricao { get; init; } = string.Empty;
+}
+
 public sealed class NotaFiscalResponse
 {
     public Guid Id { get; init; }
@@ -78,6 +84,8 @@ public sealed class NotaFiscalResponse
     public DateTimeOffset? AlteradoEm { get; init; }
     public bool HasPdf { get; init; }
     public bool HasXml { get; init; }
+    public IReadOnlyList<NotaFiscalEventoDto> Erros { get; init; } = [];
+    public IReadOnlyList<NotaFiscalEventoDto> Alertas { get; init; } = [];
 }
 
 public sealed class PagedNotaFiscalResponse
