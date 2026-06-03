@@ -31,10 +31,13 @@ public sealed class PersistBatchStatusDataUseCase : IPersistBatchStatusDataUseCa
         }
 
         var responses = new List<NotaFiscalResponse>();
+        var autorizacoes = request.Autorizacoes.Count > 0
+            ? request.Autorizacoes
+            : BuildAutorizacoesFromResultadoOperacao(request);
 
-        if (request.Autorizacoes.Count > 0)
+        if (autorizacoes.Count > 0)
         {
-            foreach (var auth in request.Autorizacoes)
+            foreach (var auth in autorizacoes)
             {
                 var item = MergeProtocolo(auth, request.NumeroProtocolo);
                 await NotaFiscalPersistenceHelper.ApplyAuthorizationItemAsync(
@@ -43,24 +46,30 @@ public sealed class PersistBatchStatusDataUseCase : IPersistBatchStatusDataUseCa
                     request.AlteradoPor,
                     cancellationToken);
 
-                var nota = await NotaFiscalPersistenceHelper.FindNotaAsync(_repository, auth, cancellationToken);
+                var nota = await NotaFiscalPersistenceHelper.FindNotaAsync(_repository, item, cancellationToken);
                 if (nota is not null)
                 {
                     responses.Add(NotaFiscalMapper.ToResponse(nota));
                 }
             }
         }
-        else
-        {
-            var notas = await _repository.ListByProtocoloAsync(request.NumeroProtocolo, cancellationToken);
-            var numeroLote = request.NumeroLote?.ToString();
-            var status = ResolveStatus(request);
 
-            foreach (var nota in notas)
+        var notasByProtocolo = await _repository.ListByProtocoloAsync(request.NumeroProtocolo, cancellationToken);
+        if (notasByProtocolo.Count > 0)
+        {
+            var status = ResolveStatus(request);
+            var resultadoXml = request.ResultadoOperacao;
+
+            foreach (var nota in notasByProtocolo)
             {
+                if (responses.Any(r => r.Id == nota.Id))
+                {
+                    continue;
+                }
+
                 if (status == NotaFiscalStatus.Rejected)
                 {
-                    nota.SetRejected(request.AlteradoPor);
+                    nota.SetRejected(request.AlteradoPor, resultadoXml);
                 }
                 else if (status == NotaFiscalStatus.Processing)
                 {
@@ -68,7 +77,7 @@ public sealed class PersistBatchStatusDataUseCase : IPersistBatchStatusDataUseCa
                 }
                 else if (status == NotaFiscalStatus.Error)
                 {
-                    nota.SetError(request.AlteradoPor);
+                    nota.SetError(request.AlteradoPor, resultadoXml);
                 }
 
                 await _repository.UpdateAsync(nota, cancellationToken);
@@ -101,6 +110,32 @@ public sealed class PersistBatchStatusDataUseCase : IPersistBatchStatusDataUseCa
         }
 
         return NotaFiscalStatus.Error;
+    }
+
+    private static List<PersistNfeAuthorizationItemRequest> BuildAutorizacoesFromResultadoOperacao(
+        PersistBatchStatusDataRequest request)
+    {
+        var events = RetornoEnvioLoteRpsResultadoParser.ParseRpsEvents(request.ResultadoOperacao);
+        if (events.Count == 0)
+        {
+            return [];
+        }
+
+        var status = ResolveStatus(request);
+
+        return events
+            .Where(e => e.IsErro || status == NotaFiscalStatus.Rejected)
+            .Select(e => new PersistNfeAuthorizationItemRequest
+            {
+                Protocolo = request.NumeroProtocolo,
+                InscricaoPrestador = e.InscricaoPrestador,
+                SerieRps = e.SerieRps,
+                NumeroRps = e.NumeroRps,
+                NumeroLote = request.NumeroLote?.ToString(),
+                Xml = request.ResultadoOperacao,
+                Status = e.IsErro ? NotaFiscalStatus.Rejected : status
+            })
+            .ToList();
     }
 
     private static PersistNfeAuthorizationItemRequest MergeProtocolo(

@@ -28,6 +28,8 @@ public sealed class PersistBatchStatusDataRequest
     public long? NumeroLote { get; init; }
     public DateTimeOffset? DataProcessamento { get; init; }
     public string AlteradoPor { get; init; } = string.Empty;
+    /// <summary>Raw RetornoEnvioLoteRPS XML from ConsultaSituacaoLote (used when situacao is invalidado).</summary>
+    public string? ResultadoOperacao { get; init; }
     public List<PersistNfeAuthorizationItemRequest> Autorizacoes { get; init; } = [];
 }
 
