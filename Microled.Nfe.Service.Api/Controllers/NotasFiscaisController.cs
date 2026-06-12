@@ -152,7 +152,6 @@ public class NotasFiscaisController : ControllerBase
     }
 
     [HttpGet("{id:guid}/pdf")]
-    [Produces("application/pdf")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DownloadPdf(Guid id, CancellationToken cancellationToken)
@@ -172,7 +171,6 @@ public class NotasFiscaisController : ControllerBase
     }
 
     [HttpPost("{id:guid}/pdf/generate")]
-    [Produces("application/pdf")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
