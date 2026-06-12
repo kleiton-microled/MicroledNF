@@ -1,5 +1,6 @@
 using System.Reflection;
 using FluentValidation;
+using QuestPDF.Infrastructure;
 using FluentValidation.AspNetCore;
 using Microled.Nfe.Service.Api.Configuration;
 using Microled.Nfe.Service.Api.HealthChecks;
@@ -29,6 +30,8 @@ using Microsoft.Extensions.Options;
 using Microsoft.OpenApi.Models;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+
+QuestPDF.Settings.License = LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -234,6 +237,7 @@ builder.Services.AddScoped<IGetNotaFiscalByIdUseCase, GetNotaFiscalByIdUseCase>(
 builder.Services.AddScoped<ISearchNotasFiscaisUseCase, SearchNotasFiscaisUseCase>();
 builder.Services.AddScoped<IGetNotaFiscalXmlUseCase, GetNotaFiscalXmlUseCase>();
 builder.Services.AddScoped<IGetNotaFiscalPdfUseCase, GetNotaFiscalPdfUseCase>();
+builder.Services.AddScoped<IGenerateNotaFiscalPdfUseCase, GenerateNotaFiscalPdfUseCase>();
 builder.Services.AddScoped<IPersistRpsSendResultUseCase, PersistRpsSendResultUseCase>();
 builder.Services.AddScoped<IPersistBatchStatusDataUseCase, PersistBatchStatusDataUseCase>();
 builder.Services.AddScoped<IPersistConsultNfeResultUseCase, PersistConsultNfeResultUseCase>();

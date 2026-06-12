@@ -19,6 +19,7 @@ public class NotasFiscaisController : ControllerBase
     private readonly IAttachNotaFiscalPdfUseCase _attachPdfUseCase;
     private readonly IGetNotaFiscalXmlUseCase _getXmlUseCase;
     private readonly IGetNotaFiscalPdfUseCase _getPdfUseCase;
+    private readonly IGenerateNotaFiscalPdfUseCase _generatePdfUseCase;
     private readonly IPersistRpsSendResultUseCase _persistSendResultUseCase;
     private readonly IPersistBatchStatusDataUseCase _persistBatchStatusUseCase;
     private readonly IPersistConsultNfeResultUseCase _persistConsultResultUseCase;
@@ -35,6 +36,7 @@ public class NotasFiscaisController : ControllerBase
         IAttachNotaFiscalPdfUseCase attachPdfUseCase,
         IGetNotaFiscalXmlUseCase getXmlUseCase,
         IGetNotaFiscalPdfUseCase getPdfUseCase,
+        IGenerateNotaFiscalPdfUseCase generatePdfUseCase,
         IPersistRpsSendResultUseCase persistSendResultUseCase,
         IPersistBatchStatusDataUseCase persistBatchStatusUseCase,
         IPersistConsultNfeResultUseCase persistConsultResultUseCase,
@@ -50,6 +52,7 @@ public class NotasFiscaisController : ControllerBase
         _attachPdfUseCase = attachPdfUseCase;
         _getXmlUseCase = getXmlUseCase;
         _getPdfUseCase = getPdfUseCase;
+        _generatePdfUseCase = generatePdfUseCase;
         _persistSendResultUseCase = persistSendResultUseCase;
         _persistBatchStatusUseCase = persistBatchStatusUseCase;
         _persistConsultResultUseCase = persistConsultResultUseCase;
@@ -166,6 +169,28 @@ public class NotasFiscaisController : ControllerBase
         }
 
         return File(pdf, "application/pdf", $"nota-fiscal-{id}.pdf");
+    }
+
+    [HttpPost("{id:guid}/pdf/generate")]
+    [Produces("application/pdf")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> GeneratePdf(Guid id, CancellationToken cancellationToken)
+    {
+        var (found, hasXml, pdf) = await _generatePdfUseCase.ExecuteAsync(id, cancellationToken);
+
+        if (!found)
+        {
+            return NotFound();
+        }
+
+        if (!hasXml)
+        {
+            return BadRequest("Nota fiscal não possui XML para geração do PDF.");
+        }
+
+        return File(pdf!, "application/pdf", $"nota-fiscal-{id}.pdf");
     }
 
     [HttpGet("{id:guid}/xml")]
