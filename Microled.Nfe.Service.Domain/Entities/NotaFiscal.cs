@@ -129,7 +129,7 @@ public sealed class NotaFiscal
         NumeroNota = numeroNota.Trim();
         CodigoVerificacao = codigoVerificacao?.Trim();
         NumeroLote = numeroLote?.Trim();
-        DataEmissao = dataEmissao ?? DateTimeOffset.UtcNow;
+        DataEmissao = (dataEmissao ?? DateTimeOffset.UtcNow).ToUniversalTime();
 
         if (!string.IsNullOrWhiteSpace(xml))
         {
