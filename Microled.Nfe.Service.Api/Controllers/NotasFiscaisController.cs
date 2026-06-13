@@ -176,17 +176,16 @@ public class NotasFiscaisController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GeneratePdf(Guid id, CancellationToken cancellationToken)
     {
-        var (found, hasXml, pdf) = await _generatePdfUseCase.ExecuteAsync(id, cancellationToken);
+        var (found, hasXml, error, pdf) = await _generatePdfUseCase.ExecuteAsync(id, cancellationToken);
 
         if (!found)
-        {
             return NotFound();
-        }
 
         if (!hasXml)
-        {
             return BadRequest("Nota fiscal não possui XML para geração do PDF.");
-        }
+
+        if (error is not null)
+            return UnprocessableEntity(error);
 
         return File(pdf!, "application/pdf", $"nota-fiscal-{id}.pdf");
     }

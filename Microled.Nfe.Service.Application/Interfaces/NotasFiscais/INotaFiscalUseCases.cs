@@ -49,5 +49,5 @@ public interface IUpdateNotaFiscalPagamentoUseCase
 
 public interface IGenerateNotaFiscalPdfUseCase
 {
-    Task<(bool Found, bool HasXml, byte[]? Pdf)> ExecuteAsync(Guid id, CancellationToken cancellationToken);
+    Task<(bool Found, bool HasXml, string? Error, byte[]? Pdf)> ExecuteAsync(Guid id, CancellationToken cancellationToken);
 }

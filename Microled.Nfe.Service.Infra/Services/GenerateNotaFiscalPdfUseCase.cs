@@ -18,17 +18,17 @@ public sealed class GenerateNotaFiscalPdfUseCase : IGenerateNotaFiscalPdfUseCase
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
     }
 
-    public async Task<(bool Found, bool HasXml, byte[]? Pdf)> ExecuteAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<(bool Found, bool HasXml, string? Error, byte[]? Pdf)> ExecuteAsync(Guid id, CancellationToken cancellationToken)
     {
         var nota = await _repository.GetByIdAsync(id, cancellationToken);
         if (nota is null)
         {
-            return (false, false, null);
+            return (false, false, null, null);
         }
 
         if (string.IsNullOrWhiteSpace(nota.Xml))
         {
-            return (true, false, null);
+            return (true, false, null, null);
         }
 
         tpNFe nfe;
@@ -36,9 +36,9 @@ public sealed class GenerateNotaFiscalPdfUseCase : IGenerateNotaFiscalPdfUseCase
         {
             nfe = DeserializeNfe(nota.Xml);
         }
-        catch
+        catch (Exception ex)
         {
-            return (true, false, null);
+            return (true, true, $"XML inválido para geração de PDF: {ex.Message}", null);
         }
 
         var pdfBytes = GeneratePdf(nfe, nota.CodigoVerificacao, nota.Protocolo);
@@ -46,23 +46,48 @@ public sealed class GenerateNotaFiscalPdfUseCase : IGenerateNotaFiscalPdfUseCase
         nota.AttachPdf(pdfBytes, "system");
         await _repository.UpdateAsync(nota, cancellationToken);
 
-        return (true, true, pdfBytes);
+        return (true, true, null, pdfBytes);
     }
 
     private static tpNFe DeserializeNfe(string xml)
     {
+        const string nfeNamespace = "http://www.prefeitura.sp.gov.br/nfe";
+
         var rootAttr = new XmlRootAttribute("NFe")
         {
-            Namespace = "http://www.prefeitura.sp.gov.br/nfe",
+            Namespace = nfeNamespace,
             IsNullable = false
         };
-
         var serializer = new XmlSerializer(typeof(tpNFe), rootAttr);
 
-        using var reader = new StringReader(xml);
-        using var xmlReader = XmlReader.Create(reader);
+        // Try direct deserialization first
+        try
+        {
+            using var directReader = new StringReader(xml);
+            using var directXmlReader = XmlReader.Create(directReader);
+            return (tpNFe)serializer.Deserialize(directXmlReader)!;
+        }
+        catch
+        {
+            // Fall through to extraction attempt
+        }
 
-        return (tpNFe)serializer.Deserialize(xmlReader)!;
+        // XML may be wrapped in a response envelope — extract the <NFe> element
+        var doc = System.Xml.Linq.XDocument.Parse(xml);
+        var nfeElement =
+            doc.Descendants(System.Xml.Linq.XName.Get("NFe", nfeNamespace)).FirstOrDefault()
+            ?? doc.Descendants("NFe").FirstOrDefault();
+
+        if (nfeElement is null)
+        {
+            throw new InvalidOperationException(
+                "Elemento <NFe> não encontrado no XML armazenado. " +
+                $"Elemento raiz encontrado: <{doc.Root?.Name.LocalName}>.");
+        }
+
+        using var extractedReader = new StringReader(nfeElement.ToString());
+        using var extractedXmlReader = XmlReader.Create(extractedReader);
+        return (tpNFe)serializer.Deserialize(extractedXmlReader)!;
     }
 
     private static byte[] GeneratePdf(tpNFe nfe, string? codigoVerificacao, string? protocolo)
