@@ -49,45 +49,55 @@ public sealed class GenerateNotaFiscalPdfUseCase : IGenerateNotaFiscalPdfUseCase
         return (true, true, null, pdfBytes);
     }
 
+    private static readonly XmlRootAttribute[] _nfeRootCandidates =
+    [
+        new XmlRootAttribute("NFe") { Namespace = "",                                    IsNullable = false },
+        new XmlRootAttribute("NFe") { Namespace = "http://www.prefeitura.sp.gov.br/nfe", IsNullable = false },
+        new XmlRootAttribute("NFe") { IsNullable = false },
+    ];
+
     private static tpNFe DeserializeNfe(string xml)
     {
-        const string nfeNamespace = "http://www.prefeitura.sp.gov.br/nfe";
-
-        var rootAttr = new XmlRootAttribute("NFe")
+        // Try direct deserialization with each namespace candidate
+        Exception? lastEx = null;
+        foreach (var root in _nfeRootCandidates)
         {
-            Namespace = nfeNamespace,
-            IsNullable = false
-        };
-        var serializer = new XmlSerializer(typeof(tpNFe), rootAttr);
-
-        // Try direct deserialization first
-        try
-        {
-            using var directReader = new StringReader(xml);
-            using var directXmlReader = XmlReader.Create(directReader);
-            return (tpNFe)serializer.Deserialize(directXmlReader)!;
-        }
-        catch
-        {
-            // Fall through to extraction attempt
+            try
+            {
+                var s = new XmlSerializer(typeof(tpNFe), root);
+                using var r = new StringReader(xml);
+                using var xr = XmlReader.Create(r);
+                return (tpNFe)s.Deserialize(xr)!;
+            }
+            catch (Exception ex) { lastEx = ex; }
         }
 
-        // XML may be wrapped in a response envelope — extract the <NFe> element
+        // XML may be wrapped — extract inner <NFe> element and retry
         var doc = System.Xml.Linq.XDocument.Parse(xml);
-        var nfeElement =
-            doc.Descendants(System.Xml.Linq.XName.Get("NFe", nfeNamespace)).FirstOrDefault()
+        var nfeEl =
+            doc.Descendants(System.Xml.Linq.XName.Get("NFe", "http://www.prefeitura.sp.gov.br/nfe")).FirstOrDefault()
+            ?? doc.Descendants(System.Xml.Linq.XName.Get("NFe", "")).FirstOrDefault()
             ?? doc.Descendants("NFe").FirstOrDefault();
 
-        if (nfeElement is null)
+        if (nfeEl is null)
         {
             throw new InvalidOperationException(
-                "Elemento <NFe> não encontrado no XML armazenado. " +
-                $"Elemento raiz encontrado: <{doc.Root?.Name.LocalName}>.");
+                $"Elemento <NFe> não encontrado. Raiz: <{doc.Root?.Name.LocalName}>. Último erro: {lastEx?.Message}");
         }
 
-        using var extractedReader = new StringReader(nfeElement.ToString());
-        using var extractedXmlReader = XmlReader.Create(extractedReader);
-        return (tpNFe)serializer.Deserialize(extractedXmlReader)!;
+        foreach (var root in _nfeRootCandidates)
+        {
+            try
+            {
+                var s = new XmlSerializer(typeof(tpNFe), root);
+                using var r = new StringReader(nfeEl.ToString());
+                using var xr = XmlReader.Create(r);
+                return (tpNFe)s.Deserialize(xr)!;
+            }
+            catch (Exception ex) { lastEx = ex; }
+        }
+
+        throw new InvalidOperationException($"Não foi possível deserializar o <NFe>. Último erro: {lastEx?.Message}");
     }
 
     private static byte[] GeneratePdf(tpNFe nfe, string? codigoVerificacao, string? protocolo)
