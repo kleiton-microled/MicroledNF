@@ -20,6 +20,7 @@ public static class NotaFiscalMapper
             InscricaoPrestador = nota.InscricaoPrestador,
             CnpjPrestador = nota.CnpjPrestador,
             CpfCnpjTomador = nota.CpfCnpjTomador,
+            NomeTomador = RetornoXmlParser.ExtractRazaoSocialTomador(nota.Xml),
             Status = nota.Status.ToString(),
             Pago = nota.Pago,
             DataPagamento = nota.DataPagamento,

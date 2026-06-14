@@ -84,6 +84,7 @@ public sealed class NotaFiscalResponse
     public string? InscricaoPrestador { get; init; }
     public string? CnpjPrestador { get; init; }
     public string? CpfCnpjTomador { get; init; }
+    public string? NomeTomador { get; init; }
     public string Status { get; init; } = string.Empty;
     public bool Pago { get; init; }
     public DateTimeOffset? DataPagamento { get; init; }

@@ -32,6 +32,29 @@ public static class RetornoXmlParser
         }
     }
 
+    public static string? ExtractRazaoSocialTomador(string? xml)
+    {
+        if (string.IsNullOrWhiteSpace(xml))
+        {
+            return null;
+        }
+
+        try
+        {
+            var doc = XDocument.Parse(xml);
+            var root = doc.Root;
+            if (root is null) return null;
+
+            var ns = root.Name.Namespace;
+            return root.Element(ns + "RazaoSocialTomador")?.Value.Trim()
+                ?? root.Element("RazaoSocialTomador")?.Value.Trim();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     private static IReadOnlyList<NotaFiscalEventoDto> ExtractEventos(XElement root, string elementName)
     {
         // Elements may be in the root namespace or explicitly in the empty namespace (xmlns="").
