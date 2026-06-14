@@ -24,6 +24,7 @@ public class NotasFiscaisController : ControllerBase
     private readonly IPersistBatchStatusDataUseCase _persistBatchStatusUseCase;
     private readonly IPersistConsultNfeResultUseCase _persistConsultResultUseCase;
     private readonly IPersistCancelNfeResultUseCase _persistCancelResultUseCase;
+    private readonly IDeleteNotaFiscalUseCase _deleteUseCase;
     private readonly ILogger<NotasFiscaisController> _logger;
 
     public NotasFiscaisController(
@@ -41,6 +42,7 @@ public class NotasFiscaisController : ControllerBase
         IPersistBatchStatusDataUseCase persistBatchStatusUseCase,
         IPersistConsultNfeResultUseCase persistConsultResultUseCase,
         IPersistCancelNfeResultUseCase persistCancelResultUseCase,
+        IDeleteNotaFiscalUseCase deleteUseCase,
         ILogger<NotasFiscaisController> logger)
     {
         _createUseCase = createUseCase;
@@ -57,6 +59,7 @@ public class NotasFiscaisController : ControllerBase
         _persistBatchStatusUseCase = persistBatchStatusUseCase;
         _persistConsultResultUseCase = persistConsultResultUseCase;
         _persistCancelResultUseCase = persistCancelResultUseCase;
+        _deleteUseCase = deleteUseCase;
         _logger = logger;
     }
 
@@ -224,6 +227,18 @@ public class NotasFiscaisController : ControllerBase
         }, cancellationToken);
 
         return ToActionResult(response, StatusCodes.Status404NotFound);
+    }
+
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        var (found, allowed) = await _deleteUseCase.ExecuteAsync(id, cancellationToken);
+        if (!found) return NotFound();
+        if (!allowed) return Conflict("Nota fiscal autorizada ou cancelada não pode ser excluída.");
+        return NoContent();
     }
 
     [HttpPost("persist/send-result")]

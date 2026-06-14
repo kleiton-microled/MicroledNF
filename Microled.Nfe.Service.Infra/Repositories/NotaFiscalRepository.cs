@@ -134,4 +134,17 @@ public sealed class NotaFiscalRepository : INotaFiscalRepository
         _dbContext.NotasFiscais.Update(notaFiscal);
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
+
+    public async Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        var nota = await _dbContext.NotasFiscais.FindAsync([id], cancellationToken);
+        if (nota is null)
+        {
+            return false;
+        }
+
+        _dbContext.NotasFiscais.Remove(nota);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return true;
+    }
 }
