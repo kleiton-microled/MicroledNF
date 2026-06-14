@@ -242,6 +242,7 @@ builder.Services.AddScoped<IPersistRpsSendResultUseCase, PersistRpsSendResultUse
 builder.Services.AddScoped<IPersistBatchStatusDataUseCase, PersistBatchStatusDataUseCase>();
 builder.Services.AddScoped<IPersistConsultNfeResultUseCase, PersistConsultNfeResultUseCase>();
 builder.Services.AddScoped<IPersistCancelNfeResultUseCase, PersistCancelNfeResultUseCase>();
+builder.Services.AddScoped<IDeleteNotaFiscalUseCase, DeleteNotaFiscalUseCase>();
 
 // Add logging
 builder.Services.AddLogging();

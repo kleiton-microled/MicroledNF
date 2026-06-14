@@ -51,3 +51,8 @@ public interface IGenerateNotaFiscalPdfUseCase
 {
     Task<(bool Found, bool HasXml, string? Error, byte[]? Pdf)> ExecuteAsync(Guid id, CancellationToken cancellationToken);
 }
+
+public interface IDeleteNotaFiscalUseCase
+{
+    Task<(bool Found, bool Allowed)> ExecuteAsync(Guid id, CancellationToken cancellationToken);
+}

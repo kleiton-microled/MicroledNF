@@ -13,4 +13,5 @@ public interface INotaFiscalRepository
     Task<NotaFiscal?> GetByRpsAsync(string inscricaoPrestador, string serieRps, string numeroRps, CancellationToken cancellationToken);
     Task<(IReadOnlyList<NotaFiscal> Items, int TotalCount)> SearchAsync(NotaFiscalSearchFilter filter, CancellationToken cancellationToken);
     Task UpdateAsync(NotaFiscal notaFiscal, CancellationToken cancellationToken);
+    Task<bool> DeleteAsync(Guid id, CancellationToken cancellationToken);
 }
