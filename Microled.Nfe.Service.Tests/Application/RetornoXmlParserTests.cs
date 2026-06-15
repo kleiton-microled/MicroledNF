@@ -117,4 +117,88 @@ public class RetornoXmlParserTests
         RetornoXmlParser.ExtractRazaoSocialTomador(xml)
             .Should().Be("TERMARES TERMINAIS MARITIMOS ESPECIALIZADOS LTDA");
     }
+
+    [Fact]
+    public void ExtractRpsContentFields_FromSpRps_ShouldPopulateTomadorInscricaoMunicipal()
+    {
+        const string xml = """
+            <RPS xmlns="">
+              <InscricaoMunicipalTomador>99887766</InscricaoMunicipalTomador>
+              <RazaoSocialTomador>EMPRESA TESTE</RazaoSocialTomador>
+              <CodigoServico>2919</CodigoServico>
+              <ValorFinalCobrado>1500.00</ValorFinalCobrado>
+            </RPS>
+            """;
+
+        var fields = RetornoXmlParser.ExtractRpsContentFields(xml);
+
+        fields.TomadorInscricaoMunicipal.Should().Be("99887766");
+        fields.ValorServicos.Should().Be("1500.00");
+    }
+
+    [Fact]
+    public void ExtractRpsContentFields_FromAbrasfTomadorIdentificacao_ShouldPopulateTomadorInscricaoMunicipal()
+    {
+        const string xml = """
+            <EnviarLoteRpsEnvio>
+              <LoteRps>
+                <ListaRps>
+                  <Rps>
+                    <InfDeclaracaoPrestacaoServico>
+                      <TomadorServico>
+                        <IdentificacaoTomador>
+                          <InscricaoMunicipal>55443322</InscricaoMunicipal>
+                          <CpfCnpj><Cnpj>12345678000190</Cnpj></CpfCnpj>
+                        </IdentificacaoTomador>
+                      </TomadorServico>
+                    </InfDeclaracaoPrestacaoServico>
+                  </Rps>
+                </ListaRps>
+              </LoteRps>
+            </EnviarLoteRpsEnvio>
+            """;
+
+        var fields = RetornoXmlParser.ExtractRpsContentFields(xml);
+
+        fields.TomadorInscricaoMunicipal.Should().Be("55443322");
+    }
+
+    [Fact]
+    public void ExtractRpsContentFields_ShouldNotConfusePrestadorInscricaoMunicipalWithTomador()
+    {
+        const string xml = """
+            <NFe xmlns="">
+              <ChaveNFe>
+                <InscricaoPrestador>37684280</InscricaoPrestador>
+              </ChaveNFe>
+              <Prestador>
+                <InscricaoMunicipal>37684280</InscricaoMunicipal>
+              </Prestador>
+              <CPFCNPJTomador><CNPJ>53730495000170</CNPJ></CPFCNPJTomador>
+              <RazaoSocialTomador>TERMARES</RazaoSocialTomador>
+            </NFe>
+            """;
+
+        var fields = RetornoXmlParser.ExtractRpsContentFields(xml);
+
+        fields.TomadorInscricaoMunicipal.Should().BeNull();
+    }
+
+    [Fact]
+    public void ExtractRpsContentFields_FromPrefeituraConsultaExample_ShouldNotHaveTomadorInscricaoMunicipal()
+    {
+        const string xml = """
+            <NFe xmlns="">
+              <CPFCNPJTomador><CNPJ>99999999000166</CNPJ></CPFCNPJTomador>
+              <RazaoSocialTomador>TESTE</RazaoSocialTomador>
+              <ValorServicos>2300.65</ValorServicos>
+              <CodigoServico>1023</CodigoServico>
+            </NFe>
+            """;
+
+        var fields = RetornoXmlParser.ExtractRpsContentFields(xml);
+
+        fields.TomadorInscricaoMunicipal.Should().BeNull();
+        fields.ValorServicos.Should().Be("2300.65");
+    }
 }

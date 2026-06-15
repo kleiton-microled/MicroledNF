@@ -82,9 +82,16 @@ public static class RetornoXmlParser
         try
         {
             var doc = XDocument.Parse(xml);
-            var nfe = ResolveNfeElement(doc);
-            var searchRoot = nfe ?? doc.Root;
-            return searchRoot is null ? null : GetChildText(searchRoot, "RazaoSocialTomador");
+            var content = ResolveSpContentElement(doc);
+            var searchRoot = content ?? doc.Root;
+            if (searchRoot is null)
+            {
+                return null;
+            }
+
+            return FirstNonEmpty(
+                GetChildText(searchRoot, "RazaoSocialTomador"),
+                GetDescendantTextWithin(searchRoot, "RazaoSocialTomador"));
         }
         catch
         {
@@ -102,10 +109,10 @@ public static class RetornoXmlParser
         try
         {
             var doc = XDocument.Parse(xml);
-            var nfe = ResolveNfeElement(doc);
-            if (nfe is not null)
+            var spContent = ResolveSpContentElement(doc);
+            if (spContent is not null)
             {
-                return ExtractFromSpNfe(nfe);
+                return ExtractFromSpContent(spContent);
             }
 
             var root = doc.Root;
@@ -122,11 +129,12 @@ public static class RetornoXmlParser
         }
     }
 
-    private static RpsContentFields ExtractFromSpNfe(XElement nfe)
+    private static RpsContentFields ExtractFromSpContent(XElement content)
     {
-        var enderecoTomador = GetChildElement(nfe, "EnderecoTomador");
-        var ibscbs = GetChildElement(nfe, "IBSCBS");
-        var retornoIbs = GetChildElement(nfe, "RetornoComplementarIBSCBS");
+        var isNfe = content.Name.LocalName.Equals("NFe", StringComparison.OrdinalIgnoreCase);
+        var enderecoTomador = GetChildElement(content, "EnderecoTomador");
+        var ibscbs = GetChildElement(content, "IBSCBS");
+        var retornoIbs = GetChildElement(content, "RetornoComplementarIBSCBS");
         var ibsValores = ibscbs is not null ? GetChildElement(ibscbs, "valores") : null;
         var ibsTrib = ibsValores is not null ? GetChildElement(ibsValores, "trib") : null;
         var ibsGibscbs = ibsTrib is not null ? GetChildElement(ibsTrib, "gIBSCBS") : null;
@@ -144,12 +152,12 @@ public static class RetornoXmlParser
 
         return new RpsContentFields
         {
-            TipoRps = GetChildText(nfe, "TipoRPS"),
-            StatusRps = GetChildText(nfe, "StatusNFe"),
-            TributacaoRps = GetChildText(nfe, "TributacaoNFe"),
-            Discriminacao = GetChildText(nfe, "Discriminacao"),
-            TomadorEmail = GetChildText(nfe, "EmailTomador"),
-            TomadorInscricaoMunicipal = GetChildText(nfe, "InscricaoMunicipalTomador"),
+            TipoRps = GetChildText(content, "TipoRPS"),
+            StatusRps = GetChildText(content, isNfe ? "StatusNFe" : "StatusRPS"),
+            TributacaoRps = GetChildText(content, isNfe ? "TributacaoNFe" : "TributacaoRPS"),
+            Discriminacao = GetChildText(content, "Discriminacao"),
+            TomadorEmail = GetChildText(content, "EmailTomador"),
+            TomadorInscricaoMunicipal = ExtractTomadorInscricaoMunicipal(content),
             TomadorCep = GetChildText(enderecoTomador, "CEP"),
             TomadorLogradouro = logradouroCompleto,
             TomadorNumero = GetChildText(enderecoTomador, "NumeroEndereco"),
@@ -157,17 +165,19 @@ public static class RetornoXmlParser
             TomadorBairro = GetChildText(enderecoTomador, "Bairro"),
             TomadorCodigoMunicipio = GetChildText(enderecoTomador, "Cidade"),
             TomadorUf = GetChildText(enderecoTomador, "UF"),
-            CodigoServico = GetChildText(nfe, "CodigoServico"),
-            ValorServicos = GetChildText(nfe, "ValorServicos"),
-            AliquotaServicos = GetChildText(nfe, "AliquotaServicos"),
-            IssRetido = GetChildText(nfe, "ISSRetido"),
-            ValorIss = GetChildText(nfe, "ValorISS"),
-            ValorDeducoes = GetChildText(nfe, "ValorDeducoes"),
-            ValorPis = GetChildText(nfe, "ValorPIS"),
-            ValorCofins = GetChildText(nfe, "ValorCOFINS"),
-            ValorInss = GetChildText(nfe, "ValorINSS"),
-            ValorIr = GetChildText(nfe, "ValorIR"),
-            ValorCsll = GetChildText(nfe, "ValorCSLL"),
+            CodigoServico = GetChildText(content, "CodigoServico"),
+            ValorServicos = isNfe
+                ? GetChildText(content, "ValorServicos")
+                : FirstNonEmpty(GetChildText(content, "ValorServicos"), GetChildText(content, "ValorFinalCobrado")),
+            AliquotaServicos = GetChildText(content, "AliquotaServicos"),
+            IssRetido = GetChildText(content, "ISSRetido"),
+            ValorIss = isNfe ? GetChildText(content, "ValorISS") : null,
+            ValorDeducoes = GetChildText(content, "ValorDeducoes"),
+            ValorPis = GetChildText(content, "ValorPIS"),
+            ValorCofins = GetChildText(content, "ValorCOFINS"),
+            ValorInss = GetChildText(content, "ValorINSS"),
+            ValorIr = GetChildText(content, "ValorIR"),
+            ValorCsll = GetChildText(content, "ValorCSLL"),
             IbsIndDest = GetChildText(ibscbs, "indDest"),
             IbsCstIbs = GetChildText(ibsGibscbs, "cClassTrib"),
             IbsAliqEstadual = FirstNonEmpty(
@@ -182,71 +192,97 @@ public static class RetornoXmlParser
         };
     }
 
-    private static RpsContentFields ExtractFromAbrasfRps(XElement root)
+    private static string? ExtractTomadorInscricaoMunicipal(XElement content)
     {
-        var ns = root.Name.Namespace;
+        var imTomador = FirstNonEmpty(
+            GetChildText(content, "InscricaoMunicipalTomador"),
+            GetDescendantTextWithin(content, "InscricaoMunicipalTomador"));
 
-        XElement? FindDescendant(XElement el, string localName)
+        if (!string.IsNullOrWhiteSpace(imTomador))
         {
-            return el.Descendants(ns + localName).FirstOrDefault()
-                ?? el.Descendants(XName.Get(localName)).FirstOrDefault();
+            return imTomador;
         }
 
-        string? Text(XElement el, string localName) =>
-            FindDescendant(el, localName)?.Value.Trim();
+        var tomadorScope = content.Name.LocalName.Equals("TomadorServico", StringComparison.OrdinalIgnoreCase)
+            ? content
+            : FindDescendantByLocalName(content, "TomadorServico");
 
-        var rpsIdent = FindDescendant(root, "IdentificacaoRps");
-        var servico = FindDescendant(root, "Servico");
-        var valores = servico is not null ? FindDescendant(servico, "Valores") : null;
-        var tomador = FindDescendant(root, "TomadorServico");
-        var tomadorEndereco = tomador is not null ? FindDescendant(tomador, "Endereco") : null;
-        var ibscbs = valores is not null ? FindDescendant(valores, "IBSCBS") : null;
-        var ibsValores = ibscbs is not null ? FindDescendant(ibscbs, "valores") : null;
-        var ibsTrib = ibsValores is not null ? FindDescendant(ibsValores, "trib") : null;
-        var ibsGibscbs = ibsTrib is not null ? FindDescendant(ibsTrib, "gIBSCBS") : null;
+        if (tomadorScope is null)
+        {
+            return null;
+        }
+
+        var identificacao = FindDescendantByLocalName(tomadorScope, "IdentificacaoTomador");
+        if (identificacao is not null)
+        {
+            var imIdentificacao = FirstNonEmpty(
+                GetChildText(identificacao, "InscricaoMunicipal"),
+                GetDescendantTextWithin(identificacao, "InscricaoMunicipal"));
+
+            if (!string.IsNullOrWhiteSpace(imIdentificacao))
+            {
+                return imIdentificacao;
+            }
+        }
+
+        return GetDescendantTextWithin(tomadorScope, "InscricaoMunicipal");
+    }
+
+    private static RpsContentFields ExtractFromAbrasfRps(XElement root)
+    {
+        var rpsIdent = FindDescendantByLocalName(root, "IdentificacaoRps");
+        var servico = FindDescendantByLocalName(root, "Servico");
+        var valores = servico is not null ? FindDescendantByLocalName(servico, "Valores") : null;
+        var tomador = FindDescendantByLocalName(root, "TomadorServico");
+        var tomadorEndereco = tomador is not null ? FindDescendantByLocalName(tomador, "Endereco") : null;
+        var ibscbs = valores is not null ? FindDescendantByLocalName(valores, "IBSCBS") : null;
+        var ibsValores = ibscbs is not null ? FindDescendantByLocalName(ibscbs, "valores") : null;
+        var ibsTrib = ibsValores is not null ? FindDescendantByLocalName(ibsValores, "trib") : null;
+        var ibsGibscbs = ibsTrib is not null ? FindDescendantByLocalName(ibsTrib, "gIBSCBS") : null;
 
         return new RpsContentFields
         {
-            TipoRps = rpsIdent is not null ? Text(rpsIdent, "Tipo") : null,
-            StatusRps = Text(root, "Status"),
-            TributacaoRps = Text(root, "TributacaoRps"),
-            Discriminacao = servico is not null ? Text(servico, "Discriminacao") : null,
-            CodigoMunicipio = servico is not null ? Text(servico, "CodigoMunicipio") : null,
-            ExigibilidadeISS = servico is not null ? Text(servico, "ExigibilidadeISS") : null,
-            MunicipioIncidencia = servico is not null ? Text(servico, "MunicipioIncidencia") : null,
-            TomadorEmail = tomador is not null ? Text(tomador, "Email") : null,
-            TomadorInscricaoMunicipal = tomador is not null
-                ? FindDescendant(tomador, "InscricaoMunicipal")?.Value.Trim()
-                : null,
-            TomadorCep = tomadorEndereco is not null ? Text(tomadorEndereco, "Cep") : null,
-            TomadorLogradouro = tomadorEndereco is not null ? Text(tomadorEndereco, "Endereco") : null,
-            TomadorNumero = tomadorEndereco is not null ? Text(tomadorEndereco, "Numero") : null,
-            TomadorComplemento = tomadorEndereco is not null ? Text(tomadorEndereco, "Complemento") : null,
-            TomadorBairro = tomadorEndereco is not null ? Text(tomadorEndereco, "Bairro") : null,
-            TomadorCodigoMunicipio = tomadorEndereco is not null ? Text(tomadorEndereco, "CodigoMunicipio") : null,
-            TomadorUf = tomadorEndereco is not null ? Text(tomadorEndereco, "Uf") : null,
-            CodigoServico = servico is not null ? Text(servico, "ItemListaServico") : null,
-            ValorServicos = valores is not null ? Text(valores, "ValorServicos") : null,
-            AliquotaServicos = valores is not null ? Text(valores, "Aliquota") : null,
-            IssRetido = servico is not null ? Text(servico, "IssRetido") : null,
-            ValorIss = valores is not null ? Text(valores, "ValorIss") : null,
-            ValorDeducoes = valores is not null ? Text(valores, "ValorDeducoes") : null,
-            ValorPis = valores is not null ? Text(valores, "ValorPis") : null,
-            ValorCofins = valores is not null ? Text(valores, "ValorCofins") : null,
-            ValorInss = valores is not null ? Text(valores, "ValorInss") : null,
-            ValorIr = valores is not null ? Text(valores, "ValorIr") : null,
-            ValorCsll = valores is not null ? Text(valores, "ValorCsll") : null,
-            OutrasRetencoes = valores is not null ? Text(valores, "OutrasRetencoes") : null,
-            DescontoCondicionado = valores is not null ? Text(valores, "DescontoCondicionado") : null,
-            DescontoIncondicionado = valores is not null ? Text(valores, "DescontoIncondicionado") : null,
-            IbsIndDest = ibscbs is not null ? Text(ibscbs, "indDest") : null,
-            IbsCstIbs = ibsGibscbs is not null ? Text(ibsGibscbs, "CST") : null,
-            IbsAliqEstadual = ibsValores is not null ? Text(ibsValores, "pAliqEstadual") : null,
-            IbsAliqMunicipal = ibsValores is not null ? Text(ibsValores, "pAliqMunicipal") : null,
-            IbsCstCbs = ibsGibscbs is not null ? Text(ibsGibscbs, "CSTCbs") : null,
-            IbsAliqCbs = ibsValores is not null ? Text(ibsValores, "pAliqCbs") : null,
+            TipoRps = rpsIdent is not null ? GetChildText(rpsIdent, "Tipo") : null,
+            StatusRps = GetDescendantTextWithin(root, "Status"),
+            TributacaoRps = GetDescendantTextWithin(root, "TributacaoRps"),
+            Discriminacao = servico is not null ? GetChildText(servico, "Discriminacao") : null,
+            CodigoMunicipio = servico is not null ? GetChildText(servico, "CodigoMunicipio") : null,
+            ExigibilidadeISS = servico is not null ? GetChildText(servico, "ExigibilidadeISS") : null,
+            MunicipioIncidencia = servico is not null ? GetChildText(servico, "MunicipioIncidencia") : null,
+            TomadorEmail = tomador is not null ? GetChildText(tomador, "Email") : null,
+            TomadorInscricaoMunicipal = tomador is not null ? ExtractTomadorInscricaoMunicipal(tomador) : null,
+            TomadorCep = tomadorEndereco is not null ? GetChildText(tomadorEndereco, "Cep") : null,
+            TomadorLogradouro = tomadorEndereco is not null ? GetChildText(tomadorEndereco, "Endereco") : null,
+            TomadorNumero = tomadorEndereco is not null ? GetChildText(tomadorEndereco, "Numero") : null,
+            TomadorComplemento = tomadorEndereco is not null ? GetChildText(tomadorEndereco, "Complemento") : null,
+            TomadorBairro = tomadorEndereco is not null ? GetChildText(tomadorEndereco, "Bairro") : null,
+            TomadorCodigoMunicipio = tomadorEndereco is not null ? GetChildText(tomadorEndereco, "CodigoMunicipio") : null,
+            TomadorUf = tomadorEndereco is not null ? GetChildText(tomadorEndereco, "Uf") : null,
+            CodigoServico = servico is not null ? GetChildText(servico, "ItemListaServico") : null,
+            ValorServicos = valores is not null ? GetChildText(valores, "ValorServicos") : null,
+            AliquotaServicos = valores is not null ? GetChildText(valores, "Aliquota") : null,
+            IssRetido = servico is not null ? GetChildText(servico, "IssRetido") : null,
+            ValorIss = valores is not null ? GetChildText(valores, "ValorIss") : null,
+            ValorDeducoes = valores is not null ? GetChildText(valores, "ValorDeducoes") : null,
+            ValorPis = valores is not null ? GetChildText(valores, "ValorPis") : null,
+            ValorCofins = valores is not null ? GetChildText(valores, "ValorCofins") : null,
+            ValorInss = valores is not null ? GetChildText(valores, "ValorInss") : null,
+            ValorIr = valores is not null ? GetChildText(valores, "ValorIr") : null,
+            ValorCsll = valores is not null ? GetChildText(valores, "ValorCsll") : null,
+            OutrasRetencoes = valores is not null ? GetChildText(valores, "OutrasRetencoes") : null,
+            DescontoCondicionado = valores is not null ? GetChildText(valores, "DescontoCondicionado") : null,
+            DescontoIncondicionado = valores is not null ? GetChildText(valores, "DescontoIncondicionado") : null,
+            IbsIndDest = ibscbs is not null ? GetChildText(ibscbs, "indDest") : null,
+            IbsCstIbs = ibsGibscbs is not null ? GetChildText(ibsGibscbs, "CST") : null,
+            IbsAliqEstadual = ibsValores is not null ? GetChildText(ibsValores, "pAliqEstadual") : null,
+            IbsAliqMunicipal = ibsValores is not null ? GetChildText(ibsValores, "pAliqMunicipal") : null,
+            IbsCstCbs = ibsGibscbs is not null ? GetChildText(ibsGibscbs, "CSTCbs") : null,
+            IbsAliqCbs = ibsValores is not null ? GetChildText(ibsValores, "pAliqCbs") : null,
         };
     }
+
+    private static XElement? ResolveSpContentElement(XDocument doc) =>
+        ResolveNfeElement(doc) ?? ResolveRpsElement(doc);
 
     private static XElement? ResolveNfeElement(XDocument doc)
     {
@@ -256,6 +292,27 @@ public static class RetornoXmlParser
             ?? (string.Equals(doc.Root?.Name.LocalName, "NFe", StringComparison.OrdinalIgnoreCase)
                 ? doc.Root
                 : null);
+    }
+
+    private static XElement? ResolveRpsElement(XDocument doc)
+    {
+        return doc.Descendants(XName.Get("RPS", "http://www.prefeitura.sp.gov.br/nfe")).FirstOrDefault()
+            ?? doc.Descendants(XName.Get("RPS", "")).FirstOrDefault()
+            ?? doc.Descendants("RPS").FirstOrDefault()
+            ?? (string.Equals(doc.Root?.Name.LocalName, "RPS", StringComparison.OrdinalIgnoreCase)
+                ? doc.Root
+                : null);
+    }
+
+    private static XElement? FindDescendantByLocalName(XElement root, string localName)
+    {
+        return root.Descendants()
+            .FirstOrDefault(e => e.Name.LocalName.Equals(localName, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private static string? GetDescendantTextWithin(XElement root, string localName)
+    {
+        return FindDescendantByLocalName(root, localName)?.Value.Trim();
     }
 
     private static XElement? GetChildElement(XElement? parent, string localName)
@@ -271,7 +328,8 @@ public static class RetornoXmlParser
 
     private static string? GetChildText(XElement? parent, string localName)
     {
-        return GetChildElement(parent, localName)?.Value.Trim();
+        var value = GetChildElement(parent, localName)?.Value.Trim();
+        return string.IsNullOrWhiteSpace(value) ? null : value;
     }
 
     private static string? FirstNonEmpty(params string?[] values)
