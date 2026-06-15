@@ -99,6 +99,50 @@ public sealed class NotaFiscalResponse
     public bool HasXml { get; init; }
     public IReadOnlyList<NotaFiscalEventoDto> Erros { get; init; } = [];
     public IReadOnlyList<NotaFiscalEventoDto> Alertas { get; init; } = [];
+
+    // Dados RPS extraídos do XML
+    public string? TipoRps { get; init; }
+    public string? StatusRps { get; init; }
+    public string? TributacaoRps { get; init; }
+    public string? Discriminacao { get; init; }
+    public string? CodigoMunicipio { get; init; }
+    public string? ExigibilidadeISS { get; init; }
+    public string? MunicipioIncidencia { get; init; }
+
+    // Dados do Tomador extraídos do XML
+    public string? TomadorEmail { get; init; }
+    public string? TomadorInscricaoMunicipal { get; init; }
+    public string? TomadorCep { get; init; }
+    public string? TomadorLogradouro { get; init; }
+    public string? TomadorNumero { get; init; }
+    public string? TomadorComplemento { get; init; }
+    public string? TomadorBairro { get; init; }
+    public string? TomadorCodigoMunicipio { get; init; }
+    public string? TomadorUf { get; init; }
+
+    // Dados do Serviço extraídos do XML
+    public string? CodigoServico { get; init; }
+    public string? ValorServicos { get; init; }
+    public string? AliquotaServicos { get; init; }
+    public string? IssRetido { get; init; }
+    public string? ValorIss { get; init; }
+    public string? ValorDeducoes { get; init; }
+    public string? ValorPis { get; init; }
+    public string? ValorCofins { get; init; }
+    public string? ValorInss { get; init; }
+    public string? ValorIr { get; init; }
+    public string? ValorCsll { get; init; }
+    public string? OutrasRetencoes { get; init; }
+    public string? DescontoCondicionado { get; init; }
+    public string? DescontoIncondicionado { get; init; }
+
+    // Dados IBS/CBS extraídos do XML
+    public string? IbsIndDest { get; init; }
+    public string? IbsCstIbs { get; init; }
+    public string? IbsAliqEstadual { get; init; }
+    public string? IbsAliqMunicipal { get; init; }
+    public string? IbsCstCbs { get; init; }
+    public string? IbsAliqCbs { get; init; }
 }
 
 public sealed class PagedNotaFiscalResponse
