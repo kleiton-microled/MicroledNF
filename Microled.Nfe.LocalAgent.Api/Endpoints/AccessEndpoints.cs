@@ -1,5 +1,7 @@
+using System.Text.Json.Nodes;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.Extensions.Options;
+using Microled.Nfe.LocalAgent.Api.Configuration;
 using Microled.Nfe.LocalAgent.Api.Contracts;
 using Microled.Nfe.Service.Infra.Configuration;
 using Microled.Nfe.Service.Infra.Repositories;
@@ -13,6 +15,42 @@ public static class AccessEndpoints
     {
         var group = endpoints.MapGroup("/api/local/access")
             .WithTags("Local Access");
+
+        group.MapGet("/settings", (
+            IOptionsMonitor<AccessDatabaseOptions> accessOptions) =>
+        {
+            var path = accessOptions.CurrentValue.DatabasePath ?? string.Empty;
+            return TypedResults.Ok(new LocalAccessSettingsResponse
+            {
+                DatabasePath = path,
+                FileExists = !string.IsNullOrWhiteSpace(path) && File.Exists(path)
+            });
+        });
+
+        group.MapPost("/configure", Results<Ok<LocalAccessSettingsResponse>, ValidationProblem> (
+            ConfigureAccessRequest request) =>
+        {
+            if (string.IsNullOrWhiteSpace(request.DatabasePath))
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["databasePath"] = ["Informe o caminho do arquivo Access (.mdb ou .accdb)."]
+                });
+            }
+
+            var fullPath = Path.GetFullPath(request.DatabasePath.Trim());
+            var section = new JsonObject
+            {
+                ["DatabasePath"] = fullPath
+            };
+            LocalAgentUserSettingsStore.UpsertSection(AccessDatabaseOptions.SectionName, section);
+
+            return TypedResults.Ok(new LocalAccessSettingsResponse
+            {
+                DatabasePath = fullPath,
+                FileExists = File.Exists(fullPath)
+            });
+        });
 
         group.MapGet("/pending-rps", async Task<Ok<LocalAccessPendingRpsResponse>> (
             int? batchSize,

@@ -31,7 +31,8 @@ builder.Host.UseSerilog();
 
 builder.Configuration
     .AddJsonFile("appsettings.Client.json", optional: true, reloadOnChange: true)
-    .AddJsonFile(LocalAgentDataPaths.UserSettingsFile, optional: true, reloadOnChange: true);
+    .AddJsonFile(LocalAgentDataPaths.UserSettingsFile, optional: true, reloadOnChange: true)
+    .AddJsonFile(LocalAgentDataPaths.LocalUserSettingsFile, optional: true, reloadOnChange: true);
 
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -93,17 +94,14 @@ builder.Services.Configure<IbptCargaTributariaOptions>(
 
 var allowedOrigins = localAgentOptions.AllowedOrigins.Count > 0
     ? localAgentOptions.AllowedOrigins.ToArray()
-    : ["http://localhost:4200", "http://127.0.0.1:4200"];
+    : [
+        "http://localhost:4200",
+        "http://127.0.0.1:4200",
+        "http://localhost:5249",
+        "http://127.0.0.1:5249"
+    ];
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("LocalAgentCors", policy =>
-    {
-        policy.WithOrigins(allowedOrigins)
-            .WithMethods("GET", "POST")
-            .WithHeaders("Content-Type", "Authorization");
-    });
-});
+builder.Services.AddLocalAgentCors(allowedOrigins);
 
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
@@ -233,19 +231,24 @@ var localUrl = $"http://localhost:{localAgentOptions.Port}";
 app.UseSwagger();
 app.UseSwaggerUI();
 
-// Chrome Private Network Access: HTTPS public site -> http://localhost
+app.UseLocalAgentPrivateNetworkCors();
+app.UseCors(LocalAgentCors.PolicyName);
 app.Use(async (context, next) =>
 {
-    if (HttpMethods.IsOptions(context.Request.Method)
-        && context.Request.Headers.ContainsKey("Access-Control-Request-Private-Network"))
+    var origin = context.Request.Headers.Origin.ToString();
+    context.Response.OnStarting(() =>
     {
-        context.Response.Headers.Append("Access-Control-Allow-Private-Network", "true");
-    }
+        if (LocalAgentCors.IsAllowedOrigin(origin, allowedOrigins)
+            && !context.Response.Headers.ContainsKey("Access-Control-Allow-Origin"))
+        {
+            context.Response.Headers.AccessControlAllowOrigin = origin;
+            context.Response.Headers.Append("Vary", "Origin");
+        }
 
+        return Task.CompletedTask;
+    });
     await next();
 });
-
-app.UseCors("LocalAgentCors");
 
 app.Use(async (context, next) =>
 {

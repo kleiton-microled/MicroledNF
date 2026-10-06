@@ -22,11 +22,26 @@ public static class LocalAgentDataPaths
 
     public static string UserSettingsFile => Path.Combine(BaseDirectory, "settings.json");
 
+    public static string LocalUserSettingsFile => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Microled",
+        "Nfe",
+        "localagent",
+        "settings.json");
+
     public static void EnsureDirectoriesExist()
     {
-        Directory.CreateDirectory(BaseDirectory);
-        Directory.CreateDirectory(RpsOutputDirectory);
-        Directory.CreateDirectory(ValidationOutputDirectory);
-        Directory.CreateDirectory(LogsDirectory);
+        try
+        {
+            Directory.CreateDirectory(BaseDirectory);
+            Directory.CreateDirectory(RpsOutputDirectory);
+            Directory.CreateDirectory(ValidationOutputDirectory);
+            Directory.CreateDirectory(LogsDirectory);
+        }
+        catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
+        {
+            var local = Path.GetDirectoryName(LocalUserSettingsFile)!;
+            Directory.CreateDirectory(local);
+        }
     }
 }

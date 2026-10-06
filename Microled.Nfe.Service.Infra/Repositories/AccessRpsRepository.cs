@@ -62,202 +62,93 @@ public class AccessRpsRepository : IAccessRpsRepository
                 availableColumns,
                 new[] { _options.StatusColumn, "Processado", "Status" },
                 "StatusColumn");
-            var cIndOpSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "IBSCBS_CIndOp", "C_IND_OP", "CODIGO_INDICADOR_OPERACAO" },
-                "IbsCbsCIndOp");
-            var valorPisSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorPIS", "Valor_PIS", "VlrPIS", "PIS" },
-                "ValorPIS");
-            var valorCofinsSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorCOFINS", "Valor_COFINS", "VlrCOFINS", "COFINS" },
-                "ValorCOFINS");
-            var valorInssSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorINSS", "Valor_INSS", "VlrINSS" },
-                "ValorINSS");
-            var valorIrSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorIR", "Valor_IR", "VlrIR", "ValorIRRF", "IR" },
-                "ValorIR");
-            var valorCsllSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorCSLL", "Valor_CSLL", "VlrCSLL", "CSLL" },
-                "ValorCSLL");
-            var valorIpiSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorIPI", "Valor_IPI", "VlrIPI" },
-                "ValorIPI");
-            var valorCargaTributariaSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorCargaTributaria", "Valor_Carga_Tributaria" },
-                "ValorCargaTributaria");
-            var percentualCargaTributariaSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "PercentualCargaTributaria", "Percentual_Carga_Tributaria" },
-                "PercentualCargaTributaria");
-            var fonteCargaTributariaSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "FonteCargaTributaria", "Fonte_Carga_Tributaria" },
-                "FonteCargaTributaria");
-            var valorTotalRecebidoSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorTotalRecebido", "Valor_Total_Recebido" },
-                "ValorTotalRecebido");
-            var valorFinalCobradoSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorFinalCobrado", "Valor_Final_Cobrado" },
-                "ValorFinalCobrado");
-            var valorMultaSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorMulta", "Valor_Multa" },
-                "ValorMulta");
-            var valorJurosSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ValorJuros", "Valor_Juros" },
-                "ValorJuros");
-            var ncmSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "NCM" },
-                "NCM");
-            var nbsSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "NBS", "IBSCBS_NBS" },
-                "NBS");
-            var finNfSeSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "IBSCBS_FinNFSe", "FinNFSe" },
-                "IbsCbsFinNFSe");
-            var indFinalSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "IBSCBS_IndFinal", "IndFinal" },
-                "IbsCbsIndFinal");
-            var tpOperSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "IBSCBS_TpOper", "TpOper" },
-                "IbsCbsTpOper");
-            var tpEnteGovSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "IBSCBS_TpEnteGov", "TpEnteGov" },
-                "IbsCbsTpEnteGov");
-            var indDestSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "IBSCBS_IndDest", "IndDest" },
-                "IbsCbsIndDest");
-            var cClassTribRegSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "IBSCBS_CClassTribReg", "CClassTribReg" },
-                "IbsCbsCClassTribReg");
-            var cLocPrestacaoSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "CLocPrestacao", "IBSCBS_CLocPrestacao", "cLocPrestacao" },
-                "CLocPrestacao");
-            var nomeTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "NomeTomador", "RazaoSocialTomador", "Nome_Tomador" },
-                "NomeTomador");
-            var cpfCnpjTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "CpfCnpjTomador", "CPFCNPJTomador", "CNPJ_Tomador", "CPF_Tomador" },
-                "CpfCnpjTomador");
-            var inscricaoEstadualTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "InscricaoEstadualTomador", "IETomador", "IE_Tomador" },
-                "InscricaoEstadualTomador");
-            var emailTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "EmailTomador", "TomadorEmail", "Email", "e-mail" },
-                "EmailTomador");
-            var tipoLogradouroTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "TipoLogradouroTomador", "TpLogradouroTomador" },
-                "TipoLogradouroTomador");
-            var logradouroTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "LogradouroTomador", "EnderecoTomador", "Logradouro_Tomador" },
-                "LogradouroTomador");
-            var numeroTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "NumeroTomador", "NumeroEnderecoTomador", "Numero_Tomador" },
-                "NumeroTomador");
-            var complementoTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "ComplementoTomador", "ComplementoEnderecoTomador" },
-                "ComplementoTomador");
-            var bairroTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "BairroTomador", "Bairro_Tomador" },
-                "BairroTomador");
-            var codigoMunicipioTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "CodigoMunicipioTomador", "CodigoCidadeTomador", "CidadeTomador", "CodCidadeTomador" },
-                "CodigoMunicipioTomador");
-            var ufTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "UFTomador", "UF_Tomador" },
-                "UFTomador");
-            var cepTomadorSelect = BuildOptionalColumnSelect(
-                availableColumns,
-                new[] { "CEPTomador", "CEP_Tomador" },
-                "CEPTomador");
+            var skippedColumns = new List<string>();
+            string? Col(string[] candidates, string alias)
+            {
+                var sql = BuildOptionalColumnSelect(availableColumns, candidates, alias);
+                if (sql is null)
+                {
+                    skippedColumns.Add(alias);
+                }
 
-            // Query to get pending RPS
-            // Using actual column names from Access database
+                return sql;
+            }
+
+            var selectParts = new List<string>
+            {
+                $"[{primaryKeyColumn}] AS RecordId",
+                "'A' AS Serie",
+                "0 AS ImPrestador",
+                "0 AS ValorDeducao",
+                "0 AS AliquotaISS",
+                "False AS ISSRetido",
+                "'RPS' AS TipoRPS",
+                "'N' AS StatusRPS",
+                "'T' AS TributacaoRPS"
+            };
+
+            void Add(string? sql)
+            {
+                if (!string.IsNullOrWhiteSpace(sql))
+                {
+                    selectParts.Add(sql);
+                }
+            }
+
+            Add(Col(new[] { "Numero_RPS" }, "NumeroRps"));
+            Add(Col(new[] { "Dt_emissao" }, "DataEmissao"));
+            Add(Col(new[] { "CNPJ" }, "CnpjTomador"));
+            Add(Col(new[] { "CpfCnpjTomador", "CPFCNPJTomador", "CNPJ_Tomador", "CPF_Tomador" }, "CpfCnpjTomador"));
+            Add(Col(new[] { "NomeTomador", "RazaoSocialTomador", "Nome_Tomador" }, "NomeTomador"));
+            Add(Col(new[] { "InscricaoEstadualTomador", "IETomador", "IE_Tomador" }, "InscricaoEstadualTomador"));
+            Add(Col(new[] { "EmailTomador", "TomadorEmail", "Email", "e-mail" }, "EmailTomador"));
+            Add(Col(new[] { "TipoLogradouroTomador", "TpLogradouroTomador" }, "TipoLogradouroTomador"));
+            Add(Col(new[] { "LogradouroTomador", "EnderecoTomador", "Logradouro_Tomador" }, "LogradouroTomador"));
+            Add(Col(new[] { "NumeroTomador", "NumeroEnderecoTomador", "Numero_Tomador" }, "NumeroTomador"));
+            Add(Col(new[] { "ComplementoTomador", "ComplementoEnderecoTomador" }, "ComplementoTomador"));
+            Add(Col(new[] { "BairroTomador", "Bairro_Tomador" }, "BairroTomador"));
+            Add(Col(new[] { "CodigoMunicipioTomador", "CodigoCidadeTomador", "CidadeTomador", "CodCidadeTomador" }, "CodigoMunicipioTomador"));
+            Add(Col(new[] { "UFTomador", "UF_Tomador" }, "UFTomador"));
+            Add(Col(new[] { "CEPTomador", "CEP_Tomador" }, "CEPTomador"));
+            Add(Col(new[] { "Valor" }, "ValorServico"));
+            Add(Col(new[] { "Codigo_ISS" }, "CodigoServico"));
+            Add(Col(new[] { "Discriminacao" }, "Discriminacao"));
+            Add(Col(new[] { "IBSCBS_CClassTrib", "CClassTrib" }, "IbsCbsCClassTrib"));
+            Add(Col(new[] { "IBSCBS_CIndOp", "C_IND_OP", "CODIGO_INDICADOR_OPERACAO" }, "IbsCbsCIndOp"));
+            Add(Col(new[] { "ValorPIS", "Valor_PIS", "VlrPIS", "PIS" }, "ValorPIS"));
+            Add(Col(new[] { "ValorCOFINS", "Valor_COFINS", "VlrCOFINS", "COFINS" }, "ValorCOFINS"));
+            Add(Col(new[] { "ValorINSS", "Valor_INSS", "VlrINSS" }, "ValorINSS"));
+            Add(Col(new[] { "ValorIR", "Valor_IR", "VlrIR", "ValorIRRF", "IR" }, "ValorIR"));
+            Add(Col(new[] { "ValorCSLL", "Valor_CSLL", "VlrCSLL", "CSLL" }, "ValorCSLL"));
+            Add(Col(new[] { "ValorIPI", "Valor_IPI", "VlrIPI" }, "ValorIPI"));
+            Add(Col(new[] { "ValorCargaTributaria", "Valor_Carga_Tributaria" }, "ValorCargaTributaria"));
+            Add(Col(new[] { "PercentualCargaTributaria", "Percentual_Carga_Tributaria" }, "PercentualCargaTributaria"));
+            Add(Col(new[] { "FonteCargaTributaria", "Fonte_Carga_Tributaria" }, "FonteCargaTributaria"));
+            Add(Col(new[] { "ValorTotalRecebido", "Valor_Total_Recebido" }, "ValorTotalRecebido"));
+            Add(Col(new[] { "ValorFinalCobrado", "Valor_Final_Cobrado" }, "ValorFinalCobrado"));
+            Add(Col(new[] { "ValorMulta", "Valor_Multa" }, "ValorMulta"));
+            Add(Col(new[] { "ValorJuros", "Valor_Juros" }, "ValorJuros"));
+            Add(Col(new[] { "NCM" }, "NCM"));
+            Add(Col(new[] { "NBS", "IBSCBS_NBS" }, "NBS"));
+            Add(Col(new[] { "IBSCBS_FinNFSe", "FinNFSe" }, "IbsCbsFinNFSe"));
+            Add(Col(new[] { "IBSCBS_IndFinal", "IndFinal" }, "IbsCbsIndFinal"));
+            Add(Col(new[] { "IBSCBS_TpOper", "TpOper" }, "IbsCbsTpOper"));
+            Add(Col(new[] { "IBSCBS_TpEnteGov", "TpEnteGov" }, "IbsCbsTpEnteGov"));
+            Add(Col(new[] { "IBSCBS_IndDest", "IndDest" }, "IbsCbsIndDest"));
+            Add(Col(new[] { "IBSCBS_CClassTribReg", "CClassTribReg" }, "IbsCbsCClassTribReg"));
+            Add(Col(new[] { "CLocPrestacao", "IBSCBS_CLocPrestacao", "cLocPrestacao" }, "CLocPrestacao"));
+
+            if (skippedColumns.Count > 0)
+            {
+                _logger.LogInformation(
+                    "Colunas ausentes na tabela {Table} serão ignoradas: {Columns}",
+                    _options.RpsTableName,
+                    string.Join(", ", skippedColumns));
+            }
+
             var query = $@"
-                SELECT TOP {batchSize} 
-                    [{primaryKeyColumn}] AS RecordId,
-                    [Numero_RPS] AS NumeroRps,
-                    'A' AS Serie,
-                    [Dt_emissao] AS DataEmissao,
-                    0 AS ImPrestador,
-                    [CNPJ] AS CnpjTomador,
-                    {cpfCnpjTomadorSelect},
-                    {nomeTomadorSelect},
-                    {inscricaoEstadualTomadorSelect},
-                    {emailTomadorSelect},
-                    {tipoLogradouroTomadorSelect},
-                    {logradouroTomadorSelect},
-                    {numeroTomadorSelect},
-                    {complementoTomadorSelect},
-                    {bairroTomadorSelect},
-                    {codigoMunicipioTomadorSelect},
-                    {ufTomadorSelect},
-                    {cepTomadorSelect},
-                    [Valor] AS ValorServico,
-                    0 AS ValorDeducao,
-                    [Codigo_ISS] AS CodigoServico,
-                    [Discriminacao],
-                    0 AS AliquotaISS,
-                    [IBSCBS_CClassTrib] AS IbsCbsCClassTrib,
-                    {cIndOpSelect},
-                    {valorPisSelect},
-                    {valorCofinsSelect},
-                    {valorInssSelect},
-                    {valorIrSelect},
-                    {valorCsllSelect},
-                    {valorIpiSelect},
-                    {valorCargaTributariaSelect},
-                    {percentualCargaTributariaSelect},
-                    {fonteCargaTributariaSelect},
-                    {valorTotalRecebidoSelect},
-                    {valorFinalCobradoSelect},
-                    {valorMultaSelect},
-                    {valorJurosSelect},
-                    {ncmSelect},
-                    {nbsSelect},
-                    {finNfSeSelect},
-                    {indFinalSelect},
-                    {tpOperSelect},
-                    {tpEnteGovSelect},
-                    {indDestSelect},
-                    {cClassTribRegSelect},
-                    {cLocPrestacaoSelect},
-                    False AS ISSRetido,
-                    'RPS' AS TipoRPS,
-                    'N' AS StatusRPS,
-                    'T' AS TributacaoRPS
+                SELECT TOP {batchSize}
+                    {string.Join($",{Environment.NewLine}                    ", selectParts)}
                 FROM [{_options.RpsTableName}]
                 WHERE [{statusColumn}] = ?
                 ORDER BY [{primaryKeyColumn}]";
@@ -347,20 +238,14 @@ public class AccessRpsRepository : IAccessRpsRepository
         }
     }
 
-    private string BuildOptionalColumnSelect(List<string> availableColumns, string[] candidates, string alias)
+    private string? BuildOptionalColumnSelect(List<string> availableColumns, string[] candidates, string alias)
     {
-        // Access column names are case-insensitive, but we'll compare case-insensitively anyway.
         var found = candidates.FirstOrDefault(c =>
             availableColumns.Any(ac => string.Equals(ac, c, StringComparison.OrdinalIgnoreCase)));
 
         if (string.IsNullOrEmpty(found))
         {
-            _logger.LogWarning(
-                "Optional Access column for {Alias} not found. Candidates={Candidates}. Using NULL fallback. Table={Table}",
-                alias,
-                string.Join(", ", candidates),
-                _options.RpsTableName);
-            return $"NULL AS {alias}";
+            return null;
         }
 
         if (!string.Equals(found, candidates[0], StringComparison.OrdinalIgnoreCase))
@@ -693,11 +578,11 @@ public class AccessRpsRepository : IAccessRpsRepository
         // TODO: Adjust column names and data types based on actual Access database schema
         // This is a template that should be adjusted to match your actual database structure
 
-        var numeroRps = Convert.ToInt64(reader["NumeroRps"]);
-        var serieRps = reader["Serie"]?.ToString() ?? "A";
+        var numeroRps = GetLongOrNull(reader, "NumeroRps") ?? 0;
+        var serieRps = GetStringOrNull(reader, "Serie") ?? "A";
         
         // Get InscricaoPrestador from database or configuration
-        var imPrestadorRaw = reader["ImPrestador"];
+        var imPrestadorRaw = GetRawValue(reader, "ImPrestador");
         long inscricaoPrestador;
 
         // Try to get from database first
@@ -734,10 +619,10 @@ public class AccessRpsRepository : IAccessRpsRepository
 
         var chaveRps = new RpsKey(inscricaoPrestador, numeroRps, serieRps);
 
-        var tipoRps = ParseTipoRps(reader["TipoRPS"]?.ToString() ?? "RPS");
-        var dataEmissao = Convert.ToDateTime(reader["DataEmissao"]);
-        var statusRps = ParseStatusRps(reader["StatusRPS"]?.ToString() ?? "N");
-        var tributacaoRps = ParseTipoTributacao(reader["TributacaoRPS"]?.ToString() ?? "T");
+        var tipoRps = ParseTipoRps(GetStringOrNull(reader, "TipoRPS") ?? "RPS");
+        var dataEmissao = GetDateTimeOrNull(reader, "DataEmissao") ?? DateTime.Today;
+        var statusRps = ParseStatusRps(GetStringOrNull(reader, "StatusRPS") ?? "N");
+        var tributacaoRps = ParseTipoTributacao(GetStringOrNull(reader, "TributacaoRPS") ?? "T");
 
         // Prestador: sempre o emitente configurado (não confundir com [CNPJ] do MDB, que é do tomador).
         var cnpjPrestador = _nfeOptions.DefaultIssuerCnpj?.Trim();
@@ -755,12 +640,13 @@ public class AccessRpsRepository : IAccessRpsRepository
             null);
 
         // Item
-        var valorServicos = Convert.ToDecimal(reader["ValorServico"]);
-        var valorDeducoes = Convert.ToDecimal(reader["ValorDeducao"] ?? 0);
-        var codigoServico = Convert.ToInt32(reader["CodigoServico"]);
-        var discriminacao = reader["Discriminacao"]?.ToString() ?? throw new InvalidOperationException("Discriminacao is required");
-        var aliquotaISS = Convert.ToDecimal(reader["AliquotaISS"] ?? 0);
-        var issRetido = Convert.ToBoolean(reader["ISSRetido"] ?? false);
+        var valorServicos = GetDecimalOrNull(reader, "ValorServico") ?? 0;
+        var valorDeducoes = GetDecimalOrNull(reader, "ValorDeducao") ?? 0;
+        var codigoServico = GetIntOrNull(reader, "CodigoServico") ?? 0;
+        var discriminacao = GetStringOrNull(reader, "Discriminacao") ?? string.Empty;
+        var aliquotaISS = GetDecimalOrNull(reader, "AliquotaISS") ?? 0;
+        var issRetidoRaw = GetRawValue(reader, "ISSRetido");
+        var issRetido = issRetidoRaw is not null && Convert.ToBoolean(issRetidoRaw);
 
         var item = new RpsItem(
             codigoServico,
@@ -1061,28 +947,58 @@ public class AccessRpsRepository : IAccessRpsRepository
 
     private static Money? MapMoney(decimal? value) => value.HasValue ? Money.Create(value.Value) : null;
 
+    private static bool HasColumn(IDataRecord reader, string columnName)
+    {
+        for (var i = 0; i < reader.FieldCount; i++)
+        {
+            if (string.Equals(reader.GetName(i), columnName, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static object? GetRawValue(IDataRecord reader, string columnName)
+    {
+        if (!HasColumn(reader, columnName))
+        {
+            return null;
+        }
+
+        var value = reader[columnName];
+        return value == DBNull.Value ? null : value;
+    }
+
     private static string? GetStringOrNull(OleDbDataReader reader, string columnName)
     {
-        var value = reader[columnName];
-        return value == DBNull.Value ? null : value?.ToString();
+        var value = GetRawValue(reader, columnName);
+        return value?.ToString();
     }
 
     private static decimal? GetDecimalOrNull(OleDbDataReader reader, string columnName)
     {
-        var value = reader[columnName];
-        return value == DBNull.Value ? null : Convert.ToDecimal(value);
+        var value = GetRawValue(reader, columnName);
+        return value is null ? null : Convert.ToDecimal(value);
     }
 
     private static int? GetIntOrNull(OleDbDataReader reader, string columnName)
     {
-        var value = reader[columnName];
-        return value == DBNull.Value ? null : Convert.ToInt32(value);
+        var value = GetRawValue(reader, columnName);
+        return value is null ? null : Convert.ToInt32(value);
     }
 
     private static long? GetLongOrNull(OleDbDataReader reader, string columnName)
     {
-        var value = reader[columnName];
-        return value == DBNull.Value ? null : Convert.ToInt64(value);
+        var value = GetRawValue(reader, columnName);
+        return value is null ? null : Convert.ToInt64(value);
+    }
+
+    private static DateTime? GetDateTimeOrNull(OleDbDataReader reader, string columnName)
+    {
+        var value = GetRawValue(reader, columnName);
+        return value is null ? null : Convert.ToDateTime(value);
     }
 
     private TipoRps ParseTipoRps(string? value)

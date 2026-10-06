@@ -36,3 +36,15 @@ public class LocalAccessPendingRpsResponse
 
     public SendRpsRequestDto? Request { get; set; }
 }
+
+public class LocalAccessSettingsResponse
+{
+    public string DatabasePath { get; set; } = string.Empty;
+
+    public bool FileExists { get; set; }
+}
+
+public class ConfigureAccessRequest
+{
+    public string DatabasePath { get; set; } = string.Empty;
+}

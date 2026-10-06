@@ -1,0 +1,11 @@
+<Application x:Class="Microled.Nfe.DesktopLauncher.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             StartupUri="MainWindow.xaml"
+             DispatcherUnhandledException="OnDispatcherUnhandledException">
+  <Application.Resources>
+    <SolidColorBrush x:Key="BgBrush" Color="#F4F6F8"/>
+    <SolidColorBrush x:Key="CardBrush" Color="White"/>
+    <SolidColorBrush x:Key="AccentBrush" Color="#0B5CAB"/>
+  </Application.Resources>
+</Application>

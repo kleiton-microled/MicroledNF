@@ -44,6 +44,15 @@ builder.Services.Configure<AsyncBatchPollingOptions>(
     builder.Configuration.GetSection(AsyncBatchPollingOptions.SectionName));
 builder.Services.Configure<LocalAgentInstallerOptions>(
     builder.Configuration.GetSection(LocalAgentInstallerOptions.SectionName));
+builder.Services.Configure<LocalAgentProxyOptions>(
+    builder.Configuration.GetSection(LocalAgentProxyOptions.SectionName));
+builder.Services.AddHttpClient("LocalAgentProxy", (serviceProvider, client) =>
+{
+    var proxy = serviceProvider.GetRequiredService<IOptions<LocalAgentProxyOptions>>().Value;
+    var baseUrl = string.IsNullOrWhiteSpace(proxy.BaseUrl) ? "http://127.0.0.1:5278" : proxy.BaseUrl.TrimEnd('/');
+    client.BaseAddress = new Uri(baseUrl + "/");
+    client.Timeout = TimeSpan.FromSeconds(180);
+});
 builder.Services.AddSingleton<ILocalAgentInstallerService, LocalAgentInstallerService>();
 builder.Services.Configure<LocalCertificateProfileStorageOptions>(options =>
 {
@@ -73,7 +82,12 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FrontendDevCors", policy =>
     {
         policy
-            .WithOrigins("https://app.amktechsistemas.com.br")
+            .WithOrigins(
+                "https://app.amktechsistemas.com.br",
+                "http://localhost:4200",
+                "http://127.0.0.1:4200",
+                "http://localhost:5249",
+                "http://127.0.0.1:5249")
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -257,6 +271,9 @@ builder.Services.AddLogging();
 //});
 
 var app = builder.Build();
+var webRoot = app.Environment.WebRootPath
+    ?? Path.Combine(app.Environment.ContentRootPath, "wwwroot");
+var spaEnabled = File.Exists(Path.Combine(webRoot, "index.html"));
 
 using (var scope = app.Services.CreateScope())
 {
@@ -300,18 +317,27 @@ app.UseForwardedHeaders();
 
 
 // Configure the HTTP request pipeline
-if (app.Environment.IsDevelopment() || app.Environment.IsProduction())
+if (app.Environment.IsDevelopment()
+    || app.Environment.IsProduction()
+    || app.Environment.IsEnvironment("OnPrem")
+    || spaEnabled)
 {
     app.UseSwagger();
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "Microled NFS-e Service API v1");
-        c.RoutePrefix = string.Empty; // Set Swagger UI at the app's root
+        c.RoutePrefix = spaEnabled ? "swagger" : string.Empty;
     });
 }
 
 //app.UseHttpsRedirection();
 app.UseCors("FrontendDevCors");
+
+if (spaEnabled)
+{
+    app.UseDefaultFiles();
+    app.UseStaticFiles();
+}
 
 // Add global exception handler
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -319,6 +345,7 @@ app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapLocalAgentProxy();
 
 var healthCheckOptions = new HealthCheckOptions
 {
@@ -338,6 +365,11 @@ app.MapHealthChecks("/health/database", new HealthCheckOptions
 });
 
 app.MapHealthChecks("/health", healthCheckOptions);
+
+if (spaEnabled)
+{
+    app.MapFallbackToFile("index.html");
+}
 
 app.Run();
 

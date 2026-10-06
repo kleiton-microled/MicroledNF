@@ -15,7 +15,7 @@ public class AccessDatabaseOptions
     /// <summary>
     /// Name of the table containing RPS records
     /// </summary>
-    public string RpsTableName { get; set; } = "TB_RPS";
+    public string RpsTableName { get; set; } = "RPS";
 
     /// <summary>
     /// Maximum number of RPS to process per batch
