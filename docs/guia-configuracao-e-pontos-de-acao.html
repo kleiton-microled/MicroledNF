@@ -1,0 +1,835 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microled NFS-e — Guia técnico</title>
+<style>
+  :root {
+    --bg: #f7f8fa;
+    --surface: #ffffff;
+    --surface-2: #f1f3f6;
+    --text: #1d2330;
+    --muted: #5d6677;
+    --border: #e1e5ec;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --code-bg: #f3f4f8;
+    --warn-bg: #fff7e6;
+    --warn-border: #f0b44a;
+    --info-bg: #eaf4ff;
+    --info-border: #5b9bd5;
+    --danger-bg: #fdecec;
+    --danger-border: #d9534f;
+    --api: #2563eb;
+    --agent: #0f8a5f;
+    --front: #b45309;
+    --launcher: #7c3aed;
+    --get: #0f8a5f;
+    --post: #2563eb;
+    --put: #b45309;
+    --patch: #7c3aed;
+    --delete: #c0392b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12151c;
+      --surface: #1a1e27;
+      --surface-2: #222733;
+      --text: #e6e9ef;
+      --muted: #9aa3b5;
+      --border: #2e3442;
+      --accent: #8b85ff;
+      --accent-soft: #252a45;
+      --code-bg: #232836;
+      --warn-bg: #2f2716;
+      --warn-border: #b5832c;
+      --info-bg: #182638;
+      --info-border: #4a7fb0;
+      --danger-bg: #331c1e;
+      --danger-border: #b04440;
+      --api: #6ea2ff;
+      --agent: #4fcf9b;
+      --front: #f0a95a;
+      --launcher: #b394ff;
+      --get: #4fcf9b;
+      --post: #6ea2ff;
+      --put: #f0a95a;
+      --patch: #b394ff;
+      --delete: #ff7b6e;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #12151c;
+    --surface: #1a1e27;
+    --surface-2: #222733;
+    --text: #e6e9ef;
+    --muted: #9aa3b5;
+    --border: #2e3442;
+    --accent: #8b85ff;
+    --accent-soft: #252a45;
+    --code-bg: #232836;
+    --warn-bg: #2f2716;
+    --warn-border: #b5832c;
+    --info-bg: #182638;
+    --info-border: #4a7fb0;
+    --danger-bg: #331c1e;
+    --danger-border: #b04440;
+    --api: #6ea2ff;
+    --agent: #4fcf9b;
+    --front: #f0a95a;
+    --launcher: #b394ff;
+    --get: #4fcf9b;
+    --post: #6ea2ff;
+    --put: #f0a95a;
+    --patch: #b394ff;
+    --delete: #ff7b6e;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; scroll-padding-top: 16px; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre, kbd { font-family: "Cascadia Code", Consolas, "SFMono-Regular", Menlo, monospace; font-size: 0.88em; }
+  code { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; word-break: break-word; }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; }
+
+  .layout { display: flex; min-height: 100vh; }
+  nav.sidebar {
+    position: sticky;
+    top: 0;
+    align-self: flex-start;
+    width: 270px;
+    flex-shrink: 0;
+    height: 100vh;
+    overflow-y: auto;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 16px 40px;
+  }
+  .brand { font-weight: 700; font-size: 16px; margin-bottom: 2px; }
+  .brand-sub { color: var(--muted); font-size: 12.5px; margin-bottom: 14px; }
+  .search {
+    width: 100%;
+    padding: 7px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface-2);
+    color: var(--text);
+    font: inherit;
+    font-size: 13.5px;
+    margin-bottom: 14px;
+  }
+  nav.sidebar .group { margin: 14px 0 4px; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  nav.sidebar a { display: block; padding: 4px 8px; border-radius: 5px; color: var(--text); font-size: 14px; }
+  nav.sidebar a:hover { background: var(--accent-soft); text-decoration: none; }
+  nav.sidebar a.sub { padding-left: 20px; font-size: 13.5px; color: var(--muted); }
+  .theme-toggle {
+    margin-top: 18px;
+    font: inherit;
+    font-size: 13px;
+    background: var(--surface-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+
+  main { flex: 1; min-width: 0; padding: 32px 48px 80px; max-width: 1180px; }
+  h1 { font-size: 30px; margin: 0 0 6px; }
+  h2 { font-size: 23px; margin: 48px 0 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+  h3 { font-size: 18px; margin: 30px 0 8px; }
+  h4 { font-size: 15.5px; margin: 20px 0 6px; }
+  .lead { color: var(--muted); font-size: 16px; margin-top: 0; }
+  .meta { color: var(--muted); font-size: 13px; }
+
+  .table-wrap { overflow-x: auto; margin: 10px 0 16px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--surface-2); font-weight: 600; white-space: nowrap; }
+  tr:last-child td { border-bottom: none; }
+  td.k { white-space: nowrap; }
+
+  .callout { border-left: 4px solid; border-radius: 6px; padding: 10px 14px; margin: 14px 0; }
+  .callout p { margin: 4px 0; }
+  .callout.warn { background: var(--warn-bg); border-color: var(--warn-border); }
+  .callout.info { background: var(--info-bg); border-color: var(--info-border); }
+  .callout.danger { background: var(--danger-bg); border-color: var(--danger-border); }
+  .callout strong:first-child { display: block; margin-bottom: 2px; }
+
+  .tag { display: inline-block; font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; border: 1px solid currentColor; vertical-align: 1px; white-space: nowrap; }
+  .tag.api { color: var(--api); }
+  .tag.agent { color: var(--agent); }
+  .tag.front { color: var(--front); }
+  .tag.launcher { color: var(--launcher); }
+  .tag.unused { color: var(--muted); }
+  .m { display: inline-block; min-width: 54px; text-align: center; font-size: 11.5px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: #fff; }
+  .m.get { background: var(--get); }
+  .m.post { background: var(--post); }
+  .m.put { background: var(--put); }
+  .m.patch { background: var(--patch); }
+  .m.delete { background: var(--delete); }
+
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; margin: 14px 0; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 12px 14px; }
+  .card h4 { margin: 0 0 4px; }
+  .card p { margin: 0; color: var(--muted); font-size: 13.5px; }
+
+  .flow { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 14px 18px; margin: 12px 0 18px; }
+  .flow h4 { margin-top: 0; }
+  .flow ol { margin: 6px 0 0; padding-left: 20px; }
+  .flow li { margin: 4px 0; }
+  .where { margin-top: 10px; font-size: 13.5px; }
+  .where dt { font-weight: 600; margin-top: 6px; }
+  .where dd { margin: 2px 0 0 0; color: var(--muted); }
+
+  .diagram { overflow-x: auto; }
+  .diagram svg { min-width: 760px; width: 100%; height: auto; }
+  .diagram text { font: 13px system-ui, sans-serif; fill: var(--text); }
+  .diagram .box { fill: var(--surface); stroke: var(--border); stroke-width: 1.5; }
+  .diagram .label-muted { fill: var(--muted); font-size: 11.5px; }
+  .diagram .line { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#arrow); }
+  .diagram .arrowhead { fill: var(--muted); }
+
+  .hidden-by-search { display: none !important; }
+
+  @media (max-width: 900px) {
+    .layout { display: block; }
+    nav.sidebar { position: static; width: auto; height: auto; border-right: none; border-bottom: 1px solid var(--border); }
+    main { padding: 20px 16px 60px; }
+    h1 { font-size: 24px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="sidebar" aria-label="Sumário">
+  <div class="brand">Microled NFS-e</div>
+  <div class="brand-sub">Guia técnico — configuração e pontos de ação</div>
+  <input class="search" id="search" type="search" placeholder="Filtrar (ex.: Thumbprint, NF, 415)…" aria-label="Filtrar seções">
+
+  <div class="group">Visão geral</div>
+  <a href="#arquitetura">Arquitetura e portas</a>
+  <a href="#ordem-config">Onde cada config é lida</a>
+  <a href="#arquivos-locais">Arquivos locais (ProgramData)</a>
+
+  <div class="group">Referência de configuração</div>
+  <a href="#cfg-api">appsettings — API</a>
+  <a href="#cfg-agente">appsettings — Agente local</a>
+  <a class="sub" href="#cfg-access">AccessDatabase</a>
+  <a class="sub" href="#cfg-certificado">Certificate</a>
+  <a class="sub" href="#cfg-nfeservice">NfeService / NfeServiceOptions</a>
+  <a href="#cfg-front">runtime-config.json — Front</a>
+  <a href="#cfg-launcher">Launcher (painel)</a>
+
+  <div class="group">Pontos de ação</div>
+  <a href="#fluxos">Fluxos do sistema</a>
+  <a class="sub" href="#fluxo-importacao">Importar RPS do Access</a>
+  <a class="sub" href="#fluxo-calculo">Cálculo de impostos</a>
+  <a class="sub" href="#fluxo-envio">Envio à prefeitura</a>
+  <a class="sub" href="#fluxo-autorizacao">Autorização → tabela NF</a>
+  <a class="sub" href="#fluxo-pagamento">Pagamento</a>
+  <a class="sub" href="#fluxo-tomadores">Cadastro de tomadores</a>
+  <a class="sub" href="#fluxo-certificado">Seleção de certificado</a>
+  <a class="sub" href="#fluxo-lista">Lista de NFs (menu Ações)</a>
+  <a href="#access">Tabelas do Access</a>
+  <a href="#regras-fixas">Regras fixas no código</a>
+
+  <div class="group">Referência de API</div>
+  <a href="#endpoints-api">Endpoints — API</a>
+  <a href="#endpoints-agente">Endpoints — Agente</a>
+
+  <div class="group">Operação</div>
+  <a href="#problemas">Problemas conhecidos</a>
+  <a href="#build">Build e instalador</a>
+
+  <button class="theme-toggle" id="theme-toggle" type="button">Alternar tema</button>
+</nav>
+
+<main id="content">
+<h1>Microled NFS-e — Guia técnico</h1>
+<p class="lead">Onde fica cada configuração, quais propriedades do <code>appsettings</code> o código realmente lê e onde mexer em cada fluxo (Access, impostos, envio, NF, pagamento, tomadores, certificado).</p>
+<p class="meta">Referente ao código de outubro/2026 (instalação on-prem). Nomes de arquivos relativos a <code>MicroledNF/</code> (back-end) e <code>MicroledNfFrontEnd/</code> (front-end).</p>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="arquitetura">Arquitetura e portas</h2>
+<div class="cards">
+  <div class="card"><h4><span class="tag launcher">Launcher</span> Painel</h4><p><code>Microled.Nfe.DesktopLauncher</code> — sobe o PostgreSQL portátil, a API e o agente; grava o caminho do Access.</p></div>
+  <div class="card"><h4><span class="tag front">Front</span> Angular</h4><p><code>MicroledNfFrontEnd</code> — no on-prem é servido pela própria API (<code>api\wwwroot</code>) em <code>http://localhost:5249</code>.</p></div>
+  <div class="card"><h4><span class="tag api">API</span> API principal</h4><p><code>Microled.Nfe.Service.Api</code> — porta <b>5249</b>, ambiente <code>OnPrem</code>. Notas, tomadores, pagamento; PostgreSQL <code>DB_NFE</code> (porta 5435).</p></div>
+  <div class="card"><h4><span class="tag agent">Agente</span> Agente local</h4><p><code>Microled.Nfe.LocalAgent.Api</code> — porta <b>5278</b>, ambiente <code>Production</code>. Certificado, Access, cálculo, SOAP com a prefeitura.</p></div>
+</div>
+
+<div class="diagram" role="img" aria-label="Fluxo: Front chama a API; chamadas /api/local passam pelo proxy da API até o agente; o agente fala com Access, certificado e prefeitura e devolve resultados à API, que grava no PostgreSQL.">
+<svg viewBox="0 0 960 300" xmlns="http://www.w3.org/2000/svg">
+  <defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="arrowhead" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="box" x="20" y="110" width="150" height="70" rx="8"/>
+  <text x="95" y="140" text-anchor="middle" font-weight="600">Front (Angular)</text>
+  <text x="95" y="160" text-anchor="middle" class="label-muted">navegador :5249</text>
+
+  <rect class="box" x="260" y="110" width="190" height="70" rx="8"/>
+  <text x="355" y="140" text-anchor="middle" font-weight="600">API principal :5249</text>
+  <text x="355" y="160" text-anchor="middle" class="label-muted">/api/v1/* + proxy /api/local/*</text>
+
+  <rect class="box" x="260" y="225" width="190" height="55" rx="8"/>
+  <text x="355" y="250" text-anchor="middle" font-weight="600">PostgreSQL :5435</text>
+  <text x="355" y="268" text-anchor="middle" class="label-muted">DB_NFE</text>
+
+  <rect class="box" x="540" y="110" width="190" height="70" rx="8"/>
+  <text x="635" y="140" text-anchor="middle" font-weight="600">Agente local :5278</text>
+  <text x="635" y="160" text-anchor="middle" class="label-muted">/api/local/*</text>
+
+  <rect class="box" x="790" y="20" width="150" height="55" rx="8"/>
+  <text x="865" y="45" text-anchor="middle" font-weight="600">Prefeitura SP</text>
+  <text x="865" y="63" text-anchor="middle" class="label-muted">SOAP (lotenfe/async)</text>
+
+  <rect class="box" x="790" y="117" width="150" height="55" rx="8"/>
+  <text x="865" y="142" text-anchor="middle" font-weight="600">Access (.mdb)</text>
+  <text x="865" y="160" text-anchor="middle" class="label-muted">RPS, NF, clientes</text>
+
+  <rect class="box" x="790" y="214" width="150" height="55" rx="8"/>
+  <text x="865" y="239" text-anchor="middle" font-weight="600">Certificado</text>
+  <text x="865" y="257" text-anchor="middle" class="label-muted">Windows CurrentUser/My</text>
+
+  <path class="line" d="M170,145 L258,145"/>
+  <path class="line" d="M450,135 L538,135"/>
+  <text x="494" y="127" text-anchor="middle" class="label-muted">proxy</text>
+  <path class="line" d="M540,160 L452,160"/>
+  <text x="494" y="178" text-anchor="middle" class="label-muted">persist/*</text>
+  <path class="line" d="M355,180 L355,223"/>
+  <path class="line" d="M730,125 L788,55"/>
+  <path class="line" d="M730,145 L788,145"/>
+  <path class="line" d="M730,165 L788,238"/>
+</svg>
+</div>
+
+<div class="callout info">
+  <strong>Por que existe um proxy?</strong>
+  <p>No on-prem o front usa <code>localAgentBaseUrl: ""</code> e chama <code>/api/local/*</code> na própria porta 5249; a API repassa para o agente em <code>127.0.0.1:5278</code> (<code>Middleware/LocalAgentProxyExtensions.cs</code>). Na versão em nuvem o front chama o agente direto em <code>http://localhost:5278</code>.</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="ordem-config">Onde cada configuração é lida</h2>
+<p>Os arquivos são lidos na ordem abaixo; <b>o último vence, chave por chave</b> (só a chave presente é sobrescrita, o resto continua vindo do arquivo anterior).</p>
+
+<h3><span class="tag api">API</span> Microled.Nfe.Service.Api</h3>
+<ol>
+  <li><code>api\appsettings.json</code></li>
+  <li><code>api\appsettings.OnPrem.json</code> (o launcher inicia com <code>ASPNETCORE_ENVIRONMENT=OnPrem</code>)</li>
+  <li>Variáveis de ambiente definidas pelo launcher: <code>ASPNETCORE_URLS=http://localhost:5249</code> e <b><code>ConnectionStrings__NfeDatabase</code></b></li>
+</ol>
+<div class="callout warn">
+  <strong>A connection string do on-prem vem do launcher</strong>
+  <p>O valor de <code>ConnectionStrings:NfeDatabase</code> em <code>appsettings.OnPrem.json</code> é sobrescrito pela variável de ambiente montada pelo launcher (porta/usuário/senha do PostgreSQL portátil). Alterar só o JSON não muda o banco usado.</p>
+</div>
+
+<h3><span class="tag agent">Agente</span> Microled.Nfe.LocalAgent.Api</h3>
+<ol>
+  <li><code>agent\appsettings.json</code></li>
+  <li><code>agent\appsettings.Production.json</code> (o agente roda como <code>Production</code>; o arquivo não é distribuído hoje)</li>
+  <li><code>agent\appsettings.Client.json</code> (opcional — gerado a partir de <code>appsettings.Client.template.json</code> nos pacotes de cliente)</li>
+  <li><b><code>C:\ProgramData\Microled\Nfe\localagent\settings.json</code></b> — gravado pelo painel e pela tela de configuração</li>
+  <li><code>%LOCALAPPDATA%\Microled\Nfe\localagent\settings.json</code> (opcional, por usuário)</li>
+</ol>
+<div class="callout info">
+  <strong>Regra prática</strong>
+  <p>Para mudar algo <b>só nesta máquina</b>, edite o <code>settings.json</code> em <code>ProgramData</code> (sobrevive a reinstalações). Para mudar o <b>padrão de todas as instalações</b>, edite o <code>appsettings.json</code> do projeto e gere um novo instalador.</p>
+  <p>Alterações de configuração do agente valem <b>após reiniciar o agente</b> (os serviços leem as opções na inicialização).</p>
+</div>
+
+<h3><span class="tag front">Front</span> Angular</h3>
+<p><code>api\wwwroot\runtime-config.json</code> — no build on-prem é uma cópia de <code>public/runtime-config.onprem.json</code>. Ver <a href="#cfg-front">runtime-config.json</a>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="arquivos-locais">Arquivos locais do agente</h2>
+<p>Raiz: <code>C:\ProgramData\Microled\Nfe\localagent\</code> (<code>LocalAgent.Api/Configuration/LocalAgentDataPaths.cs</code>).</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Arquivo / pasta</th><th>Conteúdo</th><th>Quem grava</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>settings.json</code></td><td>Sobrescritas de configuração do agente: <code>AccessDatabase.DatabasePath</code>, <code>NfeIntegration.MainApiBaseUrl</code>, <code>LocalAgent.Port/AllowedOrigins</code> e o que for adicionado à mão.</td><td>Painel (launcher), <code>POST /api/local/access/configure</code>, manual</td></tr>
+<tr><td class="k"><code>profiles.json</code></td><td>Perfil do certificado ativo (thumbprint, store). Tem prioridade sobre o <code>appsettings</code>.</td><td>Tela Configurações → selecionar certificado</td></tr>
+<tr><td class="k"><code>pending-queue\{notaId}.json</code></td><td>Payload completo de cada RPS importado e ainda não enviado ("A processar").</td><td>Importação (<code>queue-pending</code>); lido em <code>process-queued</code></td></tr>
+<tr><td class="k"><code>RpsOut\</code></td><td>Cópia de cada lote gerado/enviado: <code>NFE_SP_LoteRps_*.RPS</code> e <code>NFE_SP_SoapEnvioLoteRps_*.xml</code>. <b>Primeiro lugar para ver o que foi enviado à prefeitura.</b></td><td>Envio / geração de arquivos</td></tr>
+<tr><td class="k"><code>Validate\</code></td><td>Saída da validação de XML/RPS (<code>NfeValidation</code>).</td><td>Agente</td></tr>
+<tr><td class="k"><code>logs\</code></td><td>Logs do agente (Serilog).</td><td>Agente</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="cfg-api">appsettings — API principal</h2>
+<p>Arquivos: <code>Microled.Nfe.Service.Api/appsettings*.json</code>. Seções lidas em <code>Program.cs</code>.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Tipo</th><th>Padrão / exemplo</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>ConnectionStrings:NfeDatabase</code></td><td>string</td><td>Npgsql</td><td>PostgreSQL das notas e tomadores. Obrigatória (a API não sobe sem ela). On-prem: vem do launcher.</td></tr>
+<tr><td class="k"><code>Features:UseFakeGateway</code></td><td>bool</td><td><code>false</code></td><td><code>true</code> = não fala com a prefeitura (gateway simulado) nos endpoints da própria API.</td></tr>
+<tr><td class="k"><code>LocalAgentProxy:Enabled</code></td><td>bool</td><td><code>true</code> (OnPrem)</td><td>Habilita o proxy <code>/api/local/**</code> → agente. Também fica ativo sempre que o ambiente é <code>OnPrem</code>.</td></tr>
+<tr><td class="k"><code>LocalAgentProxy:BaseUrl</code></td><td>string</td><td><code>http://127.0.0.1:5278</code></td><td>Endereço do agente usado pelo proxy (timeout fixo de 180 s).</td></tr>
+<tr><td class="k"><code>AsyncBatchPolling:Enabled / MaxAttempts / DelaySeconds</code></td><td>bool / int / int</td><td><code>true / 10 / 3</code></td><td>Consulta automática do lote assíncrono após o envio feito pela API.</td></tr>
+<tr><td class="k"><code>IbptCargaTributaria:*</code></td><td>—</td><td>ver <a href="#cfg-ibpt">IBPT</a></td><td>Carga tributária aproximada (Lei da Transparência).</td></tr>
+<tr><td class="k"><code>LocalAgentInstaller:*</code></td><td>—</td><td><code>App_Data/installers</code></td><td>Download do instalador do agente pela API (<code>Enabled</code>, <code>Directory</code>, <code>FileName</code>, <code>FileNamePattern</code>, <code>DisplayName</code>).</td></tr>
+<tr><td class="k"><code>NfeService:*</code></td><td>—</td><td>ver <a href="#cfg-nfeservice">NfeService</a></td><td>Endpoints SOAP, versão do layout e certificado — usados quando a <b>própria API</b> fala com a prefeitura (<code>/api/v1/rps</code>, <code>/api/v1/nfe</code>). No on-prem quem envia é o agente.</td></tr>
+<tr><td class="k"><code>Logging:*</code>, <code>AllowedHosts</code></td><td>—</td><td>padrão ASP.NET</td><td>Níveis de log.</td></tr>
+</tbody></table></div>
+<div class="callout warn">
+  <strong>Seção sem efeito na API</strong>
+  <p><code>AccessDatabase</code> aparece em <code>appsettings.Development.json</code> da API, mas <b>a API não lê o Access</b> — essa seção só tem efeito no agente.</p>
+</div>
+<div class="callout info">
+  <strong>CORS da API</strong>
+  <p>A política <code>FrontendDevCors</code> tem as origens fixas no código (<code>Program.cs</code>): <code>app.amktechsistemas.com.br</code>, <code>localhost:4200</code> e <code>localhost:5249</code>. Não há chave de appsettings para isso.</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="cfg-agente">appsettings — Agente local</h2>
+<p>Arquivos: <code>Microled.Nfe.LocalAgent.Api/appsettings.json</code> + <code>settings.json</code> (ver <a href="#ordem-config">ordem</a>).</p>
+
+<h3>LocalAgent</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Tipo</th><th>Padrão</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>LocalAgent:Port</code></td><td>int</td><td><code>5278</code></td><td>Porta HTTP do agente (sempre <code>localhost</code>).</td></tr>
+<tr><td class="k"><code>LocalAgent:AllowedOrigins</code></td><td>string[]</td><td>localhost 4200/5249, app.amktechsistemas</td><td>CORS do agente. Se vazio, usa localhost 4200/5249.</td></tr>
+<tr><td class="k"><code>LocalAgent:ApiKey</code></td><td>string</td><td>—</td><td><span class="tag unused">não utilizado</span> declarado mas não verificado pelo código.</td></tr>
+</tbody></table></div>
+
+<h3>NfeIntegration</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Tipo</th><th>Padrão</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>NfeIntegration:SendToWebService</code></td><td>bool</td><td><b><code>false</code></b> no appsettings</td><td><b>Interruptor do envio real.</b> <code>false</code> = "Enviar" só gera os arquivos em <code>RpsOut</code>, sem mandar à prefeitura. Em produção precisa estar <code>true</code> (hoje definido no <code>settings.json</code>).</td></tr>
+<tr><td class="k"><code>NfeIntegration:MainApiBaseUrl</code></td><td>string</td><td><code>http://localhost:5249</code></td><td>API principal para gravar os resultados (status, erros, autorização). Vazio = nada é persistido no PostgreSQL.</td></tr>
+<tr><td class="k"><code>NfeIntegration:RpsOutputDirectory</code></td><td>string</td><td>—</td><td>Pasta das cópias de envio. Vazio ou começando com <code>C:\Microled</code> → usa <code>ProgramData\…\RpsOut</code>.</td></tr>
+</tbody></table></div>
+
+<h3>NfeValidation</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Tipo</th><th>Padrão</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>NfeValidation:ValidateXmlAndRps</code></td><td>bool</td><td><code>true</code></td><td>Exporta o lote assinado (RPS + SOAP) para conferência a cada envio.</td></tr>
+<tr><td class="k"><code>NfeValidation:OutputDirectory</code></td><td>string</td><td>—</td><td>Mesma regra do <code>RpsOutputDirectory</code> → <code>ProgramData\…\Validate</code>.</td></tr>
+<tr><td class="k"><code>NfeValidation:FileNamePrefix</code> / <code>IncludeTimestamp</code></td><td>string / bool</td><td><code>NFE_SP</code> / <code>true</code></td><td>Nome dos arquivos gerados.</td></tr>
+</tbody></table></div>
+
+<h3 id="cfg-access">AccessDatabase</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Tipo</th><th>Padrão (instalado)</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>DatabasePath</code></td><td>string</td><td><code>C:\Microled\Nfe\NF.mdb</code></td><td>Caminho do <code>.mdb</code>. <b>Na prática vem do painel</b> (<code>settings.json</code>).</td></tr>
+<tr><td class="k"><code>RpsTableName</code></td><td>string</td><td><code>RPS</code></td><td>Tabela de RPS pendentes.</td></tr>
+<tr><td class="k"><code>NfTableName</code></td><td>string</td><td><code>NF</code></td><td>Tabela de notas emitidas (gravada na autorização).</td></tr>
+<tr><td class="k"><code>ClientesTableName</code></td><td>string</td><td><code>clientes</code></td><td>Resolve <code>cod_cli</code>/<code>nome_cli</code> pelo CNPJ.</td></tr>
+<tr><td class="k"><code>PrimaryKeyColumn</code></td><td>string</td><td><code>index</code></td><td>Chave da tabela RPS (fallbacks: <code>index</code>, <code>Id</code>, <code>ID</code>).</td></tr>
+<tr><td class="k"><code>StatusColumn</code></td><td>string</td><td><code>Processado</code></td><td>Coluna que marca o RPS como importado.</td></tr>
+<tr><td class="k"><code>PendingStatus</code></td><td>string</td><td><code>P</code></td><td>Valor de "pendente". Com coluna Sim/Não: <code>P</code>/<code>N</code>/<code>False</code>/<code>0</code> = <b>Não</b>.</td></tr>
+<tr><td class="k"><code>GeneratedStatus</code> / <code>SentStatus</code></td><td>string</td><td><code>G</code> / <code>E</code></td><td>Valor gravado após importar/enviar. Com coluna Sim/Não: <code>G</code>/<code>E</code>/<code>S</code>/<code>True</code>/<code>1</code> = <b>Sim</b>.</td></tr>
+<tr><td class="k"><code>BatchSize</code></td><td>int</td><td><code>50</code></td><td>Máximo de RPS lidos por consulta.</td></tr>
+</tbody></table></div>
+<p class="meta">O painel grava só <code>DatabasePath</code> e <code>RpsTableName</code>; todo o resto continua vindo do <code>appsettings.json</code> do agente.</p>
+
+<h3 id="cfg-certificado">Certificate (raiz)</h3>
+<div class="callout warn">
+  <strong>O certificado ativo vem da tela, não do appsettings</strong>
+  <p>Ordem em <code>Infra/Services/CertificateProvider.cs</code>: (1) perfil ativo em <code>profiles.json</code>, selecionado em <b>Configurações</b>; (2) só se não houver perfil, a seção <code>Certificate</code>. No instalado o <code>Thumbprint</code> está vazio — sem perfil selecionado o envio falha com <em>"Certificate:Thumbprint is not configured"</em>.</p>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Tipo</th><th>Padrão</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>Certificate:Mode</code></td><td>string</td><td><code>Store</code></td><td><code>Store</code> (repositório do Windows), <code>File</code> (.pfx) ou <code>Fake</code>.</td></tr>
+<tr><td class="k"><code>Certificate:StoreLocation</code> / <code>StoreName</code></td><td>string</td><td><code>CurrentUser</code> / <code>My</code></td><td>Repositório onde buscar o certificado.</td></tr>
+<tr><td class="k"><code>Certificate:Thumbprint</code></td><td>string</td><td>vazio</td><td>Certificado a usar quando não há perfil selecionado.</td></tr>
+<tr><td class="k"><code>Certificate:FilePath</code> / <code>Password</code></td><td>string</td><td>—</td><td>Somente <code>Mode=File</code>.</td></tr>
+</tbody></table></div>
+<p class="meta">Na API a mesma estrutura fica em <code>NfeService:Certificate</code>. Os <code>appsettings.Development/Homologation/Production.json</code> da API trazem um thumbprint fixo — valem só nesses ambientes e o perfil da tela continua tendo prioridade.</p>
+
+<h3 id="cfg-nfeservice">NfeServiceOptions (agente) / NfeService (API)</h3>
+<div class="callout danger">
+  <strong>Nome da seção diferente em cada projeto</strong>
+  <p>Agente: <code>"NfeServiceOptions"</code> + <code>"Certificate"</code> na raiz. API: <code>"NfeService"</code> com <code>Certificate</code> dentro. Copiar a seção de um projeto para o outro sem renomear faz a configuração ser ignorada silenciosamente.</p>
+</div>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Tipo</th><th>Valor no agente</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>UseProduction</code></td><td>bool</td><td><code>true</code></td><td>Escolhe os endpoints de produção ou de teste.</td></tr>
+<tr><td class="k"><code>ProductionEndpoint</code> / <code>TestEndpoint</code></td><td>string</td><td><code>…/lotenfe.asmx</code></td><td>Consulta e cancelamento (síncrono).</td></tr>
+<tr><td class="k"><code>AsyncProductionEndpoint</code> / <code>AsyncTestEndpoint</code></td><td>string</td><td><code>…/lotenfeasync.asmx</code></td><td>Se preenchido, o envio usa o <b>contrato assíncrono</b> (protocolo + consulta do lote).</td></tr>
+<tr><td class="k"><code>BaseUrl</code></td><td>string</td><td>vazio</td><td>Se preenchido, substitui todos os endpoints (e desliga o assíncrono).</td></tr>
+<tr><td class="k"><code>TimeoutSeconds</code></td><td>int</td><td><code>180</code></td><td>Timeout das chamadas SOAP.</td></tr>
+<tr><td class="k"><code>Versao</code> / <code>SchemaVersion</code></td><td>string</td><td><code>2</code> / <code>2.0</code></td><td>Layout da prefeitura (2 = reforma tributária, com IBS/CBS). Mínimo efetivo: 2.</td></tr>
+<tr><td class="k"><code>DefaultIssuerIm</code></td><td>string</td><td><code>37684280</code></td><td>IM do prestador usada quando o Access traz 0.</td></tr>
+<tr><td class="k"><code>DefaultIssuerCnpj</code> / <code>DefaultCnpjRemetente</code></td><td>string</td><td><code>02126914000129</code></td><td>CNPJ padrão do prestador/remetente do lote.</td></tr>
+<tr><td class="k"><code>Environment</code></td><td>string</td><td><code>Production</code></td><td>Informativo (logs).</td></tr>
+<tr><td class="k"><code>LogRawXml</code> / <code>LogPrefeituraResponse</code></td><td>bool</td><td><code>true</code></td><td>Grava no log o XML enviado e a resposta da prefeitura.</td></tr>
+<tr><td class="k"><code>LogSensitiveData</code></td><td>bool</td><td><code>false</code></td><td>Inclui dados sensíveis nos logs. Manter <code>false</code>.</td></tr>
+<tr><td class="k"><code>EnableXmlSignature</code> / <code>XmlSignatureAlgorithm</code></td><td>bool / string</td><td><code>true</code> / <code>SHA256</code></td><td>Assinatura do XML.</td></tr>
+<tr><td class="k"><code>UseSchemaV2Fields</code></td><td>bool</td><td><code>false</code></td><td>Campos extras do layout 2 no serializador.</td></tr>
+</tbody></table></div>
+
+<h3>WebServiceProbe</h3>
+<p><code>CandidateUrls</code> (lista), <code>TimeoutSeconds</code> (20), <code>EnableProbe</code> — usados pelo diagnóstico <code>POST /api/local/webservice/probe</code> para testar a conectividade com a prefeitura.</p>
+
+<h3 id="cfg-ibpt">IbptCargaTributaria (API e agente)</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>Padrão</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>PreencherQuandoAusente</code></td><td><code>true</code></td><td>Preenche a carga tributária quando o RPS não traz.</td></tr>
+<tr><td class="k"><code>SobrescreverQuandoInformado</code></td><td><code>true</code></td><td>Substitui o valor informado pelo cálculo padrão.</td></tr>
+<tr><td class="k"><code>PercentualFracaoPadrao</code></td><td><code>0.1645</code></td><td>Percentual aproximado (16,45%).</td></tr>
+<tr><td class="k"><code>FontePadrao</code></td><td><code>IBPT</code></td><td>Texto da fonte.</td></tr>
+<tr><td class="k"><code>UsarBaseServicoMenosDeducoes</code></td><td><code>true</code></td><td>Base = serviço − deduções.</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="cfg-front">runtime-config.json — Front</h2>
+<p>Lido na inicialização (<code>src/app/core/microled-runtime-config.ts</code>). Não exige rebuild — basta editar o arquivo em <code>api\wwwroot</code>.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Chave</th><th>On-prem</th><th>Nuvem</th><th>Para que serve</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>notasFiscaisApiUrl</code></td><td><code>http://localhost:5249/api/v1/notas-fiscais</code></td><td><code>https://amktechsistemas.com.br/api/v1/notas-fiscais</code></td><td>API principal. A URL de tomadores é derivada dela (<code>/notas-fiscais</code> → <code>/tomadores</code>).</td></tr>
+<tr><td class="k"><code>localAgentBaseUrl</code></td><td><code>""</code> (usa o proxy da API)</td><td><code>http://localhost:5278</code></td><td>Base das chamadas <code>/api/local/*</code> do agente.</td></tr>
+</tbody></table></div>
+<p class="meta">A API serve <code>index.html</code> e <code>runtime-config.json</code> com <code>Cache-Control: no-cache</code>, para que a tela nova apareça logo após atualizar o instalador.</p>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="cfg-launcher">Launcher (painel)</h2>
+<p><code>Microled.Nfe.DesktopLauncher</code> — opções em <code>Services/OnPremOptionsStore.cs</code>:</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Opção</th><th>Padrão</th><th>Efeito</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>PostgresPort</code> / <code>PostgresUser</code> / <code>PostgresDatabase</code></td><td><code>5435</code> / <code>nfe</code> / <code>DB_NFE</code></td><td>Banco portátil; vira a <code>ConnectionStrings__NfeDatabase</code> da API.</td></tr>
+<tr><td class="k"><code>AccessDatabasePath</code></td><td>—</td><td>Gravado em <code>settings.json</code> → <code>AccessDatabase:DatabasePath</code> do agente.</td></tr>
+<tr><td class="k"><code>ApiUrl</code> / <code>AgentUrl</code></td><td><code>:5249</code> / <code>:5278</code></td><td>Health checks e <code>NfeIntegration:MainApiBaseUrl</code>.</td></tr>
+<tr><td class="k"><code>KeepRunningOnClose</code></td><td><code>false</code></td><td>Mantém API/agente rodando ao fechar o painel.</td></tr>
+</tbody></table></div>
+<p>Ao clicar em <b>Iniciar ambiente</b>: libera as portas 5249/5278 → sobe o PostgreSQL → sobe a API (aplica migrations pendentes) → sobe o agente → health check. Migrations aparecem no log como <em>"Aplicando migrations pendentes: …"</em>.</p>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="fluxos">Fluxos do sistema — onde mexer</h2>
+
+<div class="flow" id="fluxo-importacao" data-search>
+<h4>1. Importar RPS do Access <span class="tag front">Front</span> <span class="tag agent">Agente</span></h4>
+<ol>
+  <li>Tela <b>Emissão NFSe → Importar lote</b> (<code>/nfse/emissao-nfse/lote</code>) conta e lê os pendentes: <code>GET /api/local/access/pending-rps</code> (<code>Processado = Não</code>).</li>
+  <li>Completa o tomador pelo <b>cadastro de tomadores</b> (CNPJ do Access → nome/endereço). Sem endereço completo o RPS <b>não é importado</b> e o motivo aparece no log da tela.</li>
+  <li>Calcula os impostos (fluxo 2).</li>
+  <li><code>POST /api/local/rps/queue-pending</code>: gera o XML, cria a nota "A processar" no PostgreSQL, salva o payload em <code>pending-queue</code>, <b>grava BC/PIS/COFINS/IR/CSLL/Valor_liquido no RPS</b> e marca <code>Processado = Sim</code>.</li>
+</ol>
+<dl class="where">
+  <dt>Tela</dt><dd><code>pages/importacao-lote-rps/importacao-lote-rps-page.ts</code></dd>
+  <dt>Leitura do Access / colunas aceitas</dt><dd><code>Infra/Repositories/AccessRpsRepository.cs</code> (lista de colunas em <code>GetPendingRpsAsync</code>)</dd>
+  <dt>Fila e gravação dos impostos</dt><dd><code>LocalAgent.Api/Services/LocalRpsProcessingService.cs</code> → <code>QueuePendingAsync</code>; <code>AccessRpsRepository.UpdateTaxValuesAsync</code></dd>
+  <dt>Regras de preenchimento do tomador</dt><dd><code>pages/emissao-nfse/data/local-clients.storage.ts</code> (<code>mergeTomadorCadastroIntoForm</code>, <code>getTomadorEnderecoPendencias</code>)</dd>
+</dl>
+</div>
+
+<div class="flow" id="fluxo-calculo" data-search>
+<h4>2. Cálculo de impostos <span class="tag agent">Agente</span></h4>
+<ol>
+  <li><code>POST /api/local/nfse-sp/calculate-taxes</code> com <code>valorServico</code> (&gt; 0), <code>codigoServico</code> (&gt; 0), <code>aliquotaIss</code> (0–1) e <code>regimeTributario</code> (<code>SimplesNacional</code> | <code>LucroPresumido</code> | <code>LucroReal</code>).</li>
+  <li>Lucro Presumido / Simples: alíquotas padrão de retenção (PIS 0,65%, COFINS 3%, CSLL 1%, IR 1,5%). Lucro Real: usa as alíquotas enviadas.</li>
+  <li>Resposta: bases, valores retidos, <code>valorLiquido</code> e a memória de cálculo.</li>
+</ol>
+<dl class="where">
+  <dt>Regras</dt><dd><code>Application/Services/NfseSpTaxCalculationService.cs</code>, provedores em <code>Application/NfseSpTax/</code></dd>
+  <dt>Validação da entrada</dt><dd><code>Application/Validators/NfseSpTaxCalculationRequestValidator.cs</code></dd>
+  <dt>Montagem a partir da tela</dt><dd><code>pages/emissao-nfse/models/emissao-rps-teste.models.ts</code> (<code>buildNfseSpCalculateTaxesRequest</code>)</dd>
+</dl>
+</div>
+
+<div class="flow" id="fluxo-envio" data-search>
+<h4>3. Envio à prefeitura <span class="tag agent">Agente</span> <span class="tag api">API</span></h4>
+<ol>
+  <li>Lista de NFs → <b>Processar RPS pendentes</b> ou menu <b>Ações → Enviar nota</b>: <code>POST /api/local/rps/process-queued/{notaId}</code>.</li>
+  <li>Se <code>NfeIntegration:SendToWebService = false</code>, só gera os arquivos (não envia).</li>
+  <li>Assina com o certificado ativo, envia para <code>lotenfeasync.asmx</code> e recebe o <b>protocolo</b>.</li>
+  <li>Resultado → <code>POST /api/v1/notas-fiscais/persist/send-result</code> (gravado na nota certa pelo <code>notaId</code>). Erros da prefeitura são gravados em <code>notas_fiscais.erros_envio</code> e exibidos <b>abaixo da linha</b> na lista.</li>
+  <li>O XML enviado fica em <code>RpsOut\NFE_SP_SoapEnvioLoteRps_*.xml</code>.</li>
+</ol>
+<dl class="where">
+  <dt>Montagem do XML</dt><dd><code>Infra/Mapping/EnvioLoteRpsPedidoMapper.cs</code> (DTO → tipos XSD) e <code>Infra/Services/XmlSerializerService.cs</code> (escrita do XML, ordem dos elementos)</dd>
+  <dt>Destinatário IBS/CBS</dt><dd><code>XmlSerializerService.WriteInformacoesPessoa</code> — grava <code>end</code> e <code>email</code> (sem eles: erros 251–253)</dd>
+  <dt>Persistência do resultado</dt><dd><code>LocalAgent.Api/Services/LocalAgentNotaFiscalSyncService.cs</code> → <code>Application/UseCases/NotasFiscais/PersistRpsSendResultUseCase.cs</code></dd>
+  <dt>Erros abaixo da linha</dt><dd><code>pages/lista-notas-fiscais/</code> (<code>errosDaNota</code>, <code>showEventosRow</code>)</dd>
+</dl>
+</div>
+
+<div class="flow" id="fluxo-autorizacao" data-search>
+<h4>4. Consulta do protocolo, autorização e tabela NF <span class="tag agent">Agente</span></h4>
+<ol>
+  <li>Menu <b>Ações → Consultar nota na prefeitura</b> (<code>POST /api/local/rps/status</code>) consulta o lote pelo protocolo.</li>
+  <li>Lote processado → número da NFS-e → <code>persist/batch-status</code> (nota fica <b>Autorizada</b>).</li>
+  <li>Para cada nota autorizada que veio do RPS, o agente <b>insere uma linha na tabela <code>NF</code></b> do Access (ver <a href="#access">tabelas</a>). Idempotente: não duplica se já existir.</li>
+  <li>No log do agente: <em>"Tabela NF do Access: NFS-e X (RPS Y) -&gt; Inserted | AlreadyExists | RpsNotFound | Skipped"</em>.</li>
+</ol>
+<dl class="where">
+  <dt>Gatilho</dt><dd><code>LocalAgentNotaFiscalSyncService.RecordAuthorizedNotasInAccessAsync</code> (chamado no send-result síncrono e no batch-status)</dd>
+  <dt>Gravação da NF</dt><dd><code>Infra/Repositories/AccessRpsRepository.Nf.cs</code> → <code>InsertNfFromRpsAsync</code></dd>
+</dl>
+</div>
+
+<div class="flow" id="fluxo-pagamento" data-search>
+<h4>5. Pagamento <span class="tag front">Front</span> <span class="tag api">API</span> <span class="tag agent">Agente</span></h4>
+<ol>
+  <li>Menu <b>Ações → Informar pagamento</b> (notas autorizadas).</li>
+  <li><code>PATCH /api/v1/notas-fiscais/{id}/pagamento</code> grava no PostgreSQL.</li>
+  <li>Em seguida a tela chama <code>PATCH /api/local/access/nf/{numero}/pagamento</code>, que atualiza <code>Pago</code>, <code>dt_pgto</code> e <code>valor_depositado</code> na tabela <code>NF</code>. Desmarcar "pago" limpa data e valor.</li>
+  <li>Se a NF não existir no Access, o pagamento continua salvo e a tela só avisa.</li>
+</ol>
+<dl class="where">
+  <dt>Tela</dt><dd><code>pages/lista-notas-fiscais/lista-notas-fiscais.ts</code> (<code>saveModal</code>, <code>syncPagamentoNfAccess</code>)</dd>
+  <dt>Access</dt><dd><code>AccessRpsRepository.Nf.cs</code> → <code>UpdateNfPagamentoAsync</code>; endpoint em <code>LocalAgent.Api/Endpoints/AccessEndpoints.cs</code></dd>
+</dl>
+</div>
+
+<div class="flow" id="fluxo-tomadores" data-search>
+<h4>6. Cadastro de tomadores <span class="tag front">Front</span> <span class="tag api">API</span></h4>
+<ol>
+  <li>Tela <b>Tomadores</b> (<code>/nfse/tomadores</code>): busca, inclusão, edição e exclusão. Endereço completo é obrigatório (logradouro, número, bairro, código IBGE de 7 dígitos, UF, CEP).</li>
+  <li>Na emissão: digitar CPF/CNPJ ou razão social sugere tomadores; CPF/CNPJ completo preenche tudo automaticamente; botão <b>Salvar no cadastro</b>.</li>
+  <li>Armazenado no PostgreSQL, tabela <code>tomadores</code> (CPF/CNPJ único).</li>
+</ol>
+<dl class="where">
+  <dt>Back-end</dt><dd><code>Domain/Entities/Tomador.cs</code>, <code>Application/UseCases/Tomadores/</code>, <code>Api/Controllers/TomadoresController.cs</code></dd>
+  <dt>Front-end</dt><dd><code>pages/cadastro-tomadores/</code>, <code>data-access/services/tomadores-api.service.ts</code></dd>
+</dl>
+</div>
+
+<div class="flow" id="fluxo-certificado" data-search>
+<h4>7. Seleção de certificado <span class="tag front">Front</span> <span class="tag agent">Agente</span></h4>
+<ol>
+  <li>Tela <b>Configurações</b> lista os certificados do Windows (<code>GET /api/local/certificates</code>) e seleciona um (<code>POST /api/local/certificates/select</code>).</li>
+  <li>O perfil é salvo em <code>profiles.json</code> e passa a ser usado em todas as assinaturas.</li>
+</ol>
+<dl class="where">
+  <dt>Código</dt><dd><code>Infra/Services/CertificateProvider.cs</code>, <code>LocalAgent.Api/Endpoints/CertificatesEndpoints.cs</code></dd>
+</dl>
+</div>
+
+<div class="flow" id="fluxo-lista" data-search>
+<h4>8. Lista de NFs — menu Ações <span class="tag front">Front</span></h4>
+<div class="table-wrap"><table>
+<thead><tr><th>Opção</th><th>Aparece quando</th><th>Faz</th></tr></thead>
+<tbody>
+<tr><td>Consultar nota na prefeitura</td><td>há protocolo</td><td>Consulta o lote/protocolo e atualiza o status</td></tr>
+<tr><td>Ver PDF</td><td>há número da NFS-e</td><td>Abre o PDF no site da prefeitura</td></tr>
+<tr><td>Enviar nota</td><td>status "A processar"</td><td>Envia só essa nota</td></tr>
+<tr><td>Informar pagamento</td><td>autorizada</td><td>Modal de pagamento (PostgreSQL + tabela NF)</td></tr>
+<tr><td>Editar nota</td><td>rejeitada ou erro</td><td>Abre a emissão com os dados para reenviar</td></tr>
+<tr><td>Duplicar nota</td><td>autorizada</td><td>Abre a emissão com uma cópia</td></tr>
+<tr><td>Excluir nota</td><td>sem protocolo e não autorizada</td><td>Exclui do PostgreSQL</td></tr>
+</tbody></table></div>
+<p class="meta">Regras em <code>lista-notas-fiscais.ts</code> → <code>getAcoes()</code>.</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="access">Tabelas do Access</h2>
+
+<h3>RPS — lida na importação, atualizada após o cálculo</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Coluna</th><th>Uso</th><th>Leitura / escrita</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>index</code></td><td>Chave (<code>PrimaryKeyColumn</code>)</td><td>leitura</td></tr>
+<tr><td class="k"><code>Processado</code></td><td>Pendente (Não) / importado (Sim)</td><td>leitura e escrita</td></tr>
+<tr><td class="k"><code>Numero_RPS</code>, <code>Dt_emissao</code>, <code>Valor</code>, <code>Codigo_ISS</code>, <code>Discriminacao</code></td><td>Dados do RPS</td><td>leitura</td></tr>
+<tr><td class="k"><code>CNPJ</code>, <code>e-mail</code></td><td>Tomador (o resto vem do cadastro de tomadores)</td><td>leitura</td></tr>
+<tr><td class="k"><code>IBSCBS_CClassTrib</code>, <code>IBSCBS_CIndOp</code></td><td>Classificação IBS/CBS. Ausente/vazio → <code>000001</code> / <code>100301</code> (com aviso no log). Recomendado: Texto(6).</td><td>leitura</td></tr>
+<tr><td class="k"><code>BC</code>, <code>PIS</code>, <code>COFINS</code>, <code>IR</code>, <code>CSLL</code>, <code>Valor_liquido</code></td><td>Resultado do cálculo de impostos</td><td><b>escrita</b> na importação</td></tr>
+<tr><td class="k"><code>Vencimento</code>, <code>IF</code>, <code>discr5..10</code>, <code>dt1/P1..dt3/P3</code>, <code>Contrato</code>, <code>lista</code>, <code>foi</code></td><td>Copiados para a tabela NF na autorização</td><td>leitura</td></tr>
+</tbody></table></div>
+<p class="meta">Outras colunas opcionais reconhecidas (tomador completo, NBS, IBS/CBS, carga tributária…) estão na lista de <code>Col(...)</code> em <code>AccessRpsRepository.GetPendingRpsAsync</code>. Colunas inexistentes são ignoradas e listadas no log como <em>"Colunas ausentes na tabela RPS serão ignoradas"</em>.</p>
+
+<h3>NF — inserida na autorização, atualizada no pagamento</h3>
+<div class="table-wrap"><table>
+<thead><tr><th>Coluna NF</th><th>Origem</th></tr></thead>
+<tbody>
+<tr><td class="k"><code>numero</code> (chave, Texto 6)</td><td>Número da NFS-e sem zeros à esquerda (<code>00300287</code> → <code>300287</code>). Acima de 6 dígitos: não grava e registra erro.</td></tr>
+<tr><td class="k"><code>dt_emissao</code></td><td>Data de emissão da prefeitura (ou <code>Dt_emissao</code> do RPS)</td></tr>
+<tr><td class="k"><code>cod_cli</code>, <code>nome_cli</code></td><td>Tabela <code>clientes</code> pelo CNPJ (<code>codigo</code>, <code>nome_pop</code>). CNPJ não encontrado → vazios + aviso.</td></tr>
+<tr><td class="k"><code>discr1</code></td><td><code>Discriminacao</code> do RPS</td></tr>
+<tr><td class="k"><code>valor</code>, <code>valor_liquido</code>, <code>vencimento</code>, <code>BC</code>, <code>IR</code>, <code>IF</code>, <code>PIS</code>, <code>COFINS</code>, <code>CSLL</code>, <code>discr5..10</code>, <code>dt1/P1..P3</code>, <code>Contrato</code>, <code>lista</code>, <code>foi</code></td><td>Colunas de mesmo nome do RPS (textos cortados no tamanho da coluna da NF, com aviso)</td></tr>
+<tr><td class="k"><code>Pago</code>, <code>dt_pgto</code>, <code>valor_depositado</code></td><td>Na inserção: Não / vazio / 0. Depois: tela de pagamento.</td></tr>
+</tbody></table></div>
+<p class="meta">Só notas vindas do RPS geram linha na NF. IBS/CBS não são gravados (a tabela não tem as colunas e o sistema não calcula esses valores).</p>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="regras-fixas">Regras fixas no código</h2>
+<p>Valores que não estão no <code>appsettings</code> — mudar exige alterar o código e gerar instalador.</p>
+<div class="table-wrap"><table>
+<thead><tr><th>Regra</th><th>Valor</th><th>Onde</th></tr></thead>
+<tbody>
+<tr><td>Código de serviço e NBS para o prestador Microled (CNPJ 02.126.914/0001-29)</td><td><code>02919</code> / <code>115022000</code></td><td><code>emissao-nfse-page.ts</code> e <code>importacao-lote-rps-page.ts</code> (<code>PRESTADOR_*</code>)</td></tr>
+<tr><td>Padrões IBS/CBS da tela</td><td><code>finNFSe=0</code>, <code>indFinal=0</code>, <code>indDest=1</code>, <code>cClassTrib=000001</code></td><td><code>emissao-rps-teste.models.ts</code> → <code>getDefaultEmissaoRpsTesteFormValue</code></td></tr>
+<tr><td>Fallback de <code>cIndOp</code> / <code>cClassTrib</code> quando o Access não traz</td><td><code>100301</code> / <code>000001</code></td><td><code>IbsCbsCIndOpNormalizer.DefaultCIndOp</code>; <code>AccessRpsRepository</code></td></tr>
+<tr><td>Alíquotas padrão de retenção (LP/SN)</td><td>PIS 0,65%; COFINS 3%; CSLL 1%; IR 1,5%</td><td><code>Application/NfseSpTax/</code></td></tr>
+<tr><td>Endereço obrigatório do tomador/destinatário</td><td>logradouro, número, bairro, município, UF, CEP</td><td><code>local-clients.storage.ts</code> → <code>getTomadorEnderecoPendencias</code></td></tr>
+<tr><td>Origens CORS da API</td><td>app.amktechsistemas, localhost 4200/5249</td><td><code>Service.Api/Program.cs</code></td></tr>
+<tr><td>Portas do on-prem</td><td>API 5249, agente 5278, PostgreSQL 5435</td><td><code>DesktopLauncher/Services/</code></td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="endpoints-api">Endpoints — API principal <span class="tag api">:5249</span></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Método</th><th>Rota</th><th>Uso</th></tr></thead>
+<tbody>
+<tr><td><span class="m get">GET</span></td><td><code>/api/v1/notas-fiscais</code></td><td>Lista paginada (filtros, inclusive <code>status</code>)</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/api/v1/notas-fiscais/{id}</code></td><td>Detalhe da nota</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/v1/notas-fiscais</code></td><td>Cria nota (usado pelo agente na importação)</td></tr>
+<tr><td><span class="m patch">PATCH</span></td><td><code>/api/v1/notas-fiscais/{id}/pagamento</code></td><td>Pagamento (PostgreSQL)</td></tr>
+<tr><td><span class="m patch">PATCH</span></td><td><code>/api/v1/notas-fiscais/{id}/status</code></td><td>Altera status</td></tr>
+<tr><td><span class="m put">PUT</span></td><td><code>/api/v1/notas-fiscais/authorization</code></td><td>Grava autorização</td></tr>
+<tr><td><span class="m get">GET</span> <span class="m put">PUT</span></td><td><code>/api/v1/notas-fiscais/{id}/pdf</code></td><td>Baixar / anexar PDF</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/v1/notas-fiscais/{id}/pdf/generate</code></td><td>Gera PDF</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/api/v1/notas-fiscais/{id}/xml</code></td><td>XML da nota</td></tr>
+<tr><td><span class="m delete">DELETE</span></td><td><code>/api/v1/notas-fiscais/{id}</code></td><td>Exclui</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/v1/notas-fiscais/persist/send-result | batch-status | consult-result | cancel-result</code></td><td>Usados pelo agente para gravar resultados da prefeitura</td></tr>
+<tr><td><span class="m get">GET</span> <span class="m post">POST</span></td><td><code>/api/v1/tomadores</code></td><td>Busca (<code>q</code>, <code>page</code>, <code>pageSize</code>) / cria</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/api/v1/tomadores/cpf-cnpj/{cpfCnpj}</code></td><td>Busca por documento (404 se não existe)</td></tr>
+<tr><td><span class="m put">PUT</span> <span class="m delete">DELETE</span></td><td><code>/api/v1/tomadores/{id}</code></td><td>Edita / exclui</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/v1/rps/send</code>, <code>/api/v1/rps/status</code></td><td>Envio/consulta pela própria API (usa <code>NfeService</code>)</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/v1/nfe/consult | download-xml | cancel</code></td><td>Consulta/cancelamento pela API</td></tr>
+<tr><td><span class="m get">GET</span> <span class="m post">POST</span></td><td><code>/api/v1/certificates</code> (+ <code>/select</code>, <code>/active-profile</code>, <code>/company-profile</code>)</td><td>Certificados vistos pela API</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/api/v1/local-agent/installer</code>, <code>/installer/info</code></td><td>Download do instalador do agente</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/health</code>, <code>/health/database</code></td><td>Health checks (o launcher usa o de banco)</td></tr>
+<tr><td>*</td><td><code>/api/local/**</code></td><td>Proxy para o agente (on-prem)</td></tr>
+</tbody></table></div>
+<p class="meta">Swagger da API disponível no ambiente de desenvolvimento.</p>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="endpoints-agente">Endpoints — Agente local <span class="tag agent">:5278</span></h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Método</th><th>Rota</th><th>Uso</th></tr></thead>
+<tbody>
+<tr><td><span class="m get">GET</span></td><td><code>/api/local/health</code></td><td>Health check</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/api/local/access/settings</code></td><td>Caminho do Access em uso e se o arquivo existe</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/access/configure</code></td><td>Grava <code>DatabasePath</code> no <code>settings.json</code></td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/api/local/access/pending-rps?batchSize=</code></td><td>RPS pendentes (só leitura)</td></tr>
+<tr><td><span class="m get">GET</span></td><td><code>/api/local/access/pending-rps/count</code></td><td>Quantidade de pendentes</td></tr>
+<tr><td><span class="m patch">PATCH</span></td><td><code>/api/local/access/nf/{numero}/pagamento</code></td><td>Pagamento na tabela NF</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/nfse-sp/calculate-taxes</code></td><td>Cálculo de impostos</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/rps/queue-pending</code></td><td>Importa RPS (cria nota "A processar", grava impostos no RPS)</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/rps/process-queued/{notaId}</code></td><td>Envia uma nota importada</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/rps/process</code></td><td>Envia direto da tela de emissão</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/rps/generate-files</code></td><td>Só gera RPS/XML (sem enviar)</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/rps/status</code></td><td>Consulta do lote pelo protocolo (gera a autorização e a linha NF)</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/nfe/consult</code>, <code>/api/local/nfe/cancel</code></td><td>Consulta / cancelamento de NFS-e</td></tr>
+<tr><td><span class="m get">GET</span> <span class="m post">POST</span></td><td><code>/api/local/certificates</code> (+ <code>/select</code>, <code>/unlock</code>, <code>/active-profile</code>, <code>/company-profile</code>)</td><td>Certificados e perfil ativo</td></tr>
+<tr><td><span class="m post">POST</span></td><td><code>/api/local/webservice/probe</code></td><td>Diagnóstico de conectividade com a prefeitura</td></tr>
+</tbody></table></div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="problemas">Problemas conhecidos e como diagnosticar</h2>
+<div class="table-wrap"><table>
+<thead><tr><th>Sintoma</th><th>Causa provável</th><th>O que fazer</th></tr></thead>
+<tbody>
+<tr><td>Tela nova não aparece após atualizar</td><td>Cache do navegador (versões antigas sem <code>no-cache</code>)</td><td>Ctrl+F5 uma vez; versões atuais já servem <code>index.html</code> sem cache.</td></tr>
+<tr><td>"Enviar" não chega à prefeitura, só gera arquivos</td><td><code>NfeIntegration:SendToWebService = false</code></td><td>Definir <code>true</code> no <code>settings.json</code> do agente e reiniciar.</td></tr>
+<tr><td>Erro <em>"Certificate:Thumbprint is not configured"</em></td><td>Nenhum perfil selecionado e appsettings vazio</td><td>Selecionar o certificado em Configurações.</td></tr>
+<tr><td>Erros 251/252/253 (destinatário)</td><td>Endereço do tomador vazio</td><td>Completar o cadastro do tomador; conferir <code>&lt;dest&gt;&lt;end&gt;</code> no XML em <code>RpsOut</code>.</td></tr>
+<tr><td>Erro 1001 Cidade/CEP = 0</td><td>RPS do Access sem endereço do tomador</td><td>Cadastrar o tomador (a importação completa pelo cadastro).</td></tr>
+<tr><td>Erro 636 CEP x município</td><td>CEP não pertence ao código IBGE informado</td><td>Corrigir o cadastro do tomador.</td></tr>
+<tr><td>Erro 224 RPS já convertido</td><td>RPS reenviado após já virar NFS-e</td><td>Consultar a nota original; não reenviar.</td></tr>
+<tr><td>Log: <em>"Usando fallback 000001/100301"</em></td><td>Colunas IBS/CBS ausentes/vazias no RPS</td><td>Preencher <code>IBSCBS_CClassTrib</code> / <code>IBSCBS_CIndOp</code>.</td></tr>
+<tr><td>Log: <em>"Tabela NF … RpsNotFound"</em></td><td>Nota emitida fora do Access</td><td>Esperado — só notas do RPS vão para a NF.</td></tr>
+<tr><td>Troca do caminho do Access sem efeito</td><td>Agente lê as opções na inicialização</td><td>Reiniciar o agente (o painel já faz isso ao iniciar).</td></tr>
+</tbody></table></div>
+<div class="callout info">
+  <strong>Onde olhar primeiro</strong>
+  <p>1) Painel do launcher (logs da API e do agente); 2) <code>ProgramData\…\localagent\logs</code>; 3) <code>RpsOut\</code> para o XML exato enviado; 4) erros abaixo da linha na Lista de NFs.</p>
+</div>
+</section>
+
+<!-- ============================================================ -->
+<section data-search>
+<h2 id="build">Build e instalador</h2>
+<pre><code>MicroledNF\scripts\build-onprem-installer.cmd</code></pre>
+<ul>
+  <li>Publica API, agente e launcher, compila o Angular (baixa um Node portátil se necessário), copia para <code>api\wwwroot</code>, baixa o PostgreSQL portátil e gera <code>dist\installers\Microled-NFe-AmbienteLocal-1.0.0.exe</code>.</li>
+  <li><b>Não use <code>-SkipPackageBuild</code></b> após mudar código: ele só reempacota o <code>dist\onprem-package</code> antigo.</li>
+  <li>Não pule o PostgreSQL: o pacote é apagado antes de ser montado e o instalador sairia sem banco.</li>
+  <li>Migrations são aplicadas automaticamente quando a API inicia.</li>
+  <li>Conferência: a pasta <code>dist\onprem-package</code> deve ter a data/hora do build.</li>
+</ul>
+</section>
+
+<p class="meta" style="margin-top:48px">Encontrou algo desatualizado? Atualize este arquivo: <code>MicroledNF/docs/guia-configuracao-e-pontos-de-acao.html</code>.</p>
+</main>
+</div>
+
+<script>
+  (function () {
+    var root = document.documentElement;
+    var toggle = document.getElementById('theme-toggle');
+    try {
+      var saved = localStorage.getItem('microled-doc-theme');
+      if (saved) { root.setAttribute('data-theme', saved); }
+    } catch (e) { /* armazenamento indisponível */ }
+    toggle.addEventListener('click', function () {
+      var current = root.getAttribute('data-theme');
+      if (!current) {
+        current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      var next = current === 'dark' ? 'light' : 'dark';
+      root.setAttribute('data-theme', next);
+      try { localStorage.setItem('microled-doc-theme', next); } catch (e) { /* ignora */ }
+    });
+
+    var search = document.getElementById('search');
+    var blocks = Array.prototype.slice.call(document.querySelectorAll('main [data-search]'));
+    search.addEventListener('input', function () {
+      var term = search.value.trim().toLowerCase();
+      blocks.forEach(function (block) {
+        if (!term) { block.classList.remove('hidden-by-search'); return; }
+        var match = block.textContent.toLowerCase().indexOf(term) !== -1;
+        block.classList.toggle('hidden-by-search', !match);
+      });
+      if (term) {
+        // um bloco de fluxo encontrado precisa da seção pai visível
+        blocks.forEach(function (block) {
+          if (!block.classList.contains('hidden-by-search') && block.parentElement && block.parentElement.closest('[data-search]')) {
+            block.parentElement.closest('[data-search]').classList.remove('hidden-by-search');
+          }
+        });
+      }
+    });
+  })();
+</script>
+</body>
+</html>
