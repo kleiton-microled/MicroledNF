@@ -48,7 +48,9 @@ public static class IbsCbsCIndOpNormalizer
         if (sb.Length == 0)
             return null;
 
-        var digits = sb.ToString();
+        // Coluna numerica no Access perde os zeros a esquerda (020101 -> 20101): completa ate 6 digitos,
+        // como ja e feito para o cClassTrib.
+        var digits = sb.Length < 6 ? sb.ToString().PadLeft(6, '0') : sb.ToString();
         return SixDigitsRegex.IsMatch(digits) ? digits : null;
     }
 }
