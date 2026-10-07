@@ -3,6 +3,7 @@ using System;
 using Microled.Nfe.Service.Infra.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Microled.Nfe.Service.Infra.Migrations
 {
     [DbContext(typeof(NfeDbContext))]
-    partial class NfeDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261006190000_AddErrosEnvioToNotasFiscais")]
+    partial class AddErrosEnvioToNotasFiscais
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder

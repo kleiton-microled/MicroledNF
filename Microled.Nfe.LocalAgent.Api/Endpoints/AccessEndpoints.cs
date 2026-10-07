@@ -52,6 +52,37 @@ public static class AccessEndpoints
             });
         });
 
+        group.MapPatch("/nf/{numero}/pagamento", async Task<Results<Ok<UpdateNfPagamentoResponse>, ValidationProblem>> (
+            string numero,
+            UpdateNfPagamentoRequest request,
+            IAccessRpsRepository accessRpsRepository,
+            CancellationToken cancellationToken) =>
+        {
+            if (!long.TryParse(numero, out _))
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["numero"] = ["Informe o numero da NFS-e."]
+                });
+            }
+
+            var found = await accessRpsRepository.UpdateNfPagamentoAsync(
+                numero,
+                request.Pago,
+                request.DataPagamento,
+                request.ValorDepositado,
+                cancellationToken);
+
+            return TypedResults.Ok(new UpdateNfPagamentoResponse
+            {
+                Success = true,
+                Found = found,
+                Message = found
+                    ? "Pagamento atualizado na tabela NF do Access."
+                    : "NF nao encontrada na tabela do Access."
+            });
+        });
+
         group.MapGet("/pending-rps", async Task<Ok<LocalAccessPendingRpsResponse>> (
             int? batchSize,
             IOptions<AccessDatabaseOptions> accessOptions,
@@ -75,6 +106,14 @@ public static class AccessEndpoints
             };
 
             return TypedResults.Ok(response);
+        });
+
+        group.MapGet("/pending-rps/count", async Task<Ok<LocalAccessPendingCountResponse>> (
+            IAccessRpsRepository accessRpsRepository,
+            CancellationToken cancellationToken) =>
+        {
+            var count = await accessRpsRepository.CountPendingRpsAsync(cancellationToken);
+            return TypedResults.Ok(new LocalAccessPendingCountResponse { Count = count });
         });
 
         return endpoints;

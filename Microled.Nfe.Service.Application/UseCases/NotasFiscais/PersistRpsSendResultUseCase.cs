@@ -30,7 +30,10 @@ public sealed class PersistRpsSendResultUseCase : IPersistRpsSendResultUseCase
 
         foreach (var item in request.Itens)
         {
-            var existing = await _repository.GetByRpsAsync(
+            var existing = item.NotaId is { } notaId
+                ? await _repository.GetByIdAsync(notaId, cancellationToken)
+                : null;
+            existing ??= await _repository.GetByRpsAsync(
                 item.InscricaoPrestador,
                 item.SerieRps ?? string.Empty,
                 item.NumeroRps,
@@ -61,7 +64,7 @@ public sealed class PersistRpsSendResultUseCase : IPersistRpsSendResultUseCase
             }
             else if (!request.Sucesso)
             {
-                nota.SetError(request.CriadoPor);
+                nota.SetError(request.CriadoPor, errosEnvio: NotaFiscalErrosEnvioSerializer.Serialize(request.Erros));
                 await _repository.UpdateAsync(nota, cancellationToken);
             }
 

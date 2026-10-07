@@ -18,6 +18,16 @@ public class AccessDatabaseOptions
     public string RpsTableName { get; set; } = "RPS";
 
     /// <summary>
+    /// Tabela de notas emitidas (uma linha por NFS-e autorizada, gravada a partir do RPS de origem)
+    /// </summary>
+    public string NfTableName { get; set; } = "NF";
+
+    /// <summary>
+    /// Tabela de clientes usada para resolver cod_cli/nome_cli pelo CNPJ do tomador
+    /// </summary>
+    public string ClientesTableName { get; set; } = "clientes";
+
+    /// <summary>
     /// Maximum number of RPS to process per batch
     /// </summary>
     public int BatchSize { get; set; } = 50;

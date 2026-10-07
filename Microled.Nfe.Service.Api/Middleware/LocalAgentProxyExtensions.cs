@@ -50,7 +50,11 @@ public static class LocalAgentProxyExtensions
 
             foreach (var header in context.Request.Headers)
             {
-                if (HopByHop.Contains(header.Key))
+                // Content-Type ja foi definido acima; repetir gera "application/json, application/json"
+                // e o LocalAgent responde 415. Content-Length e calculado pelo HttpClient.
+                if (HopByHop.Contains(header.Key)
+                    || string.Equals(header.Key, "Content-Type", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(header.Key, "Content-Length", StringComparison.OrdinalIgnoreCase))
                 {
                     continue;
                 }

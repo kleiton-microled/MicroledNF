@@ -954,10 +954,58 @@ public class XmlSerializerService : IXmlSerializerService
         }
         
         writer.WriteElementString("xNome", pessoa.xNome);
-        
-        // Endereco and email are optional - skipping for now as not in simple example
-        // TODO: Implement if needed
-        
+
+        // tpInformacoesPessoa: ... xNome, end?, email? (ordem do XSD). A prefeitura exige o endereco
+        // do destinatario (erros 251 bairro, 252 logradouro, 253 numero) quando ele e informado.
+        if (pessoa.end != null && HasEnderecoIBSCBSValido(pessoa.end))
+        {
+            WriteEnderecoIBSCBS(writer, pessoa.end);
+        }
+
+        if (!string.IsNullOrWhiteSpace(pessoa.email))
+        {
+            writer.WriteElementString("email", pessoa.email.Trim());
+        }
+
+        writer.WriteEndElement();
+    }
+
+    /// <summary>endNac exige cMun (7 digitos) e CEP (7-8 digitos); sem eles o grupo end e omitido.</summary>
+    private static bool HasEnderecoIBSCBSValido(tpEnderecoIBSCBS end)
+    {
+        return end.endExt != null
+               || end.endNac is { cMun: >= 1000000 and <= 9999999, CEP: > 0 };
+    }
+
+    private static void WriteEnderecoIBSCBS(XmlWriter writer, tpEnderecoIBSCBS end)
+    {
+        writer.WriteStartElement("end");
+
+        // tpEnderecoIBSCBS: choice (endNac | endExt) + gpEnderecoBaseIBSCBS (xLgr, nro, xCpl?, xBairro).
+        if (end.endExt != null)
+        {
+            WriteEnderecoExterior(writer, end.endExt);
+        }
+        else
+        {
+            writer.WriteStartElement("endNac");
+            writer.WriteElementString("cMun", end.endNac!.cMun.ToString());
+            writer.WriteElementString("CEP", end.endNac.CEP.ToString());
+            writer.WriteEndElement();
+        }
+
+        var xLgr = string.IsNullOrWhiteSpace(end.xLgr) ? "-" : end.xLgr.Trim();
+        var nro = string.IsNullOrWhiteSpace(end.nro) ? "S/N" : end.nro.Trim();
+        var xBairro = string.IsNullOrWhiteSpace(end.xBairro) ? "-" : end.xBairro.Trim();
+        writer.WriteElementString("xLgr", xLgr);
+        writer.WriteElementString("nro", nro);
+        if (!string.IsNullOrWhiteSpace(end.xCpl))
+        {
+            writer.WriteElementString("xCpl", end.xCpl.Trim());
+        }
+
+        writer.WriteElementString("xBairro", xBairro);
+
         writer.WriteEndElement();
     }
     

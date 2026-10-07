@@ -23,4 +23,8 @@ public interface IMainApiNotaFiscalClient
     Task<IReadOnlyList<NotaFiscalResponse>> SearchByProtocoloAsync(
         string protocolo,
         CancellationToken cancellationToken);
+
+    Task<ApiResponse<NotaFiscalResponse>> CreateAsync(
+        CreateNotaFiscalRequest request,
+        CancellationToken cancellationToken);
 }

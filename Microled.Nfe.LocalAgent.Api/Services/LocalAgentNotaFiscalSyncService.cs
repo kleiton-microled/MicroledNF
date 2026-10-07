@@ -7,6 +7,7 @@ using Microled.Nfe.Service.Application.DTOs.NotasFiscais;
 using Microled.Nfe.Service.Application.Interfaces;
 using Microled.Nfe.Service.Domain.Entities;
 using Microled.Nfe.Service.Domain.Enums;
+using Microled.Nfe.Service.Infra.Repositories;
 
 namespace Microled.Nfe.LocalAgent.Api.Services;
 
@@ -19,17 +20,20 @@ public sealed class LocalAgentNotaFiscalSyncService
 
     private readonly IMainApiNotaFiscalClient _mainApiClient;
     private readonly INfeGateway _nfeGateway;
+    private readonly IAccessRpsRepository _accessRpsRepository;
     private readonly NfeIntegrationOptions _integrationOptions;
     private readonly ILogger<LocalAgentNotaFiscalSyncService> _logger;
 
     public LocalAgentNotaFiscalSyncService(
         IMainApiNotaFiscalClient mainApiClient,
         INfeGateway nfeGateway,
+        IAccessRpsRepository accessRpsRepository,
         IOptions<NfeIntegrationOptions> integrationOptions,
         ILogger<LocalAgentNotaFiscalSyncService> logger)
     {
         _mainApiClient = mainApiClient ?? throw new ArgumentNullException(nameof(mainApiClient));
         _nfeGateway = nfeGateway ?? throw new ArgumentNullException(nameof(nfeGateway));
+        _accessRpsRepository = accessRpsRepository ?? throw new ArgumentNullException(nameof(accessRpsRepository));
         _integrationOptions = integrationOptions.Value;
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -37,7 +41,8 @@ public sealed class LocalAgentNotaFiscalSyncService
     public async Task SyncSendResultAsync(
         SendRpsRequestDto request,
         SendRpsResponseDto response,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Guid? notaId = null)
     {
         if (!IsEnabled())
         {
@@ -54,12 +59,20 @@ public sealed class LocalAgentNotaFiscalSyncService
             CnpjPrestador = request.Prestador.CpfCnpj,
             Itens = request.RpsList.Select(rps => new PersistRpsItemRequest
             {
+                NotaId = request.RpsList.Count == 1 ? notaId : null,
                 NumeroRps = rps.NumeroRps.ToString(),
                 SerieRps = rps.SerieRps,
                 InscricaoPrestador = rps.InscricaoPrestador.ToString(),
                 CpfCnpjTomador = rps.Tomador?.CpfCnpj
             }).ToList(),
-            Autorizacoes = MapAutorizacoes(response.ChavesNFeRPS, response.Protocolo)
+            Autorizacoes = MapAutorizacoes(response.ChavesNFeRPS, response.Protocolo),
+            Erros = response.Erros
+                .Select(e => new NotaFiscalEventoDto
+                {
+                    Codigo = e.Codigo.ToString(),
+                    Descricao = e.Descricao ?? string.Empty
+                })
+                .ToList()
         };
 
         _logger.LogInformation(
@@ -73,6 +86,8 @@ public sealed class LocalAgentNotaFiscalSyncService
         await PersistAndLogAsync(
             "send-result",
             () => _mainApiClient.PersistSendResultAsync(persistRequest, cancellationToken));
+
+        await RecordAuthorizedNotasInAccessAsync(persistRequest.Autorizacoes, cancellationToken);
     }
 
     public async Task SyncBatchStatusAsync(
@@ -124,6 +139,53 @@ public sealed class LocalAgentNotaFiscalSyncService
         await PersistAndLogAsync(
             "batch-status",
             () => _mainApiClient.PersistBatchStatusAsync(persistRequest, cancellationToken));
+
+        await RecordAuthorizedNotasInAccessAsync(autorizacoes, cancellationToken);
+    }
+
+    /// <summary>
+    /// Para cada NFS-e autorizada, grava a linha na tabela NF do Access a partir do RPS de origem.
+    /// Falhas aqui nao afetam a persistencia principal (apenas log).
+    /// </summary>
+    private async Task RecordAuthorizedNotasInAccessAsync(
+        IEnumerable<PersistNfeAuthorizationItemRequest> autorizacoes,
+        CancellationToken cancellationToken)
+    {
+        foreach (var autorizacao in autorizacoes)
+        {
+            if (autorizacao.Status != NotaFiscalStatus.Authorized
+                || string.IsNullOrWhiteSpace(autorizacao.NumeroNota)
+                || string.IsNullOrWhiteSpace(autorizacao.NumeroRps))
+            {
+                continue;
+            }
+
+            try
+            {
+                var result = await _accessRpsRepository.InsertNfFromRpsAsync(
+                    new AccessNfEmitida
+                    {
+                        NumeroNota = autorizacao.NumeroNota,
+                        NumeroRps = autorizacao.NumeroRps,
+                        DataEmissao = autorizacao.DataEmissao?.LocalDateTime
+                    },
+                    cancellationToken);
+
+                _logger.LogInformation(
+                    "Tabela NF do Access: NFS-e {NumeroNota} (RPS {NumeroRps}) -> {Result}",
+                    autorizacao.NumeroNota,
+                    autorizacao.NumeroRps,
+                    result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Falha ao gravar NFS-e {NumeroNota} (RPS {NumeroRps}) na tabela NF do Access.",
+                    autorizacao.NumeroNota,
+                    autorizacao.NumeroRps);
+            }
+        }
     }
 
     private static List<PersistNfeAuthorizationItemRequest> BuildAutorizacoesFromResultado(

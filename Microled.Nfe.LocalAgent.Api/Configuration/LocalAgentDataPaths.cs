@@ -37,6 +37,7 @@ public static class LocalAgentDataPaths
             Directory.CreateDirectory(RpsOutputDirectory);
             Directory.CreateDirectory(ValidationOutputDirectory);
             Directory.CreateDirectory(LogsDirectory);
+            Directory.CreateDirectory(Path.Combine(BaseDirectory, "pending-queue"));
         }
         catch (Exception ex) when (ex is UnauthorizedAccessException or IOException)
         {

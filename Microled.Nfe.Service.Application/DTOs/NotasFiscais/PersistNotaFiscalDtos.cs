@@ -10,10 +10,15 @@ public sealed class PersistRpsSendResultRequest
     public string? CnpjPrestador { get; init; }
     public List<PersistRpsItemRequest> Itens { get; init; } = [];
     public List<PersistNfeAuthorizationItemRequest> Autorizacoes { get; init; } = [];
+
+    /// <summary>Erros retornados pela prefeitura quando o envio e rejeitado (gravados na nota).</summary>
+    public List<NotaFiscalEventoDto> Erros { get; init; } = [];
 }
 
 public sealed class PersistRpsItemRequest
 {
+    /// <summary>Nota ja gravada (RPS importado/enfileirado). Quando informado, tem prioridade sobre a busca por RPS.</summary>
+    public Guid? NotaId { get; init; }
     public string NumeroRps { get; init; } = string.Empty;
     public string? SerieRps { get; init; }
     public string InscricaoPrestador { get; init; } = string.Empty;

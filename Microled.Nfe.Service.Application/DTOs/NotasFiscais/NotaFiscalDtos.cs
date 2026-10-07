@@ -11,6 +11,7 @@ public sealed class CreateNotaFiscalRequest
     public string? CnpjPrestador { get; init; }
     public string? CpfCnpjTomador { get; init; }
     public string? Xml { get; init; }
+    public DateTimeOffset? DataEmissao { get; init; }
     public string CriadoPor { get; init; } = string.Empty;
 }
 

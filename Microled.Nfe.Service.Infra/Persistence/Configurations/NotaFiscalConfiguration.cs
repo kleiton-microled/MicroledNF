@@ -62,6 +62,10 @@ public sealed class NotaFiscalConfiguration : IEntityTypeConfiguration<NotaFisca
             .HasColumnName("xml")
             .HasColumnType("text");
 
+        builder.Property(x => x.ErrosEnvio)
+            .HasColumnName("erros_envio")
+            .HasColumnType("text");
+
         builder.Property(x => x.Pdf)
             .HasColumnName("pdf")
             .HasColumnType("bytea");

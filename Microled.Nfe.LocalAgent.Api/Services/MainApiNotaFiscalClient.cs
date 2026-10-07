@@ -94,6 +94,14 @@ public sealed class MainApiNotaFiscalClient : IMainApiNotaFiscalClient
         return payload?.Data?.Items ?? [];
     }
 
+    public Task<ApiResponse<NotaFiscalResponse>> CreateAsync(
+        CreateNotaFiscalRequest request,
+        CancellationToken cancellationToken) =>
+        PostAsync<CreateNotaFiscalRequest, NotaFiscalResponse>(
+            "api/v1/notas-fiscais",
+            request,
+            cancellationToken);
+
     private async Task<ApiResponse<TResponse>> PostAsync<TRequest, TResponse>(
         string relativeUrl,
         TRequest request,

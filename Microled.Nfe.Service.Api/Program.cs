@@ -19,6 +19,8 @@ using Microled.Nfe.Service.Infra.Interfaces;
 using Microled.Nfe.Service.Infra.Mapping;
 using Microled.Nfe.Service.Application.Interfaces.NotasFiscais;
 using Microled.Nfe.Service.Application.UseCases.NotasFiscais;
+using Microled.Nfe.Service.Application.Interfaces.Tomadores;
+using Microled.Nfe.Service.Application.UseCases.Tomadores;
 using Microled.Nfe.Service.Infra.Persistence;
 using Microled.Nfe.Service.Infra.Repositories;
 using Microled.Nfe.Service.Infra.Services;
@@ -128,6 +130,7 @@ builder.Services.AddScoped<INfeCancellationSignatureService, NfeCancellationSign
 builder.Services.AddScoped<ICertificateDiscoveryService, WindowsCertificateDiscoveryService>();
 builder.Services.AddScoped<ICompanyCertificateProfileRepository, JsonCompanyCertificateProfileRepository>();
 builder.Services.AddScoped<INotaFiscalRepository, NotaFiscalRepository>();
+builder.Services.AddScoped<ITomadorRepository, TomadorRepository>();
 builder.Services.AddScoped<INotaFiscalFlowPersistenceService, NotaFiscalFlowPersistenceService>();
 builder.Services.AddScoped<IAsyncRpsProtocolPersistenceOrchestrator, AsyncRpsProtocolPersistenceOrchestrator>();
 builder.Services.AddScoped<ICertificateProvider, CertificateProvider>();
@@ -257,6 +260,11 @@ builder.Services.AddScoped<IPersistBatchStatusDataUseCase, PersistBatchStatusDat
 builder.Services.AddScoped<IPersistConsultNfeResultUseCase, PersistConsultNfeResultUseCase>();
 builder.Services.AddScoped<IPersistCancelNfeResultUseCase, PersistCancelNfeResultUseCase>();
 builder.Services.AddScoped<IDeleteNotaFiscalUseCase, DeleteNotaFiscalUseCase>();
+builder.Services.AddScoped<ISearchTomadoresUseCase, SearchTomadoresUseCase>();
+builder.Services.AddScoped<IGetTomadorByCpfCnpjUseCase, GetTomadorByCpfCnpjUseCase>();
+builder.Services.AddScoped<ICreateTomadorUseCase, CreateTomadorUseCase>();
+builder.Services.AddScoped<IUpdateTomadorUseCase, UpdateTomadorUseCase>();
+builder.Services.AddScoped<IDeleteTomadorUseCase, DeleteTomadorUseCase>();
 
 // Add logging
 builder.Services.AddLogging();
@@ -333,10 +341,25 @@ if (app.Environment.IsDevelopment()
 //app.UseHttpsRedirection();
 app.UseCors("FrontendDevCors");
 
+// index.html e runtime-config.json sem cache: apos atualizar o instalador o navegador precisa
+// buscar o index novo, que referencia os bundles com hash da versao atual.
+var spaStaticFileOptions = new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+    {
+        var fileName = context.File.Name;
+        if (fileName.Equals("index.html", StringComparison.OrdinalIgnoreCase)
+            || fileName.Equals("runtime-config.json", StringComparison.OrdinalIgnoreCase))
+        {
+            context.Context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+        }
+    }
+};
+
 if (spaEnabled)
 {
     app.UseDefaultFiles();
-    app.UseStaticFiles();
+    app.UseStaticFiles(spaStaticFileOptions);
 }
 
 // Add global exception handler
@@ -368,7 +391,7 @@ app.MapHealthChecks("/health", healthCheckOptions);
 
 if (spaEnabled)
 {
-    app.MapFallbackToFile("index.html");
+    app.MapFallbackToFile("index.html", spaStaticFileOptions);
 }
 
 app.Run();

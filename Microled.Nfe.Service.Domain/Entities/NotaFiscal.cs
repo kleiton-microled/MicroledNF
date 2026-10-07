@@ -19,6 +19,9 @@ public sealed class NotaFiscal
     public string? CpfCnpjTomador { get; private set; }
     public NotaFiscalStatus Status { get; private set; }
     public string? Xml { get; private set; }
+
+    /// <summary>Erros devolvidos pela prefeitura no ultimo envio rejeitado (JSON). Limpo ao reenviar com sucesso.</summary>
+    public string? ErrosEnvio { get; private set; }
     public byte[]? Pdf { get; private set; }
     public DateTimeOffset? DataEmissao { get; private set; }
     public DateTimeOffset? DataCancelamento { get; private set; }
@@ -43,7 +46,8 @@ public sealed class NotaFiscal
         string? cnpjPrestador = null,
         string? cpfCnpjTomador = null,
         string? xml = null,
-        NotaFiscalStatus initialStatus = NotaFiscalStatus.Pending)
+        NotaFiscalStatus initialStatus = NotaFiscalStatus.Pending,
+        DateTimeOffset? dataEmissao = null)
     {
         if (string.IsNullOrWhiteSpace(criadoPor))
         {
@@ -61,6 +65,7 @@ public sealed class NotaFiscal
             CnpjPrestador = cnpjPrestador,
             CpfCnpjTomador = cpfCnpjTomador,
             Xml = xml,
+            DataEmissao = dataEmissao?.ToUniversalTime(),
             Status = string.IsNullOrWhiteSpace(xml) ? initialStatus : NotaFiscalStatus.Generated,
             CriadoPor = criadoPor.Trim(),
             CriadoEm = now
@@ -109,6 +114,7 @@ public sealed class NotaFiscal
             Xml = xml;
         }
 
+        ErrosEnvio = null;
         Status = NotaFiscalStatus.Processing;
         Touch(alteradoPor);
     }
@@ -136,6 +142,7 @@ public sealed class NotaFiscal
             Xml = xml;
         }
 
+        ErrosEnvio = null;
         Status = NotaFiscalStatus.Authorized;
         Touch(alteradoPor);
     }
@@ -164,11 +171,16 @@ public sealed class NotaFiscal
         Touch(alteradoPor);
     }
 
-    public void SetError(string alteradoPor, string? xml = null)
+    public void SetError(string alteradoPor, string? xml = null, string? errosEnvio = null)
     {
         if (!string.IsNullOrWhiteSpace(xml))
         {
             Xml = xml;
+        }
+
+        if (!string.IsNullOrWhiteSpace(errosEnvio))
+        {
+            ErrosEnvio = errosEnvio;
         }
 
         Status = NotaFiscalStatus.Error;

@@ -14,7 +14,7 @@ namespace Microled.Nfe.Service.Infra.Repositories;
 /// <summary>
 /// Repository implementation for reading RPS from Access database (.MDB)
 /// </summary>
-public class AccessRpsRepository : IAccessRpsRepository
+public partial class AccessRpsRepository : IAccessRpsRepository
 {
     private readonly AccessDatabaseOptions _options;
     private readonly NfeServiceOptions _nfeOptions;
@@ -261,6 +261,71 @@ public class AccessRpsRepository : IAccessRpsRepository
         return $"[{found}] AS {alias}";
     }
 
+    public async Task UpdateTaxValuesAsync(int recordId, RpsTaxValues values, CancellationToken cancellationToken)
+    {
+        var connectionString = BuildConnectionString(_options.DatabasePath);
+        using var connection = new OleDbConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+        var availableColumns = await GetAvailableColumnsAsync(connectionString, _options.RpsTableName, cancellationToken);
+        var primaryKeyColumn = ResolveRequiredColumnName(
+            availableColumns,
+            new[] { _options.PrimaryKeyColumn, "index", "Id", "ID" },
+            "PrimaryKeyColumn");
+
+        // Mesmos nomes aceitos na leitura (GetPendingRpsAsync); no MDB atual: BC, PIS, COFINS, IR, CSLL.
+        var targets = new (string[] Candidates, decimal? Value)[]
+        {
+            (new[] { "BC", "BaseCalculo", "Base_Calculo", "BaseCalculoFederal" }, values.BaseCalculo),
+            (new[] { "PIS", "ValorPIS", "Valor_PIS", "VlrPIS" }, values.ValorPIS),
+            (new[] { "COFINS", "ValorCOFINS", "Valor_COFINS", "VlrCOFINS" }, values.ValorCOFINS),
+            (new[] { "IR", "ValorIR", "Valor_IR", "VlrIR", "ValorIRRF" }, values.ValorIR),
+            (new[] { "CSLL", "ValorCSLL", "Valor_CSLL", "VlrCSLL" }, values.ValorCSLL),
+            (new[] { "Valor_liquido", "ValorLiquido", "Valor_Liquido_NF", "VlrLiquido" }, values.ValorLiquido)
+        };
+
+        var setParts = new List<string>();
+        var parameters = new List<double>();
+        foreach (var (candidates, value) in targets)
+        {
+            var column = candidates.FirstOrDefault(candidate =>
+                availableColumns.Any(ac => string.Equals(ac, candidate, StringComparison.OrdinalIgnoreCase)));
+            if (column is null || value is null)
+            {
+                continue;
+            }
+
+            setParts.Add($"[{column}] = ?");
+            parameters.Add((double)Math.Round(value.Value, 2, MidpointRounding.AwayFromZero));
+        }
+
+        if (setParts.Count == 0)
+        {
+            _logger.LogWarning(
+                "Nenhuma coluna de imposto (BC/PIS/COFINS/IR/CSLL/Valor_liquido) encontrada para atualizar. Table={Table}, RecordId={RecordId}",
+                _options.RpsTableName,
+                recordId);
+            return;
+        }
+
+        var updateQuery = $"UPDATE [{_options.RpsTableName}] SET {string.Join(", ", setParts)} WHERE [{primaryKeyColumn}] = ?";
+        using var command = new OleDbCommand(updateQuery, connection);
+        foreach (var parameter in parameters)
+        {
+            // OleDb usa parametros posicionais; Double e aceito por colunas Double/Currency/Decimal do Access.
+            command.Parameters.Add(new OleDbParameter { OleDbType = OleDbType.Double, Value = parameter });
+        }
+
+        command.Parameters.AddWithValue("@Id", recordId);
+        var affected = await command.ExecuteNonQueryAsync(cancellationToken);
+
+        _logger.LogInformation(
+            "Impostos gravados no Access: Table={Table}, RecordId={RecordId}, Colunas={Columns}, Linhas={Affected}",
+            _options.RpsTableName,
+            recordId,
+            string.Join(", ", setParts),
+            affected);
+    }
+
     private string ResolveRequiredColumnName(List<string> availableColumns, IEnumerable<string> candidates, string optionName)
     {
         var distinctCandidates = candidates
@@ -291,6 +356,31 @@ public class AccessRpsRepository : IAccessRpsRepository
         throw new InvalidOperationException(
             $"Required Access column for {optionName} was not found in table '{_options.RpsTableName}'. " +
             $"Expected one of: {expected}. Available columns: {available}.");
+    }
+
+    public async Task<int> CountPendingRpsAsync(CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrEmpty(_options.DatabasePath) || !File.Exists(_options.DatabasePath))
+        {
+            return 0;
+        }
+
+        var connectionString = BuildConnectionString(_options.DatabasePath);
+        using var connection = new OleDbConnection(connectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var availableColumns = await GetAvailableColumnsAsync(connectionString, _options.RpsTableName, cancellationToken);
+        var statusColumn = ResolveRequiredColumnName(
+            availableColumns,
+            new[] { _options.StatusColumn, "Processado", "Status" },
+            "StatusColumn");
+
+        var query = $"SELECT COUNT(*) FROM [{_options.RpsTableName}] WHERE [{statusColumn}] = ?";
+        using var command = new OleDbCommand(query, connection);
+        var statusValue = ResolveStatusParameterValue(connection, _options.RpsTableName, statusColumn, _options.PendingStatus);
+        command.Parameters.AddWithValue("@Status", statusValue);
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is null or DBNull ? 0 : Convert.ToInt32(result);
     }
 
     public async Task MarkAsSentAsync(IEnumerable<RpsRecord> rpsRecords, CancellationToken cancellationToken)

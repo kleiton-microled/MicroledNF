@@ -34,7 +34,7 @@ public static class NotaFiscalMapper
             AlteradoEm = nota.AlteradoEm,
             HasPdf = nota.Pdf is { Length: > 0 },
             HasXml = !string.IsNullOrWhiteSpace(nota.Xml),
-            Erros = erros,
+            Erros = NotaFiscalErrosEnvioSerializer.Deserialize(nota.ErrosEnvio).Concat(erros).ToList(),
             Alertas = alertas,
             TipoRps = rps.TipoRps,
             StatusRps = rps.StatusRps,

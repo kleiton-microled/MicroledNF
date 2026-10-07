@@ -47,6 +47,39 @@ public static class RpsEndpoints
             return TypedResults.Ok(response);
         });
 
+        group.MapPost("/queue-pending", async Task<Results<Ok<QueuePendingRpsResponse>, ValidationProblem>> (
+            QueuePendingRpsRequest request,
+            IValidator<SendRpsRequestDto> validator,
+            LocalRpsProcessingService processingService,
+            CancellationToken cancellationToken) =>
+        {
+            if (request.Request is null)
+            {
+                return TypedResults.ValidationProblem(new Dictionary<string, string[]>
+                {
+                    ["request"] = ["Informe o RPS a importar."]
+                });
+            }
+
+            var validationProblem = await EndpointValidation.ValidateAsync(request.Request, validator, cancellationToken);
+            if (validationProblem is not null)
+            {
+                return validationProblem;
+            }
+
+            var response = await processingService.QueuePendingAsync(request, cancellationToken);
+            return TypedResults.Ok(response);
+        });
+
+        group.MapPost("/process-queued/{notaId:guid}", async Task<Ok<LocalRpsProcessResponse>> (
+            Guid notaId,
+            LocalRpsProcessingService processingService,
+            CancellationToken cancellationToken) =>
+        {
+            var response = await processingService.ProcessQueuedAsync(notaId, cancellationToken);
+            return TypedResults.Ok(response);
+        });
+
         group.MapPost("/status", async Task<Results<Ok<ConsultBatchStatusResponseDto>, ValidationProblem>> (
             ConsultBatchStatusRequestDto request,
             IValidator<ConsultBatchStatusRequestDto> validator,

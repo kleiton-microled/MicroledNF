@@ -137,6 +137,7 @@ builder.Services.AddScoped<AccessRpsPayloadMapper>();
 builder.Services.AddScoped<ConsultaNfeXsdValidator>();
 builder.Services.AddScoped<CancelamentoNfeXsdValidator>();
 builder.Services.AddScoped<CertificateUnlockService>();
+builder.Services.AddSingleton<PendingRpsQueueStore>();
 builder.Services.AddScoped<LocalRpsProcessingService>();
 builder.Services.AddScoped<LocalAgentNotaFiscalSyncService>();
 builder.Services.AddHttpClient<IMainApiNotaFiscalClient, MainApiNotaFiscalClient>(client =>

@@ -32,7 +32,8 @@ public sealed class CreateNotaFiscalUseCase : ICreateNotaFiscalUseCase
             inscricaoPrestador: request.InscricaoPrestador,
             cnpjPrestador: request.CnpjPrestador,
             cpfCnpjTomador: request.CpfCnpjTomador,
-            xml: request.Xml);
+            xml: request.Xml,
+            dataEmissao: request.DataEmissao);
 
         await _repository.AddAsync(nota, cancellationToken);
         return ApiResponse<NotaFiscalResponse>.Ok(NotaFiscalMapper.ToResponse(nota));

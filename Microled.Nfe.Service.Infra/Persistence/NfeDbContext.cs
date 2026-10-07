@@ -12,6 +12,8 @@ public sealed class NfeDbContext : DbContext
 
     public DbSet<NotaFiscal> NotasFiscais => Set<NotaFiscal>();
 
+    public DbSet<Tomador> Tomadores => Set<Tomador>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(NfeDbContext).Assembly);
